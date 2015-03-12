@@ -33,10 +33,9 @@ define("property-compiler/property-compiler", ["exports", "module", "property-co
         tmpPath,
         attrs = [],
         workingpath = [],
-        terminators = [";", ",", "==", ">", "<", ">=", "<=", ">==", "<==", "!=", "!==", "===", "&&", "||", "+", "-", "/", "*"];
+        terminators = [";", ",", "==", ">", "<", ">=", "<=", ">==", "<==", "!=", "!==", "===", "&&", "||", "+", "-", "/", "*", "{", "}"];
     do {
       token = nextToken();
-      console.log(token.value, token.type.type);
 
       if (token.value === "this") {
         listening++;

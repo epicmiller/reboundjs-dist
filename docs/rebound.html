@@ -6469,11 +6469,10 @@ import tokenizer from <span class="hljs-string">"property-compiler/tokenizer"</s
       tmpPath,
       attrs = [],
       workingpath = [],
-      terminators = [<span class="hljs-string">';'</span>,<span class="hljs-string">','</span>,<span class="hljs-string">'=='</span>,<span class="hljs-string">'&gt;'</span>,<span class="hljs-string">'&lt;'</span>,<span class="hljs-string">'&gt;='</span>,<span class="hljs-string">'&lt;='</span>,<span class="hljs-string">'&gt;=='</span>,<span class="hljs-string">'&lt;=='</span>,<span class="hljs-string">'!='</span>,<span class="hljs-string">'!=='</span>, <span class="hljs-string">'==='</span>, <span class="hljs-string">'&amp;&amp;'</span>, <span class="hljs-string">'||'</span>, <span class="hljs-string">'+'</span>, <span class="hljs-string">'-'</span>, <span class="hljs-string">'/'</span>, <span class="hljs-string">'*'</span>];
+      terminators = [<span class="hljs-string">';'</span>,<span class="hljs-string">','</span>,<span class="hljs-string">'=='</span>,<span class="hljs-string">'&gt;'</span>,<span class="hljs-string">'&lt;'</span>,<span class="hljs-string">'&gt;='</span>,<span class="hljs-string">'&lt;='</span>,<span class="hljs-string">'&gt;=='</span>,<span class="hljs-string">'&lt;=='</span>,<span class="hljs-string">'!='</span>,<span class="hljs-string">'!=='</span>, <span class="hljs-string">'==='</span>, <span class="hljs-string">'&amp;&amp;'</span>, <span class="hljs-string">'||'</span>, <span class="hljs-string">'+'</span>, <span class="hljs-string">'-'</span>, <span class="hljs-string">'/'</span>, <span class="hljs-string">'*'</span>, <span class="hljs-string">'{'</span>, <span class="hljs-string">'}'</span>];
   <span class="hljs-keyword">do</span>{
 
     token = nextToken();
-    <span class="hljs-built_in">console</span>.log(token.value, token.type.type);
 
     <span class="hljs-keyword">if</span>(token.value === <span class="hljs-string">'this'</span>){
       listening++;
