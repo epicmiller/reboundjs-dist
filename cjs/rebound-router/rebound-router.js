@@ -212,7 +212,7 @@ var ReboundRouter = Backbone.Router.extend({
     this.config = options.config;
     this.config.handlers = [];
 
-    var absoluteUrl = new RegExp("^(?:[a-z]+:)?//", "i"),
+    var remoteUrl = /^([a-z]+:)|^(\/\/)|^([^\/]+\.)/,
         router = this;
 
     // Convert our routeMappings to regexps and push to our handlers
@@ -225,8 +225,8 @@ var ReboundRouter = Backbone.Router.extend({
     $(document).on("click", "a", function (e) {
       var path = e.target.getAttribute("href");
 
-      // If path is not an absolute url, or blank, try and navigate to that route.
-      if (path !== "#" && path !== "" && !absoluteUrl.test(path)) {
+      // If path is not an remote url, ends in .[a-z], or blank, try and navigate to that route.
+      if (path && path !== "#" && !remoteUrl.test(path)) {
         e.preventDefault();
         router.navigate(path, { trigger: true });
       }

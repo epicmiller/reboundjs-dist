@@ -36,6 +36,7 @@ define("property-compiler/property-compiler", ["exports", "module", "property-co
         terminators = [";", ",", "==", ">", "<", ">=", "<=", ">==", "<==", "!=", "!==", "===", "&&", "||", "+", "-", "/", "*"];
     do {
       token = nextToken();
+      console.log(token.value, token.type.type);
 
       if (token.value === "this") {
         listening++;
@@ -94,7 +95,7 @@ define("property-compiler/property-compiler", ["exports", "module", "property-co
         workingpath.push(attrs);
       }
 
-      if (listening && _.indexOf(terminators, token.type.type) > -1 || _.indexOf(terminators, token.value) > -1) {
+      if (listening && (_.indexOf(terminators, token.type.type) > -1 || _.indexOf(terminators, token.value) > -1)) {
         workingpath = _.reduce(workingpath, function (memo, paths) {
           var newMemo = [];
           paths = !_.isArray(paths) ? [paths] : paths;

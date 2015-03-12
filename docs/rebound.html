@@ -5548,7 +5548,8 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
             <div class="content"><div class='highlight'><pre>      <span class="hljs-keyword">this</span>.config = options.config;
       <span class="hljs-keyword">this</span>.config.handlers = [];
 
-      <span class="hljs-keyword">var</span> absoluteUrl = <span class="hljs-keyword">new</span> <span class="hljs-built_in">RegExp</span>(<span class="hljs-string">'^(?:[a-z]+:)?//'</span>, <span class="hljs-string">'i'</span>),
+      <span class="hljs-keyword">var</span> remoteUrl = <span class="hljs-regexp">/^([a-z]+:)|^(\/\/)|^([^\/]+\.)/</span>,
+
       router = <span class="hljs-keyword">this</span>;</pre></div></div>
             
         </li>
@@ -5595,11 +5596,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-261">&#182;</a>
               </div>
-              <p>If path is not an absolute url, or blank, try and navigate to that route.</p>
+              <p>If path is not an remote url, ends in .[a-z], or blank, try and navigate to that route.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>        <span class="hljs-keyword">if</span>(path !== <span class="hljs-string">'#'</span> &amp;&amp; path !== <span class="hljs-string">''</span> &amp;&amp; !absoluteUrl.test(path)){
+            <div class="content"><div class='highlight'><pre>        <span class="hljs-keyword">if</span>( path &amp;&amp; path !== <span class="hljs-string">'#'</span> &amp;&amp; !remoteUrl.test(path) ){
           e.preventDefault();
           router.navigate(path, {trigger: <span class="hljs-literal">true</span>});
         }
@@ -6472,6 +6473,7 @@ import tokenizer from <span class="hljs-string">"property-compiler/tokenizer"</s
   <span class="hljs-keyword">do</span>{
 
     token = nextToken();
+    <span class="hljs-built_in">console</span>.log(token.value, token.type.type);
 
     <span class="hljs-keyword">if</span>(token.value === <span class="hljs-string">'this'</span>){
       listening++;
@@ -6569,7 +6571,7 @@ workingpath.push(‘[‘ + path.value + ‘]’);</p>
       workingpath.push(attrs);
     }
 
-    <span class="hljs-keyword">if</span>(listening &amp;&amp; _.indexOf(terminators, token.type.type) &gt; -<span class="hljs-number">1</span> || _.indexOf(terminators, token.value) &gt; -<span class="hljs-number">1</span>){
+    <span class="hljs-keyword">if</span>(listening &amp;&amp; (_.indexOf(terminators, token.type.type) &gt; -<span class="hljs-number">1</span> || _.indexOf(terminators, token.value) &gt; -<span class="hljs-number">1</span>)){
       workingpath = _.reduce(workingpath, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(memo, paths)</span></span>{
         <span class="hljs-keyword">var</span> newMemo = [];
         paths = (!_.isArray(paths)) ? [paths] : paths;
