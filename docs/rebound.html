@@ -6794,8 +6794,8 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
 
             </div>
             
-            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">getScript</span><span class="hljs-params">(str)</span></span>{
-  <span class="hljs-keyword">return</span> (str.indexOf(<span class="hljs-string">'&lt;script&gt;'</span>) &gt; -<span class="hljs-number">1</span> &amp;&amp; str.indexOf(<span class="hljs-string">'&lt;/script&gt;'</span>) &gt; -<span class="hljs-number">1</span>) ? <span class="hljs-string">'(function(){'</span> + str.replace(<span class="hljs-regexp">/(.*&lt;script&gt;)(.*)(&lt;\/script&gt;.*)/ig</span>, <span class="hljs-string">'$2'</span>) + <span class="hljs-string">'})()'</span> : <span class="hljs-string">'{}'</span>;
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">getScript</span><span class="hljs-params">(str)</span> </span>{
+  <span class="hljs-keyword">return</span> str.indexOf(<span class="hljs-string">"&lt;script&gt;"</span>) &gt; -<span class="hljs-number">1</span> &amp;&amp; str.indexOf(<span class="hljs-string">"&lt;/script&gt;"</span>) &gt; -<span class="hljs-number">1</span> ? <span class="hljs-string">"(function(){"</span> + str.replace(<span class="hljs-regexp">/([^]*&lt;script&gt;)([^]*)(&lt;\/script&gt;[^]*)/ig</span>, <span class="hljs-string">"$2"</span>) + <span class="hljs-string">"})()"</span> : <span class="hljs-string">"{}"</span>;
 }</pre></div></div>
             
         </li>
@@ -6811,8 +6811,8 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
 
             </div>
             
-            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">getStyle</span><span class="hljs-params">(str)</span></span>{
-  <span class="hljs-keyword">return</span> (str.indexOf(<span class="hljs-string">'&lt;style&gt;'</span>) &gt; -<span class="hljs-number">1</span> &amp;&amp; str.indexOf(<span class="hljs-string">'&lt;/style&gt;'</span>) &gt; -<span class="hljs-number">1</span>) ? str.replace(<span class="hljs-regexp">/(.*&lt;style&gt;)(.*)(&lt;\/style&gt;.*)/ig</span>, <span class="hljs-string">'$2'</span>).replace(<span class="hljs-regexp">/"/g</span>, <span class="hljs-string">'\\"'</span>) : <span class="hljs-string">''</span>;
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">getStyle</span><span class="hljs-params">(str)</span> </span>{
+  <span class="hljs-keyword">return</span> str.indexOf(<span class="hljs-string">"&lt;style&gt;"</span>) &gt; -<span class="hljs-number">1</span> &amp;&amp; str.indexOf(<span class="hljs-string">"&lt;/style&gt;"</span>) &gt; -<span class="hljs-number">1</span> ? str.replace(<span class="hljs-regexp">/([^]*&lt;style&gt;)([^]*)(&lt;\/style&gt;[^]*)/ig</span>, <span class="hljs-string">"$2"</span>).replace(<span class="hljs-regexp">/"/g</span>, <span class="hljs-string">"\\\""</span>) : <span class="hljs-string">""</span>;
 }</pre></div></div>
             
         </li>
@@ -6828,8 +6828,8 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
 
             </div>
             
-            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">getTemplate</span><span class="hljs-params">(str)</span></span>{
-  <span class="hljs-keyword">return</span> str.replace(<span class="hljs-regexp">/.*&lt;template&gt;(.*)&lt;\/template&gt;.*/gi</span>, <span class="hljs-string">'$1'</span>).replace(<span class="hljs-regexp">/(.*)&lt;style&gt;.*&lt;\/style&gt;(.*)/ig</span>, <span class="hljs-string">'$1$2'</span>);
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">getTemplate</span><span class="hljs-params">(str)</span> </span>{
+  <span class="hljs-keyword">return</span> str.replace(<span class="hljs-regexp">/[^]*&lt;template&gt;([^]*)&lt;\/template&gt;[^]*/gi</span>, <span class="hljs-string">"$1"</span>).replace(<span class="hljs-regexp">/([^]*)&lt;style&gt;[^]*&lt;\/style&gt;([^]*)/ig</span>, <span class="hljs-string">"$1$2"</span>);
 }</pre></div></div>
             
         </li>
@@ -6845,8 +6845,8 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
 
             </div>
             
-            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">getName</span><span class="hljs-params">(str)</span></span>{
-  <span class="hljs-keyword">return</span> str.replace(<span class="hljs-regexp">/.*&lt;element[^&gt;]*name=(["'])?([^'"&gt;\s]+)\1[^&lt;&gt;]*&gt;.*/ig</span>, <span class="hljs-string">'$2'</span>);
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">getName</span><span class="hljs-params">(str)</span> </span>{
+  <span class="hljs-keyword">return</span> str.replace(<span class="hljs-regexp">/[^]*&lt;element[^&gt;]*name=(["'])?([^'"&gt;\s]+)\1[^&lt;&gt;]*&gt;[^]*/ig</span>, <span class="hljs-string">"$2"</span>);
 }</pre></div></div>
             
         </li>
@@ -6862,8 +6862,8 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
 
             </div>
             
-            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">minify</span><span class="hljs-params">(str)</span></span>{
-  <span class="hljs-keyword">return</span> str.replace(<span class="hljs-regexp">/\s+/g</span>, <span class="hljs-string">' '</span>).replace(<span class="hljs-regexp">/\n|(&gt;) (&lt;)/g</span>, <span class="hljs-string">'$1$2'</span>);
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">minify</span><span class="hljs-params">(str)</span> </span>{
+  <span class="hljs-keyword">return</span> str.replace(<span class="hljs-regexp">/\s+/g</span>, <span class="hljs-string">" "</span>).replace(<span class="hljs-regexp">/\n|(&gt;) (&lt;)/g</span>, <span class="hljs-string">"$1$2"</span>);
 }</pre></div></div>
             
         </li>
@@ -6879,8 +6879,8 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
 
             </div>
             
-            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">removeComments</span><span class="hljs-params">(str)</span></span>{
-  <span class="hljs-keyword">return</span> str.replace(<span class="hljs-regexp">/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm</span>, <span class="hljs-string">'$1'</span>);
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">removeComments</span><span class="hljs-params">(str)</span> </span>{
+  <span class="hljs-keyword">return</span> str.replace(<span class="hljs-regexp">/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm</span>, <span class="hljs-string">"$1"</span>);
 }
 
 <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">templateFunc</span><span class="hljs-params">(fn)</span> </span>{
@@ -6918,27 +6918,14 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-318">&#182;</a>
               </div>
-              <p>Remove comments</p>
+              <p>Remove comments
+str = removeComments(str);
+Minify everything
+str = minify(str);</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  str = removeComments(str);</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-319">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-319">&#182;</a>
-              </div>
-              <p>Minify everything</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>  str = minify(str);
-
+            <div class="content"><div class='highlight'><pre>
   options = options || {};
   options.baseDest = options.baseDest || <span class="hljs-string">''</span>;
   options.name = options.name || <span class="hljs-string">''</span>;
@@ -6957,11 +6944,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-320">
+        <li id="section-319">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-320">&#182;</a>
+                <a class="pilcrow" href="#section-319">&#182;</a>
               </div>
               <p>If the element tag is present</p>
 
@@ -6981,11 +6968,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-321">
+        <li id="section-320">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-321">&#182;</a>
+                <a class="pilcrow" href="#section-320">&#182;</a>
               </div>
               <p>Assemple our component dependancies by finding link tags and parsing their src</p>
 
@@ -7004,11 +6991,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-322">
+        <li id="section-321">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-322">&#182;</a>
+                <a class="pilcrow" href="#section-321">&#182;</a>
               </div>
               <p>Remove link tags from template</p>
 
@@ -7019,11 +7006,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-323">
+        <li id="section-322">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-323">&#182;</a>
+                <a class="pilcrow" href="#section-322">&#182;</a>
               </div>
               <p>Assemble our partial dependancies</p>
 
@@ -7040,11 +7027,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-324">
+        <li id="section-323">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-324">&#182;</a>
+                <a class="pilcrow" href="#section-323">&#182;</a>
               </div>
               <p>Compile</p>
 
@@ -7055,11 +7042,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-325">
+        <li id="section-324">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-325">&#182;</a>
+                <a class="pilcrow" href="#section-324">&#182;</a>
               </div>
               <p>If is a partial</p>
 
@@ -7072,11 +7059,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-326">
+        <li id="section-325">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-326">&#182;</a>
+                <a class="pilcrow" href="#section-325">&#182;</a>
               </div>
               <p>Else, is a component</p>
 
@@ -7094,11 +7081,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-327">
+        <li id="section-326">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-327">&#182;</a>
+                <a class="pilcrow" href="#section-326">&#182;</a>
               </div>
               <p>Wrap in define</p>
 

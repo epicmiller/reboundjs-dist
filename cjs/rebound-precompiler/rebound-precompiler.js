@@ -9,22 +9,22 @@ var htmlbarsCompileSpec = require("htmlbars").compileSpec;
 
 // Remove the contents of the component's `script` tag.
 function getScript(str) {
-  return str.indexOf("<script>") > -1 && str.indexOf("</script>") > -1 ? "(function(){" + str.replace(/(.*<script>)(.*)(<\/script>.*)/ig, "$2") + "})()" : "{}";
+  return str.indexOf("<script>") > -1 && str.indexOf("</script>") > -1 ? "(function(){" + str.replace(/([^]*<script>)([^]*)(<\/script>[^]*)/ig, "$2") + "})()" : "{}";
 }
 
 // Remove the contents of the component's `style` tag.
 function getStyle(str) {
-  return str.indexOf("<style>") > -1 && str.indexOf("</style>") > -1 ? str.replace(/(.*<style>)(.*)(<\/style>.*)/ig, "$2").replace(/"/g, "\\\"") : "";
+  return str.indexOf("<style>") > -1 && str.indexOf("</style>") > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, "$2").replace(/"/g, "\\\"") : "";
 }
 
 // Remove the contents of the component's `template` tag.
 function getTemplate(str) {
-  return str.replace(/.*<template>(.*)<\/template>.*/gi, "$1").replace(/(.*)<style>.*<\/style>(.*)/ig, "$1$2");
+  return str.replace(/[^]*<template>([^]*)<\/template>[^]*/gi, "$1").replace(/([^]*)<style>[^]*<\/style>([^]*)/ig, "$1$2");
 }
 
 // Get the component's name from its `name` attribute.
 function getName(str) {
-  return str.replace(/.*<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>.*/ig, "$2");
+  return str.replace(/[^]*<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, "$2");
 }
 
 // Minify the string passed in by replacing all whitespace.
@@ -64,9 +64,9 @@ function precompile(str, options) {
   }
 
   // Remove comments
-  str = removeComments(str);
+  // str = removeComments(str);
   // Minify everything
-  str = minify(str);
+  // str = minify(str);
 
   options = options || {};
   options.baseDest = options.baseDest || "";
