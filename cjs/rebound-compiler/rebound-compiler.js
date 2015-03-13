@@ -10,7 +10,7 @@ var _interopRequire = function (obj) {
 var htmlbarsCompile = require("htmlbars-compiler/compiler").compile;
 var htmlbarsCompileSpec = require("htmlbars-compiler/compiler").compileSpec;
 var merge = require("htmlbars-util/object-utils").merge;
-var DOMHelper = _interopRequire(require("morph/dom-helper"));
+var DOMHelper = _interopRequire(require("dom-helper"));
 
 var helpers = _interopRequire(require("rebound-component/helpers"));
 

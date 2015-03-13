@@ -1,4 +1,4 @@
-define("rebound-compiler/rebound-compiler", ["exports", "htmlbars-compiler/compiler", "htmlbars-util/object-utils", "morph/dom-helper", "rebound-component/helpers", "rebound-component/hooks"], function (exports, _htmlbarsCompilerCompiler, _htmlbarsUtilObjectUtils, _morphDomHelper, _reboundComponentHelpers, _reboundComponentHooks) {
+define("rebound-compiler/rebound-compiler", ["exports", "htmlbars-compiler/compiler", "htmlbars-util/object-utils", "dom-helper", "rebound-component/helpers", "rebound-component/hooks"], function (exports, _htmlbarsCompilerCompiler, _htmlbarsUtilObjectUtils, _domHelper, _reboundComponentHelpers, _reboundComponentHooks) {
   "use strict";
 
   // Rebound Compiler
@@ -7,7 +7,7 @@ define("rebound-compiler/rebound-compiler", ["exports", "htmlbars-compiler/compi
   var htmlbarsCompile = _htmlbarsCompilerCompiler.compile;
   var htmlbarsCompileSpec = _htmlbarsCompilerCompiler.compileSpec;
   var merge = _htmlbarsUtilObjectUtils.merge;
-  var DOMHelper = to5Runtime.interopRequire(_morphDomHelper);
+  var DOMHelper = to5Runtime.interopRequire(_domHelper);
 
   var helpers = to5Runtime.interopRequire(_reboundComponentHelpers);
 

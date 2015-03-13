@@ -232,7 +232,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       value = lazyValue.value();
       value = _.isUndefined(value) ? "" : value;
       if (!_.isNull(value)) {
-        morph.append(value);
+        morph.appendContent(value);
       }
 
       // Observe this content morph's parent's children.
@@ -276,7 +276,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       value = lazyValue.value();
       value = _.isUndefined(value) ? "" : value;
       if (!_.isNull(value)) {
-        morph.append(value);
+        morph.appendContent(value);
       }
 
       // Observe this content morph's parent's children.
@@ -315,7 +315,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       value = lazyValue.value();
       value = _.isUndefined(value) ? "" : value;
       if (!_.isNull(value)) {
-        morph.append(value);
+        morph.appendContent(value);
       }
 
       // Observe this content morph's parent's children.
@@ -547,7 +547,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
       value = lazyValue.value();
       if (value !== undefined) {
-        morph.append(value);
+        morph.appendContent(value);
       }
     }
   };

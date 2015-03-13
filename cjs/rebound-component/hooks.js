@@ -235,7 +235,7 @@ hooks.block = function block(env, morph, context, path, params, hash, template, 
     value = lazyValue.value();
     value = _.isUndefined(value) ? "" : value;
     if (!_.isNull(value)) {
-      morph.append(value);
+      morph.appendContent(value);
     }
 
     // Observe this content morph's parent's children.
@@ -279,7 +279,7 @@ hooks.inline = function inline(env, morph, context, path, params, hash) {
     value = lazyValue.value();
     value = _.isUndefined(value) ? "" : value;
     if (!_.isNull(value)) {
-      morph.append(value);
+      morph.appendContent(value);
     }
 
     // Observe this content morph's parent's children.
@@ -318,7 +318,7 @@ hooks.content = function content(env, morph, context, path) {
     value = lazyValue.value();
     value = _.isUndefined(value) ? "" : value;
     if (!_.isNull(value)) {
-      morph.append(value);
+      morph.appendContent(value);
     }
 
     // Observe this content morph's parent's children.
@@ -550,7 +550,7 @@ hooks.component = function (env, morph, context, tagName, contextData, template)
 
     value = lazyValue.value();
     if (value !== undefined) {
-      morph.append(value);
+      morph.appendContent(value);
     }
   }
 };

@@ -7,7 +7,7 @@ var _interopRequire = function (obj) {
 // Rebound Component
 // ----------------
 
-var DOMHelper = _interopRequire(require("morph/dom-helper"));
+var DOMHelper = _interopRequire(require("dom-helper"));
 
 var hooks = _interopRequire(require("rebound-component/hooks"));
 

@@ -1,10 +1,10 @@
-define("rebound-component/component", ["exports", "module", "morph/dom-helper", "rebound-component/hooks", "rebound-component/helpers", "rebound-component/utils", "rebound-data/rebound-data"], function (exports, module, _morphDomHelper, _reboundComponentHooks, _reboundComponentHelpers, _reboundComponentUtils, _reboundDataReboundData) {
+define("rebound-component/component", ["exports", "module", "dom-helper", "rebound-component/hooks", "rebound-component/helpers", "rebound-component/utils", "rebound-data/rebound-data"], function (exports, module, _domHelper, _reboundComponentHooks, _reboundComponentHelpers, _reboundComponentUtils, _reboundDataReboundData) {
   "use strict";
 
   // Rebound Component
   // ----------------
 
-  var DOMHelper = to5Runtime.interopRequire(_morphDomHelper);
+  var DOMHelper = to5Runtime.interopRequire(_domHelper);
 
   var hooks = to5Runtime.interopRequire(_reboundComponentHooks);
 
