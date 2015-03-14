@@ -94,7 +94,7 @@ function fetchResources(appName, primaryRoute, isGlobal) {
       PageApp;
 
   // Only Load CSS If Not Loaded Before
-  if (!cssElement) {
+  if (cssElement === null) {
     cssElement = document.createElement("link");
     cssElement.setAttribute("type", "text/css");
     cssElement.setAttribute("rel", "stylesheet");
@@ -120,7 +120,7 @@ function fetchResources(appName, primaryRoute, isGlobal) {
   }
   // If it has been loaded bevore, enable it
   else {
-    cssElement.removeAttribute("disabled");
+    cssElement && cssElement.removeAttribute("disabled");
     cssLoaded = true;
   }
 

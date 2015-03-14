@@ -91,7 +91,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
         PageApp;
 
     // Only Load CSS If Not Loaded Before
-    if (!cssElement) {
+    if (cssElement === null) {
       cssElement = document.createElement("link");
       cssElement.setAttribute("type", "text/css");
       cssElement.setAttribute("rel", "stylesheet");
@@ -117,7 +117,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
     }
     // If it has been loaded bevore, enable it
     else {
-      cssElement.removeAttribute("disabled");
+      cssElement && cssElement.removeAttribute("disabled");
       cssLoaded = true;
     }
 
