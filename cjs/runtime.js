@@ -4,7 +4,7 @@ var _interopRequire = function (obj) {
   return obj && (obj["default"] || obj);
 };
 
-//     Rebound.js 0.0.47
+//     Rebound.js 0.0.60
 
 //     (c) 2015 Adam Miller
 //     Rebound may be freely distributed under the MIT license.
