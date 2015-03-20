@@ -97,17 +97,17 @@ define("rebound-component/helpers", ["exports", "module", "rebound-component/laz
         data = hash;
 
     // By default everything is delegated on the parent component
-    // if(len === 2){
-    callback = params[1];
-    delegate = options.element;
-    element = this.el || options.element;
-    // }
-    // // If a selector is provided, delegate on the helper's element
-    // else if(len === 3){
-    //   callback = params[2];
-    //   delegate = params[1];
-    //   element = options.element;
-    // }
+    if (len === 2) {
+      callback = params[1];
+      delegate = options.element;
+      element = this.el || options.element;
+    }
+    // If a selector is provided, delegate on the helper's element
+    else if (len === 3) {
+      callback = params[2];
+      delegate = params[1];
+      element = options.element;
+    }
 
     // Attach event
     $(element).on(eventName, delegate, hash, function (event) {

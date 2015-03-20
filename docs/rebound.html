@@ -2973,14 +2973,15 @@ helpers.on = <span class="hljs-function"><span class="hljs-keyword">function</sp
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-137">&#182;</a>
               </div>
-              <p>By default everything is delegated on the parent component
-if(len === 2){</p>
+              <p>By default everything is delegated on the parent component</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    callback = params[<span class="hljs-number">1</span>];
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span>(len === <span class="hljs-number">2</span>){
+    callback = params[<span class="hljs-number">1</span>];
     delegate = options.element;
-    element = (<span class="hljs-keyword">this</span>.el || options.element);</pre></div></div>
+    element = (<span class="hljs-keyword">this</span>.el || options.element);
+  }</pre></div></div>
             
         </li>
         
@@ -2991,15 +2992,15 @@ if(len === 2){</p>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-138">&#182;</a>
               </div>
-              <p>}
-// If a selector is provided, delegate on the helper’s element
-else if(len === 3){
-  callback = params[2];
-  delegate = params[1];
-  element = options.element;
-}</p>
+              <p>If a selector is provided, delegate on the helper’s element</p>
 
             </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span>(len === <span class="hljs-number">3</span>){
+    callback = params[<span class="hljs-number">2</span>];
+    delegate = params[<span class="hljs-number">1</span>];
+    element = options.element;
+  }</pre></div></div>
             
         </li>
         
