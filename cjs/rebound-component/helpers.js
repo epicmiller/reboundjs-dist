@@ -24,12 +24,9 @@ helpers.registerPartial = function (name, func) {
 };
 
 // lookupHelper returns the given function from the helpers object. Manual checks prevent user from overriding reserved words.
-helpers.lookupHelper = function (name, env, context) {
-  env = env || {};
-
-  name = $.splitPath(name)[0];
-
-  // If a reserved helpers, return it
+helpers.lookupHelper = function (name, env) {
+  env && env.helpers || (env = { helpers: {} });
+  // If a reserved helper, return it
   if (name === "attribute") {
     return this.attribute;
   }
@@ -42,21 +39,21 @@ helpers.lookupHelper = function (name, env, context) {
   if (name === "each") {
     return this.each;
   }
-  if (name === "with") {
-    return this["with"];
-  }
   if (name === "partial") {
     return this.partial;
-  }
-  if (name === "length") {
-    return this.length;
   }
   if (name === "on") {
     return this.on;
   }
+  if (name === "debugger") {
+    return this["debugger"];
+  }
+  if (name === "log") {
+    return this.log;
+  }
 
   // If not a reserved helper, check env, then global helpers, else return false
-  return env.helpers && _.isObject(context) && _.isObject(env.helpers[context.cid]) && env.helpers[context.cid][name] || helpers[name] || false;
+  return env.helpers[name] || helpers[name] || false;
 };
 
 helpers.registerHelper = function (name, callback, params) {
@@ -83,6 +80,16 @@ helpers.registerHelper = function (name, callback, params) {
         Default helpers
 ********************************/
 
+helpers["debugger"] = function (params, hash, options, env) {
+  debugger;
+  return "";
+};
+
+helpers.log = function (params, hash, options, env) {
+  console.log.apply(console, params);
+  return "";
+};
+
 helpers.on = function (params, hash, options, env) {
   var i,
       callback,
@@ -93,22 +100,21 @@ helpers.on = function (params, hash, options, env) {
       data = hash;
 
   // By default everything is delegated on the parent component
-  if (len === 2) {
-    callback = params[1];
-    delegate = options.element;
-    element = this.el || options.element;
-  }
-  // If a selector is provided, delegate on the helper's element
-  else if (len === 3) {
-    callback = params[2];
-    delegate = params[1];
-    element = options.element;
-  }
+  // if(len === 2){
+  callback = params[1];
+  delegate = options.element;
+  element = this.el || options.element;
+  // }
+  // // If a selector is provided, delegate on the helper's element
+  // else if(len === 3){
+  //   callback = params[2];
+  //   delegate = params[1];
+  //   element = options.element;
+  // }
 
   // Attach event
-  $(element).on(eventName, delegate, data, function (event) {
-    event.context = options.context;
-    return options.helpers.__callOnComponent(callback, event);
+  $(element).on(eventName, delegate, hash, function (event) {
+    return env.helpers.__callOnComponent(callback, event);
   });
 };
 
@@ -145,17 +151,17 @@ helpers["if"] = function (params, hash, options, env) {
   }
 
   // Check our cache. If the value hasn't actually changed, don't evaluate. Important for re-rendering of #each helpers.
-  if (options.placeholder.__ifCache === condition) {
+  if (options.morph.__ifCache === condition) {
     return null; // Return null prevent's re-rending of our placeholder.
   }
 
-  options.placeholder.__ifCache = condition;
+  options.morph.__ifCache = condition;
 
   // Render the apropreate block statement
   if (condition && options.template) {
-    return options.template.render(options.context, options, options.morph.contextualElement || options.morph.element);
+    return options.template.render(options.context, env, options.morph.contextualElement);
   } else if (!condition && options.inverse) {
-    return options.inverse.render(options.context, options, options.morph.contextualElement || options.morph.element);
+    return options.inverse.render(options.context, env, options.morph.contextualElement);
   }
 
   return "";
@@ -185,17 +191,17 @@ helpers.unless = function (params, hash, options, env) {
   }
 
   // Check our cache. If the value hasn't actually changed, don't evaluate. Important for re-rendering of #each helpers.
-  if (options.placeholder.__unlessCache === condition) {
+  if (options.morph.__unlessCache === condition) {
     return null; // Return null prevent's re-rending of our placeholder.
   }
 
-  options.placeholder.__unlessCache = condition;
+  options.morph.__unlessCache = condition;
 
   // Render the apropreate block statement
   if (!condition && options.template) {
-    return options.template.render(options.context, options, options.morph.contextualElement || options.morph.element);
+    return options.template.render(options.context, env, options.morph.contextualElement);
   } else if (condition && options.inverse) {
-    return options.inverse.render(options.context, options, options.morph.contextualElement || options.morph.element);
+    return options.inverse.render(options.context, env, options.morph.contextualElement);
   }
 
   return "";
@@ -230,7 +236,7 @@ helpers.each = function (params, hash, options, env) {
 
   var value = params[0].isCollection ? params[0].models : params[0],
       // Accepts collections or arrays
-  morph = options.placeholder.firstChildMorph,
+  morph = options.morph.firstChildMorph,
       obj,
       next,
       lazyValue,
@@ -253,13 +259,15 @@ helpers.each = function (params, hash, options, env) {
       morph = next;continue;
     }
 
+    nmorph = options.morph.insertContentBeforeMorph("", morph);
+
     // Create a lazyvalue whos value is the content inside our block helper rendered in the context of this current list object. Returns the rendered dom for this list item.
     lazyValue = new LazyValue(function () {
-      return options.template.render(obj, options, options.placeholder.contextualElement, [obj]);
-    }, { morph: options.placeholder });
+      return options.template.render(options.context, env, options.morph.contextualElement, [obj]);
+    }, { morph: options.morph });
 
     // Insert our newly rendered value (a document tree) into our placeholder (the containing element) at its requested position (where we currently are in the object list)
-    nmorph = options.placeholder.insertContentBeforeMorph(lazyValue.value(), morph);
+    nmorph.setContent(lazyValue.value());
 
     // Label the inserted morph element with this model's cid
     nmorph.cid = obj.cid;
@@ -271,7 +279,7 @@ helpers.each = function (params, hash, options, env) {
     morph = next;
   }
 
-  // // If any more morphs are left over, remove them. We've already gone through all the models.
+  // If any more morphs are left over, remove them. We've already gone through all the models.
   while (morph) {
     next = morph.nextMorph;
     morph.destroy();
@@ -280,11 +288,6 @@ helpers.each = function (params, hash, options, env) {
 
   // Return null prevent's re-rending of our placeholder. Our placeholder (containing element) now has all the dom we need.
   return null;
-};
-
-helpers["with"] = function (params, hash, options, env) {
-  // Render the content inside our block helper with the context of this object. Returns a dom tree.
-  return options.template.render(params[0], options, options.morph.contextualElement || options.morph.element);
 };
 
 helpers.partial = function (params, hash, options, env) {

@@ -57,36 +57,22 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     return lazyValue;
   }
 
-  function constructHelper(el, path, context, params, hash, options, env, helper) {
-    var lazyValue;
-
+  function constructHelper(morph, path, context, params, hash, options, env, helper) {
+    var key;
     // Extend options with the helper's containeing Morph element. Used by streamify to track data observers
-    options.morph = options.placeholder = el && !el.tagName && el || false; // FIXME: this kinda sucks
-    options.element = el && el.tagName && el || false; // FIXME: this kinda sucks
+    options.morph = morph;
+    options.element = morph;
+    options.path = path;
+    options.context = context;
 
-    // Extend options with hooks and helpers for any subsequent calls from a lazyvalue
-    options.params = params; // FIXME: this kinda sucks
-    options.hooks = env.hooks; // FIXME: this kinda sucks
-    options.helpers = env.helpers; // FIXME: this kinda sucks
-    options.context = context; // FIXME: this kinda sucks
-    options.dom = env.dom; // FIXME: this kinda sucks
-    options.path = path; // FIXME: this kinda sucks
-    options.hash = hash || []; // FIXME: this kinda sucks
+    // Ensure env and block params don't share memory with other helpers
+    env = _.clone(env);
+    if (env.blockParams) env.blockParams = _.clone(env.blockParams);
 
     // Create a lazy value that returns the value of our evaluated helper.
     options.lazyValue = new LazyValue(function () {
       var plainParams = [],
-          plainHash = {},
-          result,
-          relpath = $.splitPath(path),
-          first,
-          rest;
-      relpath.shift();
-      relpath = relpath.join(".");
-
-      rest = $.splitPath(relpath);
-      first = rest.shift();
-      rest = rest.join(".");
+          plainHash = {};
 
       // Assemble our args and hash variables. For each lazyvalue param, push the lazyValue's value so helpers with no concept of lazyvalues.
       _.each(params, function (param, index) {
@@ -97,23 +83,22 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       });
 
       // Call our helper functions with our assembled args.
-      result = helper.apply(context.__root__ || context, [plainParams, plainHash, options, env]);
-
-      if (result && relpath) {
-        return result.get(relpath);
-      }
-
-      return result;
+      return helper.apply(context.__root__ || context, [plainParams, plainHash, options, env]);
     }, { morph: options.morph });
 
     options.lazyValue.path = path;
 
-    // For each param passed to our helper, add it to our helper's dependant list. Helper will re-evaluate when one changes.
-    params.forEach(function (node) {
-      if (node && node.isLazyValue) {
-        options.lazyValue.addDependentValue(node);
+    // For each param or hash value passed to our helper, add it to our helper's dependant list. Helper will re-evaluate when one changes.
+    params.forEach(function (param) {
+      if (param && param.isLazyValue) {
+        options.lazyValue.addDependentValue(param);
       }
     });
+    for (key in hash) {
+      if (hash[key] && hash[key].isLazyValue) {
+        options.lazyValue.addDependentValue(hash[key]);
+      }
+    }
 
     return options.lazyValue;
   }
@@ -141,17 +126,23 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
   ********************************/
 
   hooks.get = function get(env, context, path) {
-    context.blockParams || (context.blockParams = {});
-    if (path === "this") {
-      path = "";
+    if (path === "this") path = "";
+    var key,
+        rest = $.splitPath(path),
+        first = rest.shift();
+
+    // If this path referances a block param, use that as the context instead.
+    if (env.blockParams && env.blockParams[first]) {
+      context = env.blockParams[first];
+      path = rest.join(".");
     }
-    // context = (context.blockParams.has(path)) ? context.blockParams : context;
+
     return streamProperty(context, path);
   };
 
   hooks.set = function set(env, context, name, value) {
-    context.blockParams || (context.blockParams = {});
-    // context.blockParams.set(name, value);
+    env.blockParams || (env.blockParams = {});
+    env.blockParams[name] = value;
   };
 
 
@@ -180,14 +171,13 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
   };
 
   hooks.subexpr = function subexpr(env, context, helperName, params, hash) {
-    var helper = helpers.lookupHelper(helperName, env, context),
+    var helper = helpers.lookupHelper(helperName, env),
         lazyValue;
 
     if (helper) {
-      // Abstracts our helper to provide a handlebars type interface. Constructs our LazyValue.
       lazyValue = constructHelper(false, helperName, context, params, hash, {}, env, helper);
     } else {
-      lazyValue = streamProperty(context, helperName);
+      lazyValue = hooks.get(env, context, helperName);
     }
 
     for (var i = 0, l = params.length; i < l; i++) {
@@ -209,7 +199,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     var lazyValue,
         value,
         observer = subtreeObserver,
-        helper = helpers.lookupHelper(path, env, context);
+        helper = helpers.lookupHelper(path, env);
 
     if (!_.isFunction(helper)) {
       return console.error(path + " is not a valid helper!");
@@ -253,7 +243,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     var lazyValue,
         value,
         observer = subtreeObserver,
-        helper = helpers.lookupHelper(path, env, context);
+        helper = helpers.lookupHelper(path, env);
 
     if (!_.isFunction(helper)) {
       return console.error(path + " is not a valid helper!");
@@ -297,9 +287,13 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     var lazyValue,
         value,
         observer = subtreeObserver,
-        helper = helpers.lookupHelper(path, env, context);
+        helper = helpers.lookupHelper(path, env);
 
-    lazyValue = streamProperty(context, path);
+    if (helper) {
+      lazyValue = constructHelper(morph, path, context, [], {}, {}, env, helper);
+    } else {
+      lazyValue = hooks.get(env, context, path);
+    }
 
     // If we have our lazy value, update our dom.
     // morph is a morph element representing our dom node
@@ -335,7 +329,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
   // Handle morphs in element tags
   // TODO: handle dynamic attribute names?
   hooks.element = function element(env, domElement, context, path, params, hash) {
-    var helper = helpers.lookupHelper(path, env, context),
+    var helper = helpers.lookupHelper(path, env),
         lazyValue,
         value;
 
@@ -343,7 +337,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       // Abstracts our helper to provide a handlebars type interface. Constructs our LazyValue.
       lazyValue = constructHelper(domElement, path, context, params, hash, {}, env, helper);
     } else {
-      lazyValue = streamProperty(context, path);
+      lazyValue = hooks.get(env, context, path);
     }
 
     // When we have our lazy value run it and start listening for updates.
@@ -455,7 +449,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       // For each lazy param passed to our component, create its lazyValue
       _.each(plainData, function (value, key) {
         if (contextData[key] && contextData[key].isLazyValue) {
-          componentData[key] = streamProperty(component, key);
+          componentData[key] = hooks.get(env, component, key);
         }
       });
 

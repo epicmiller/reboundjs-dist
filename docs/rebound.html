@@ -2210,12 +2210,7 @@ import { Model } from <span class="hljs-string">"rebound-data/rebound-data"</spa
   <span class="hljs-keyword">this</span>._toRender.added = {};
 }
 
-<span class="hljs-keyword">var</span> env = {
-  helpers: helpers.helpers,
-  hooks: hooks
-};
-
-env.hydrate = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">hydrate</span><span class="hljs-params">(spec, options)</span></span>{</pre></div></div>
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">hydrate</span><span class="hljs-params">(spec, options)</span></span>{</pre></div></div>
             
         </li>
         
@@ -2241,15 +2236,18 @@ env.hydrate = <span class="hljs-function"><span class="hljs-keyword">function</s
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-105">&#182;</a>
               </div>
-              <p>Ensure we have a well-formed object as var options</p>
+              <p>Rebound’s default environment
+The application environment is propagated down each render call and
+augmented with helpers as it goes</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">var</span> env = options || {},
-        contextElement = data.el || <span class="hljs-built_in">document</span>.body;
-    env.helpers = env.helpers || {};
-    env.hooks = env.hooks || {};
-    env.dom = env.dom || <span class="hljs-keyword">new</span> DOMHelper();</pre></div></div>
+            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">var</span> env = {
+      helpers: helpers.helpers,
+      hooks: hooks,
+      dom: <span class="hljs-keyword">new</span> DOMHelper(),
+      useFragmentCache: <span class="hljs-literal">true</span>
+    };</pre></div></div>
             
         </li>
         
@@ -2260,12 +2258,11 @@ env.hydrate = <span class="hljs-function"><span class="hljs-keyword">function</s
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-106">&#182;</a>
               </div>
-              <p>Merge our default helpers and hooks with user provided helpers</p>
+              <p>Ensure we have a contextual element to pass to render</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    env.helpers = _.defaults(env.helpers, helpers.helpers);
-    env.hooks = _.defaults(env.hooks, hooks);</pre></div></div>
+            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">var</span> contextElement = data.el || <span class="hljs-built_in">document</span>.body;</pre></div></div>
             
         </li>
         
@@ -2275,6 +2272,22 @@ env.hydrate = <span class="hljs-function"><span class="hljs-keyword">function</s
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-107">&#182;</a>
+              </div>
+              <p>Merge our default helpers and hooks with user provided helpers</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    env.helpers = _.defaults((options.helpers || {}), env.helpers);
+    env.hooks = _.defaults((options.hooks || {}), env.hooks);</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-108">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-108">&#182;</a>
               </div>
               <p>Call our func with merged helpers and hooks</p>
 
@@ -2287,11 +2300,11 @@ env.hydrate = <span class="hljs-function"><span class="hljs-keyword">function</s
         </li>
         
         
-        <li id="section-108">
+        <li id="section-109">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-108">&#182;</a>
+                <a class="pilcrow" href="#section-109">&#182;</a>
               </div>
               <p>New Backbone Component</p>
 
@@ -2314,11 +2327,11 @@ env.hydrate = <span class="hljs-function"><span class="hljs-keyword">function</s
         </li>
         
         
-        <li id="section-109">
+        <li id="section-110">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-109">&#182;</a>
+                <a class="pilcrow" href="#section-110">&#182;</a>
               </div>
               <p>Take our parsed data and add it to our backbone data structure. Does a deep defaults set.
 In the model, primatives (arrays, objects, etc) are converted to Backbone Objects
@@ -2333,11 +2346,11 @@ Set our component’s context with the passed data merged with the component’s
         </li>
         
         
-        <li id="section-110">
+        <li id="section-111">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-110">&#182;</a>
+                <a class="pilcrow" href="#section-111">&#182;</a>
               </div>
               <p>Call on component is used by the {{on}} helper to call all event callbacks in the scope of the component</p>
 
@@ -2348,11 +2361,11 @@ Set our component’s context with the passed data merged with the component’s
         </li>
         
         
-        <li id="section-111">
+        <li id="section-112">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-111">&#182;</a>
+                <a class="pilcrow" href="#section-112">&#182;</a>
               </div>
               <p>Get any additional routes passed in from options</p>
 
@@ -2363,11 +2376,11 @@ Set our component’s context with the passed data merged with the component’s
         </li>
         
         
-        <li id="section-112">
+        <li id="section-113">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-112">&#182;</a>
+                <a class="pilcrow" href="#section-113">&#182;</a>
               </div>
               <p>Ensure that all route functions exist</p>
 
@@ -2381,11 +2394,11 @@ Set our component’s context with the passed data merged with the component’s
         </li>
         
         
-        <li id="section-113">
+        <li id="section-114">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-113">&#182;</a>
+                <a class="pilcrow" href="#section-114">&#182;</a>
               </div>
               <p>Set our outlet and template if we have one</p>
 
@@ -2401,11 +2414,11 @@ Set our component’s context with the passed data merged with the component’s
         </li>
         
         
-        <li id="section-114">
+        <li id="section-115">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-114">&#182;</a>
+                <a class="pilcrow" href="#section-115">&#182;</a>
               </div>
               <p>Take our precompiled template and hydrates it. When Rebound Compiler is included, can be a handlebars template string.
 TODO: Check if template is a string, and if the compiler exists on the page, and compile if needed</p>
@@ -2414,22 +2427,7 @@ TODO: Check if template is a string, and if the compiler exists on the page, and
             
             <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">if</span>(!options.template &amp;&amp; !<span class="hljs-keyword">this</span>.template){ <span class="hljs-keyword">throw</span>(<span class="hljs-string">'Template must provided for '</span> + <span class="hljs-keyword">this</span>.__name + <span class="hljs-string">' component!'</span>); }
     <span class="hljs-keyword">this</span>.template = options.template || <span class="hljs-keyword">this</span>.template;
-    <span class="hljs-keyword">this</span>.template = (<span class="hljs-keyword">typeof</span> <span class="hljs-keyword">this</span>.template === <span class="hljs-string">'object'</span>) ? env.hydrate(<span class="hljs-keyword">this</span>.template) : <span class="hljs-keyword">this</span>.template;</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-115">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-115">&#182;</a>
-              </div>
-              <p>Render our dom and place the dom in our custom element</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">this</span>.el.appendChild(<span class="hljs-keyword">this</span>.template(<span class="hljs-keyword">this</span>, {helpers: <span class="hljs-keyword">this</span>.helpers}, <span class="hljs-keyword">this</span>.el));</pre></div></div>
+    <span class="hljs-keyword">this</span>.template = (<span class="hljs-keyword">typeof</span> <span class="hljs-keyword">this</span>.template === <span class="hljs-string">'object'</span>) ? hydrate(<span class="hljs-keyword">this</span>.template) : <span class="hljs-keyword">this</span>.template;</pre></div></div>
             
         </li>
         
@@ -2439,6 +2437,22 @@ TODO: Check if template is a string, and if the compiler exists on the page, and
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-116">&#182;</a>
+              </div>
+              <p>Render our dom and place the dom in our custom element
+Template accepts [data, options, contextualElement]</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">this</span>.el.appendChild(<span class="hljs-keyword">this</span>.template(<span class="hljs-keyword">this</span>, {helpers: <span class="hljs-keyword">this</span>.helpers}, <span class="hljs-keyword">this</span>.el));</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-117">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-117">&#182;</a>
               </div>
               <p>Add active class to this newly rendered template’s link elements that require it</p>
 
@@ -2464,11 +2478,11 @@ TODO: Check if template is a string, and if the compiler exists on the page, and
         </li>
         
         
-        <li id="section-117">
+        <li id="section-118">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-117">&#182;</a>
+                <a class="pilcrow" href="#section-118">&#182;</a>
               </div>
               <p>Trigger all events on both the component and the element</p>
 
@@ -2491,11 +2505,11 @@ TODO: Check if template is a string, and if the compiler exists on the page, and
         </li>
         
         
-        <li id="section-118">
+        <li id="section-119">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-118">&#182;</a>
+                <a class="pilcrow" href="#section-119">&#182;</a>
               </div>
               <p>Commented out because tracking attribute changes and making sure they dont infinite loop is hard.
 TODO: Make work.
@@ -2556,11 +2570,11 @@ if(<em>.isNumber(oldVal) &amp;&amp; </em>.isString(newVal) &amp;&amp; newVal.mat
         </li>
         
         
-        <li id="section-119">
+        <li id="section-120">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-119">&#182;</a>
+                <a class="pilcrow" href="#section-120">&#182;</a>
               </div>
               <p>For each changed key, walk down the data tree from the root to the data
 element that triggered the event and add all relevent callbacks to this
@@ -2578,11 +2592,11 @@ object’s _toRender queue.</p>
         </li>
         
         
-        <li id="section-120">
+        <li id="section-121">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-120">&#182;</a>
+                <a class="pilcrow" href="#section-121">&#182;</a>
               </div>
               <p>If this is a collection event, trigger everything, otherwise only trigger property change callbacks</p>
 
@@ -2598,11 +2612,11 @@ object’s _toRender queue.</p>
         </li>
         
         
-        <li id="section-121">
+        <li id="section-122">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-121">&#182;</a>
+                <a class="pilcrow" href="#section-122">&#182;</a>
               </div>
               <p>Queue our render callback to be called after the current call stack has been exhausted</p>
 
@@ -2634,11 +2648,11 @@ Component.extend= <span class="hljs-function"><span class="hljs-keyword">functio
         </li>
         
         
-        <li id="section-122">
+        <li id="section-123">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-122">&#182;</a>
+                <a class="pilcrow" href="#section-123">&#182;</a>
               </div>
               <p>For each property passed into our component base class</p>
 
@@ -2649,11 +2663,11 @@ Component.extend= <span class="hljs-function"><span class="hljs-keyword">functio
         </li>
         
         
-        <li id="section-123">
+        <li id="section-124">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-123">&#182;</a>
+                <a class="pilcrow" href="#section-124">&#182;</a>
               </div>
               <p>If a configuration property, ignore it</p>
 
@@ -2664,11 +2678,11 @@ Component.extend= <span class="hljs-function"><span class="hljs-keyword">functio
         </li>
         
         
-        <li id="section-124">
+        <li id="section-125">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-124">&#182;</a>
+                <a class="pilcrow" href="#section-125">&#182;</a>
               </div>
               <p>If a primative or backbone type object, or computed property (function which takes no arguments and returns a value) move it to our defaults</p>
 
@@ -2682,11 +2696,11 @@ Component.extend= <span class="hljs-function"><span class="hljs-keyword">functio
         </li>
         
         
-        <li id="section-125">
+        <li id="section-126">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-125">&#182;</a>
+                <a class="pilcrow" href="#section-126">&#182;</a>
               </div>
               <p>If a reserved method, yell</p>
 
@@ -2697,11 +2711,11 @@ Component.extend= <span class="hljs-function"><span class="hljs-keyword">functio
         </li>
         
         
-        <li id="section-126">
+        <li id="section-127">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-126">&#182;</a>
+                <a class="pilcrow" href="#section-127">&#182;</a>
               </div>
               <p>All other values are component methods, leave them be unless already defined.</p>
 
@@ -2713,11 +2727,11 @@ Component.extend= <span class="hljs-function"><span class="hljs-keyword">functio
         </li>
         
         
-        <li id="section-127">
+        <li id="section-128">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-127">&#182;</a>
+                <a class="pilcrow" href="#section-128">&#182;</a>
               </div>
               <p>If given a constructor, use it, otherwise use the default one defined above</p>
 
@@ -2732,11 +2746,11 @@ Component.extend= <span class="hljs-function"><span class="hljs-keyword">functio
         </li>
         
         
-        <li id="section-128">
+        <li id="section-129">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-128">&#182;</a>
+                <a class="pilcrow" href="#section-129">&#182;</a>
               </div>
               <p>Our class should inherit everything from its parent, defined above</p>
 
@@ -2749,11 +2763,11 @@ Component.extend= <span class="hljs-function"><span class="hljs-keyword">functio
         </li>
         
         
-        <li id="section-129">
+        <li id="section-130">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-129">&#182;</a>
+                <a class="pilcrow" href="#section-130">&#182;</a>
               </div>
               <p>Extend our prototype with any remaining protoProps, overriting pre-defined ones</p>
 
@@ -2764,11 +2778,11 @@ Component.extend= <span class="hljs-function"><span class="hljs-keyword">functio
         </li>
         
         
-        <li id="section-130">
+        <li id="section-131">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-130">&#182;</a>
+                <a class="pilcrow" href="#section-131">&#182;</a>
               </div>
               <p>Set our ancestry</p>
 
@@ -2819,11 +2833,11 @@ export <span class="hljs-keyword">default</span> Component;</pre></div></div>
         </li>
         
         
-        <li id="section-131">
+        <li id="section-132">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-131">&#182;</a>
+                <a class="pilcrow" href="#section-132">&#182;</a>
               </div>
               <h2 id="rebound-helpers">Rebound Helpers</h2>
 
@@ -2832,11 +2846,11 @@ export <span class="hljs-keyword">default</span> Component;</pre></div></div>
         </li>
         
         
-        <li id="section-132">
+        <li id="section-133">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-132">&#182;</a>
+                <a class="pilcrow" href="#section-133">&#182;</a>
               </div>
               
             </div>
@@ -2858,43 +2872,18 @@ helpers.registerPartial = <span class="hljs-function"><span class="hljs-keyword"
         </li>
         
         
-        <li id="section-133">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-133">&#182;</a>
-              </div>
-              <p>lookupHelper returns the given function from the helpers object. Manual checks prevent user from overriding reserved words.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>helpers.lookupHelper = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(name, env, context)</span> </span>{
-
-  env = env || {};
-
-  name = $.splitPath(name)[<span class="hljs-number">0</span>];</pre></div></div>
-            
-        </li>
-        
-        
         <li id="section-134">
             <div class="annotation">
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-134">&#182;</a>
               </div>
-              <p>If a reserved helpers, return it</p>
+              <p>lookupHelper returns the given function from the helpers object. Manual checks prevent user from overriding reserved words.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span>(name === <span class="hljs-string">'attribute'</span>) { <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.attribute; }
-  <span class="hljs-keyword">if</span>(name === <span class="hljs-string">'if'</span>) { <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.if; }
-  <span class="hljs-keyword">if</span>(name === <span class="hljs-string">'unless'</span>) { <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.unless; }
-  <span class="hljs-keyword">if</span>(name === <span class="hljs-string">'each'</span>) { <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.each; }
-  <span class="hljs-keyword">if</span>(name === <span class="hljs-string">'with'</span>) { <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.with; }
-  <span class="hljs-keyword">if</span>(name === <span class="hljs-string">'partial'</span>) { <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.partial; }
-  <span class="hljs-keyword">if</span>(name === <span class="hljs-string">'length'</span>) { <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.length; }
-  <span class="hljs-keyword">if</span>(name === <span class="hljs-string">'on'</span>) { <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.on; }</pre></div></div>
+            <div class="content"><div class='highlight'><pre>helpers.lookupHelper = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(name, env)</span> </span>{
+  (env &amp;&amp; env.helpers) || (env = {helpers:{}});</pre></div></div>
             
         </li>
         
@@ -2905,11 +2894,33 @@ helpers.registerPartial = <span class="hljs-function"><span class="hljs-keyword"
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-135">&#182;</a>
               </div>
+              <p>If a reserved helper, return it</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span>(name === <span class="hljs-string">'attribute'</span>) { <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.attribute; }
+  <span class="hljs-keyword">if</span>(name === <span class="hljs-string">'if'</span>) { <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.if; }
+  <span class="hljs-keyword">if</span>(name === <span class="hljs-string">'unless'</span>) { <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.unless; }
+  <span class="hljs-keyword">if</span>(name === <span class="hljs-string">'each'</span>) { <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.each; }
+  <span class="hljs-keyword">if</span>(name === <span class="hljs-string">'partial'</span>) { <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.partial; }
+  <span class="hljs-keyword">if</span>(name === <span class="hljs-string">'on'</span>) { <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.on; }
+  <span class="hljs-keyword">if</span>(name === <span class="hljs-string">'debugger'</span>) { <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.debugger; }
+  <span class="hljs-keyword">if</span>(name === <span class="hljs-string">'log'</span>) { <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.log; }</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-136">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-136">&#182;</a>
+              </div>
               <p>If not a reserved helper, check env, then global helpers, else return false</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">return</span> (env.helpers &amp;&amp; _.isObject(context) &amp;&amp; _.isObject(env.helpers[context.cid]) &amp;&amp; env.helpers[context.cid][name]) || helpers[name] || <span class="hljs-literal">false</span>;
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">return</span> env.helpers[name] || helpers[name] || <span class="hljs-literal">false</span>;
 };
 
 helpers.registerHelper = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(name, callback, params)</span></span>{
@@ -2937,30 +2948,21 @@ helpers.registerHelper = <span class="hljs-function"><span class="hljs-keyword">
         Default helpers
 ********************************/</span>
 
+helpers.debugger = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(params, hash, options, env)</span></span>{
+  debugger;
+  <span class="hljs-keyword">return</span> <span class="hljs-string">''</span>;
+}
+
+helpers.log = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(params, hash, options, env)</span></span>{
+  <span class="hljs-built_in">console</span>.log.apply(<span class="hljs-built_in">console</span>, params);
+  <span class="hljs-keyword">return</span> <span class="hljs-string">''</span>;
+}
+
 helpers.on = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(params, hash, options, env)</span></span>{
   <span class="hljs-keyword">var</span> i, callback, delegate, element,
       eventName = params[<span class="hljs-number">0</span>],
       len = params.length,
       data = hash;</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-136">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-136">&#182;</a>
-              </div>
-              <p>By default everything is delegated on the parent component</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span>(len === <span class="hljs-number">2</span>){
-    callback = params[<span class="hljs-number">1</span>];
-    delegate = options.element;
-    element = (<span class="hljs-keyword">this</span>.el || options.element);
-  }</pre></div></div>
             
         </li>
         
@@ -2971,15 +2973,14 @@ helpers.on = <span class="hljs-function"><span class="hljs-keyword">function</sp
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-137">&#182;</a>
               </div>
-              <p>If a selector is provided, delegate on the helper’s element</p>
+              <p>By default everything is delegated on the parent component
+if(len === 2){</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span>(len === <span class="hljs-number">3</span>){
-    callback = params[<span class="hljs-number">2</span>];
-    delegate = params[<span class="hljs-number">1</span>];
-    element = options.element;
-  }</pre></div></div>
+            <div class="content"><div class='highlight'><pre>    callback = params[<span class="hljs-number">1</span>];
+    delegate = options.element;
+    element = (<span class="hljs-keyword">this</span>.el || options.element);</pre></div></div>
             
         </li>
         
@@ -2990,13 +2991,31 @@ helpers.on = <span class="hljs-function"><span class="hljs-keyword">function</sp
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-138">&#182;</a>
               </div>
+              <p>}
+// If a selector is provided, delegate on the helper’s element
+else if(len === 3){
+  callback = params[2];
+  delegate = params[1];
+  element = options.element;
+}</p>
+
+            </div>
+            
+        </li>
+        
+        
+        <li id="section-139">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-139">&#182;</a>
+              </div>
               <p>Attach event</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  $(element).on(eventName, delegate, data, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(event)</span></span>{
-    event.context = options.context;
-    <span class="hljs-keyword">return</span> options.helpers.__callOnComponent(callback, event);
+            <div class="content"><div class='highlight'><pre>  $(element).on(eventName, delegate, hash, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(event)</span></span>{
+    <span class="hljs-keyword">return</span> env.helpers.__callOnComponent(callback, event);
   });
 };
 
@@ -3019,11 +3038,11 @@ helpers.if = <span class="hljs-function"><span class="hljs-keyword">function</sp
         </li>
         
         
-        <li id="section-139">
+        <li id="section-140">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-139">&#182;</a>
+                <a class="pilcrow" href="#section-140">&#182;</a>
               </div>
               <p>If our condition is an array, handle properly</p>
 
@@ -3039,11 +3058,11 @@ helpers.if = <span class="hljs-function"><span class="hljs-keyword">function</sp
         </li>
         
         
-        <li id="section-140">
+        <li id="section-141">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-140">&#182;</a>
+                <a class="pilcrow" href="#section-141">&#182;</a>
               </div>
               <p>If more than one param, this is not a block helper. Eval as such.</p>
 
@@ -3056,44 +3075,21 @@ helpers.if = <span class="hljs-function"><span class="hljs-keyword">function</sp
         </li>
         
         
-        <li id="section-141">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-141">&#182;</a>
-              </div>
-              <p>Check our cache. If the value hasn’t actually changed, don’t evaluate. Important for re-rendering of #each helpers.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span>(options.placeholder.__ifCache === condition){
-    <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>; <span class="hljs-comment">// Return null prevent's re-rending of our placeholder.</span>
-  }
-
-  options.placeholder.__ifCache = condition;</pre></div></div>
-            
-        </li>
-        
-        
         <li id="section-142">
             <div class="annotation">
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-142">&#182;</a>
               </div>
-              <p>Render the apropreate block statement</p>
+              <p>Check our cache. If the value hasn’t actually changed, don’t evaluate. Important for re-rendering of #each helpers.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span>(condition &amp;&amp; options.template){
-    <span class="hljs-keyword">return</span> options.template.render(options.context, options, (options.morph.contextualElement || options.morph.element));
-  }
-  <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span>(!condition &amp;&amp; options.inverse){
-    <span class="hljs-keyword">return</span> options.inverse.render(options.context, options, (options.morph.contextualElement || options.morph.element));
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span>(options.morph.__ifCache === condition){
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>; <span class="hljs-comment">// Return null prevent's re-rending of our placeholder.</span>
   }
 
-  <span class="hljs-keyword">return</span> <span class="hljs-string">''</span>;
-};</pre></div></div>
+  options.morph.__ifCache = condition;</pre></div></div>
             
         </li>
         
@@ -3103,6 +3099,29 @@ helpers.if = <span class="hljs-function"><span class="hljs-keyword">function</sp
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-143">&#182;</a>
+              </div>
+              <p>Render the apropreate block statement</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span>(condition &amp;&amp; options.template){
+    <span class="hljs-keyword">return</span> options.template.render(options.context, env, options.morph.contextualElement);
+  }
+  <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span>(!condition &amp;&amp; options.inverse){
+    <span class="hljs-keyword">return</span> options.inverse.render(options.context, env, options.morph.contextualElement);
+  }
+
+  <span class="hljs-keyword">return</span> <span class="hljs-string">''</span>;
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-144">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-144">&#182;</a>
               </div>
               <p>TODO: Proxy to if helper with inverted params</p>
 
@@ -3122,11 +3141,11 @@ helpers.if = <span class="hljs-function"><span class="hljs-keyword">function</sp
         </li>
         
         
-        <li id="section-144">
+        <li id="section-145">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-144">&#182;</a>
+                <a class="pilcrow" href="#section-145">&#182;</a>
               </div>
               <p>If our condition is an array, handle properly</p>
 
@@ -3139,11 +3158,11 @@ helpers.if = <span class="hljs-function"><span class="hljs-keyword">function</sp
         </li>
         
         
-        <li id="section-145">
+        <li id="section-146">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-145">&#182;</a>
+                <a class="pilcrow" href="#section-146">&#182;</a>
               </div>
               <p>If more than one param, this is not a block helper. Eval as such.</p>
 
@@ -3156,44 +3175,21 @@ helpers.if = <span class="hljs-function"><span class="hljs-keyword">function</sp
         </li>
         
         
-        <li id="section-146">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-146">&#182;</a>
-              </div>
-              <p>Check our cache. If the value hasn’t actually changed, don’t evaluate. Important for re-rendering of #each helpers.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span>(options.placeholder.__unlessCache === condition){
-    <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>; <span class="hljs-comment">// Return null prevent's re-rending of our placeholder.</span>
-  }
-
-  options.placeholder.__unlessCache = condition;</pre></div></div>
-            
-        </li>
-        
-        
         <li id="section-147">
             <div class="annotation">
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-147">&#182;</a>
               </div>
-              <p>Render the apropreate block statement</p>
+              <p>Check our cache. If the value hasn’t actually changed, don’t evaluate. Important for re-rendering of #each helpers.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span>(!condition &amp;&amp;  options.template){
-    <span class="hljs-keyword">return</span> options.template.render(options.context, options, (options.morph.contextualElement || options.morph.element));
-  }
-  <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span>(condition &amp;&amp; options.inverse){
-    <span class="hljs-keyword">return</span> options.inverse.render(options.context, options, (options.morph.contextualElement || options.morph.element));
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span>(options.morph.__unlessCache === condition){
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>; <span class="hljs-comment">// Return null prevent's re-rending of our placeholder.</span>
   }
 
-  <span class="hljs-keyword">return</span> <span class="hljs-string">''</span>;
-};</pre></div></div>
+  options.morph.__unlessCache = condition;</pre></div></div>
             
         </li>
         
@@ -3203,6 +3199,29 @@ helpers.if = <span class="hljs-function"><span class="hljs-keyword">function</sp
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-148">&#182;</a>
+              </div>
+              <p>Render the apropreate block statement</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span>(!condition &amp;&amp;  options.template){
+    <span class="hljs-keyword">return</span> options.template.render(options.context, env, options.morph.contextualElement);
+  }
+  <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span>(condition &amp;&amp; options.inverse){
+    <span class="hljs-keyword">return</span> options.inverse.render(options.context, env, options.morph.contextualElement);
+  }
+
+  <span class="hljs-keyword">return</span> <span class="hljs-string">''</span>;
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-149">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-149">&#182;</a>
               </div>
               <p>Given an array, predicate and optional extra variable, finds the index in the array where predicate is true</p>
 
@@ -3234,7 +3253,7 @@ helpers.each = <span class="hljs-function"><span class="hljs-keyword">function</
   <span class="hljs-keyword">if</span>(_.isNull(params[<span class="hljs-number">0</span>]) || _.isUndefined(params[<span class="hljs-number">0</span>])){ <span class="hljs-built_in">console</span>.warn(<span class="hljs-string">'Undefined value passed to each helper! Maybe try providing a default value?'</span>, options.context); <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>; }
 
   <span class="hljs-keyword">var</span> value = (params[<span class="hljs-number">0</span>].isCollection) ? params[<span class="hljs-number">0</span>].models : params[<span class="hljs-number">0</span>], <span class="hljs-comment">// Accepts collections or arrays</span>
-      morph = options.placeholder.firstChildMorph, obj, next, lazyValue, nmorph, i,  <span class="hljs-comment">// used below to remove trailing junk morphs from the dom</span>
+      morph = options.morph.firstChildMorph, obj, next, lazyValue, nmorph, i,  <span class="hljs-comment">// used below to remove trailing junk morphs from the dom</span>
       position, <span class="hljs-comment">// Stores the iterated element's integer position in the dom list</span>
       currentModel = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(element, index, array, cid)</span></span>{
         <span class="hljs-keyword">return</span> element.cid === cid; <span class="hljs-comment">// Returns true if currently observed element is the current model.</span>
@@ -3243,11 +3262,11 @@ helpers.each = <span class="hljs-function"><span class="hljs-keyword">function</
         </li>
         
         
-        <li id="section-149">
+        <li id="section-150">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-149">&#182;</a>
+                <a class="pilcrow" href="#section-150">&#182;</a>
               </div>
               <p>For each item in this collection</p>
 
@@ -3260,34 +3279,19 @@ helpers.each = <span class="hljs-function"><span class="hljs-keyword">function</
         </li>
         
         
-        <li id="section-150">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-150">&#182;</a>
-              </div>
-              <p>If this morph is the rendered version of this model, continue to the next one.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">if</span>(morph &amp;&amp; morph.cid == obj.cid){ morph = next; <span class="hljs-keyword">continue</span>; }</pre></div></div>
-            
-        </li>
-        
-        
         <li id="section-151">
             <div class="annotation">
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-151">&#182;</a>
               </div>
-              <p>Create a lazyvalue whos value is the content inside our block helper rendered in the context of this current list object. Returns the rendered dom for this list item.</p>
+              <p>If this morph is the rendered version of this model, continue to the next one.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    lazyValue = <span class="hljs-keyword">new</span> LazyValue(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{
-      <span class="hljs-keyword">return</span> options.template.render(obj, options, options.placeholder.contextualElement, [obj]);
-    }, {morph: options.placeholder});</pre></div></div>
+            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">if</span>(morph &amp;&amp; morph.cid == obj.cid){ morph = next; <span class="hljs-keyword">continue</span>; }
+
+    nmorph = options.morph.insertContentBeforeMorph(<span class="hljs-string">''</span>, morph);</pre></div></div>
             
         </li>
         
@@ -3298,11 +3302,13 @@ helpers.each = <span class="hljs-function"><span class="hljs-keyword">function</
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-152">&#182;</a>
               </div>
-              <p>Insert our newly rendered value (a document tree) into our placeholder (the containing element) at its requested position (where we currently are in the object list)</p>
+              <p>Create a lazyvalue whos value is the content inside our block helper rendered in the context of this current list object. Returns the rendered dom for this list item.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    nmorph = options.placeholder.insertContentBeforeMorph(lazyValue.value(), morph);</pre></div></div>
+            <div class="content"><div class='highlight'><pre>    lazyValue = <span class="hljs-keyword">new</span> LazyValue(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{
+      <span class="hljs-keyword">return</span> options.template.render(options.context, env, options.morph.contextualElement, [obj]);
+    }, {morph: options.morph});</pre></div></div>
             
         </li>
         
@@ -3313,11 +3319,11 @@ helpers.each = <span class="hljs-function"><span class="hljs-keyword">function</
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-153">&#182;</a>
               </div>
-              <p>Label the inserted morph element with this model’s cid</p>
+              <p>Insert our newly rendered value (a document tree) into our placeholder (the containing element) at its requested position (where we currently are in the object list)</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    nmorph.cid = obj.cid;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>    nmorph.setContent(lazyValue.value());</pre></div></div>
             
         </li>
         
@@ -3328,11 +3334,11 @@ helpers.each = <span class="hljs-function"><span class="hljs-keyword">function</
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-154">&#182;</a>
               </div>
-              <p>Destroy the old morph that was here</p>
+              <p>Label the inserted morph element with this model’s cid</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    morph &amp;&amp; morph.destroy();</pre></div></div>
+            <div class="content"><div class='highlight'><pre>    nmorph.cid = obj.cid;</pre></div></div>
             
         </li>
         
@@ -3342,6 +3348,21 @@ helpers.each = <span class="hljs-function"><span class="hljs-keyword">function</
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-155">&#182;</a>
+              </div>
+              <p>Destroy the old morph that was here</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    morph &amp;&amp; morph.destroy();</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-156">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-156">&#182;</a>
               </div>
               <p>Move on to the next morph</p>
 
@@ -3353,13 +3374,13 @@ helpers.each = <span class="hljs-function"><span class="hljs-keyword">function</
         </li>
         
         
-        <li id="section-156">
+        <li id="section-157">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-156">&#182;</a>
+                <a class="pilcrow" href="#section-157">&#182;</a>
               </div>
-              <p>// If any more morphs are left over, remove them. We’ve already gone through all the models.</p>
+              <p>If any more morphs are left over, remove them. We’ve already gone through all the models.</p>
 
             </div>
             
@@ -3372,36 +3393,17 @@ helpers.each = <span class="hljs-function"><span class="hljs-keyword">function</
         </li>
         
         
-        <li id="section-157">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-157">&#182;</a>
-              </div>
-              <p>Return null prevent’s re-rending of our placeholder. Our placeholder (containing element) now has all the dom we need.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>;
-
-};
-
-helpers.with = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(params, hash, options, env)</span></span>{</pre></div></div>
-            
-        </li>
-        
-        
         <li id="section-158">
             <div class="annotation">
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-158">&#182;</a>
               </div>
-              <p>Render the content inside our block helper with the context of this object. Returns a dom tree.</p>
+              <p>Return null prevent’s re-rending of our placeholder. Our placeholder (containing element) now has all the dom we need.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">return</span> options.template.render(params[<span class="hljs-number">0</span>], options, (options.morph.contextualElement || options.morph.element));
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>;
 
 };
 
@@ -3541,8 +3543,8 @@ import helpers from <span class="hljs-string">"rebound-component/helpers"</span>
   <span class="hljs-keyword">return</span> lazyValue;
 }
 
-<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">constructHelper</span><span class="hljs-params">(el, path, context, params, hash, options, env, helper)</span> </span>{
-  <span class="hljs-keyword">var</span> lazyValue;</pre></div></div>
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">constructHelper</span><span class="hljs-params">(morph, path, context, params, hash, options, env, helper)</span> </span>{
+  <span class="hljs-keyword">var</span> key;</pre></div></div>
             
         </li>
         
@@ -3557,8 +3559,10 @@ import helpers from <span class="hljs-string">"rebound-component/helpers"</span>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  options.morph = options.placeholder = el &amp;&amp; !el.tagName &amp;&amp; el || <span class="hljs-literal">false</span>; <span class="hljs-comment">// FIXME: this kinda sucks</span>
-  options.element = el &amp;&amp; el.tagName &amp;&amp; el || <span class="hljs-literal">false</span>;      <span class="hljs-comment">// FIXME: this kinda sucks</span></pre></div></div>
+            <div class="content"><div class='highlight'><pre>  options.morph = morph;
+  options.element = morph;
+  options.path = path;
+  options.context = context;</pre></div></div>
             
         </li>
         
@@ -3569,17 +3573,12 @@ import helpers from <span class="hljs-string">"rebound-component/helpers"</span>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-166">&#182;</a>
               </div>
-              <p>Extend options with hooks and helpers for any subsequent calls from a lazyvalue</p>
+              <p>Ensure env and block params don’t share memory with other helpers</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  options.params = params;                                 <span class="hljs-comment">// FIXME: this kinda sucks</span>
-  options.hooks = env.hooks;                               <span class="hljs-comment">// FIXME: this kinda sucks</span>
-  options.helpers = env.helpers;                           <span class="hljs-comment">// FIXME: this kinda sucks</span>
-  options.context = context;                               <span class="hljs-comment">// FIXME: this kinda sucks</span>
-  options.dom = env.dom;                                   <span class="hljs-comment">// FIXME: this kinda sucks</span>
-  options.path = path;                                     <span class="hljs-comment">// FIXME: this kinda sucks</span>
-  options.hash = hash || [];                               <span class="hljs-comment">// FIXME: this kinda sucks</span></pre></div></div>
+            <div class="content"><div class='highlight'><pre>  env = _.clone(env);
+  <span class="hljs-keyword">if</span>(env.blockParams) env.blockParams = _.clone(env.blockParams);</pre></div></div>
             
         </li>
         
@@ -3594,18 +3593,9 @@ import helpers from <span class="hljs-string">"rebound-component/helpers"</span>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  options.lazyValue = <span class="hljs-keyword">new</span> LazyValue(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
+            <div class="content"><div class='highlight'><pre>  options.lazyValue = <span class="hljs-keyword">new</span> LazyValue(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{
     <span class="hljs-keyword">var</span> plainParams = [],
-        plainHash = {},
-        result,
-        relpath = $.splitPath(path),
-        first, rest;
-        relpath.shift();
-        relpath = relpath.join(<span class="hljs-string">'.'</span>);
-
-        rest = $.splitPath(relpath);
-        first = rest.shift();
-        rest = rest.join(<span class="hljs-string">'.'</span>);</pre></div></div>
+        plainHash = {};</pre></div></div>
             
         </li>
         
@@ -3640,13 +3630,8 @@ import helpers from <span class="hljs-string">"rebound-component/helpers"</span>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    result = helper.apply((context.__root__ || context), [plainParams, plainHash, options, env]);
+            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">return</span> helper.apply((context.__root__ || context), [plainParams, plainHash, options, env]);
 
-    <span class="hljs-keyword">if</span>(result &amp;&amp; relpath){
-      <span class="hljs-keyword">return</span> result.get(relpath);
-    }
-
-    <span class="hljs-keyword">return</span> result;
   }, {morph: options.morph});
 
   options.lazyValue.path = path;</pre></div></div>
@@ -3660,15 +3645,16 @@ import helpers from <span class="hljs-string">"rebound-component/helpers"</span>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-170">&#182;</a>
               </div>
-              <p>For each param passed to our helper, add it to our helper’s dependant list. Helper will re-evaluate when one changes.</p>
+              <p>For each param or hash value passed to our helper, add it to our helper’s dependant list. Helper will re-evaluate when one changes.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  params.forEach(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(node)</span> </span>{
-    <span class="hljs-keyword">if</span> (node &amp;&amp; node.isLazyValue) {
-      options.lazyValue.addDependentValue(node);
-    }
+            <div class="content"><div class='highlight'><pre>  params.forEach(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(param)</span> </span>{
+    <span class="hljs-keyword">if</span> (param &amp;&amp; param.isLazyValue){ options.lazyValue.addDependentValue(param); }
   });
+  <span class="hljs-keyword">for</span>(key <span class="hljs-keyword">in</span> hash){
+    <span class="hljs-keyword">if</span> (hash[key] &amp;&amp; hash[key].isLazyValue){ options.lazyValue.addDependentValue(hash[key]); }
+  }
 
   <span class="hljs-keyword">return</span> options.lazyValue;
 }</pre></div></div>
@@ -3721,8 +3707,10 @@ import helpers from <span class="hljs-string">"rebound-component/helpers"</span>
 ********************************/</span>
 
 hooks.get = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">get</span><span class="hljs-params">(env, context, path)</span></span>{
-  context.blockParams || (context.blockParams = {});
-  <span class="hljs-keyword">if</span>(path === <span class="hljs-string">'this'</span>){ path = <span class="hljs-string">''</span>; }</pre></div></div>
+  <span class="hljs-keyword">if</span>(path === <span class="hljs-string">'this'</span>) path = <span class="hljs-string">''</span>;
+  <span class="hljs-keyword">var</span> key,
+      rest = $.splitPath(path),
+      first = rest.shift();</pre></div></div>
             
         </li>
         
@@ -3733,30 +3721,22 @@ hooks.get = <span class="hljs-function"><span class="hljs-keyword">function</spa
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-173">&#182;</a>
               </div>
-              <p>context = (context.blockParams.has(path)) ? context.blockParams : context;</p>
+              <p>If this path referances a block param, use that as the context instead.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">return</span> streamProperty(context, path);
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span>(env.blockParams &amp;&amp; env.blockParams[first]){
+    context = env.blockParams[first];
+    path = rest.join(<span class="hljs-string">'.'</span>);
+  }
+
+  <span class="hljs-keyword">return</span> streamProperty(context, path);
 };
 
 hooks.set = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">set</span><span class="hljs-params">(env, context, name, value)</span></span>{
-  context.blockParams || (context.blockParams = {});</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-174">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-174">&#182;</a>
-              </div>
-              <p>context.blockParams.set(name, value);</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>};
+  env.blockParams || (env.blockParams = {});
+  env.blockParams[name] = value;
+};
 
 
 hooks.concat = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">concat</span><span class="hljs-params">(env, params)</span> </span>{
@@ -3787,27 +3767,13 @@ hooks.concat = <span class="hljs-function"><span class="hljs-keyword">function</
 
 hooks.subexpr = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">subexpr</span><span class="hljs-params">(env, context, helperName, params, hash)</span> </span>{
 
-  <span class="hljs-keyword">var</span> helper = helpers.lookupHelper(helperName, env, context),
+  <span class="hljs-keyword">var</span> helper = helpers.lookupHelper(helperName, env),
   lazyValue;
 
-  <span class="hljs-keyword">if</span> (helper) {</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-175">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-175">&#182;</a>
-              </div>
-              <p>Abstracts our helper to provide a handlebars type interface. Constructs our LazyValue.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>    lazyValue = constructHelper(<span class="hljs-literal">false</span>, helperName, context, params, hash, {}, env, helper);
+  <span class="hljs-keyword">if</span> (helper) {
+    lazyValue = constructHelper(<span class="hljs-literal">false</span>, helperName, context, params, hash, {}, env, helper);
   } <span class="hljs-keyword">else</span> {
-    lazyValue = streamProperty(context, helperName);
+    lazyValue = hooks.get(env, context, helperName);
   }
 
   <span class="hljs-keyword">for</span> (<span class="hljs-keyword">var</span> i = <span class="hljs-number">0</span>, l = params.length; i &lt; l; i++) {
@@ -3827,9 +3793,9 @@ hooks.block = <span class="hljs-function"><span class="hljs-keyword">function</s
   };
 
   <span class="hljs-keyword">var</span> lazyValue,
-  value,
-  observer = subtreeObserver,
-  helper = helpers.lookupHelper(path, env, context);
+      value,
+      observer = subtreeObserver,
+      helper = helpers.lookupHelper(path, env);
 
   <span class="hljs-keyword">if</span>(!_.isFunction(helper)){
     <span class="hljs-keyword">return</span> <span class="hljs-built_in">console</span>.error(path + <span class="hljs-string">' is not a valid helper!'</span>);
@@ -3838,11 +3804,11 @@ hooks.block = <span class="hljs-function"><span class="hljs-keyword">function</s
         </li>
         
         
-        <li id="section-176">
+        <li id="section-174">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-176">&#182;</a>
+                <a class="pilcrow" href="#section-174">&#182;</a>
               </div>
               <p>Abstracts our helper to provide a handlebars type interface. Constructs our LazyValue.</p>
 
@@ -3853,11 +3819,11 @@ hooks.block = <span class="hljs-function"><span class="hljs-keyword">function</s
         </li>
         
         
-        <li id="section-177">
+        <li id="section-175">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-177">&#182;</a>
+                <a class="pilcrow" href="#section-175">&#182;</a>
               </div>
               <p>If we have our lazy value, update our dom.
 morph is a morph element representing our dom node</p>
@@ -3880,11 +3846,90 @@ morph is a morph element representing our dom node</p>
         </li>
         
         
+        <li id="section-176">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-176">&#182;</a>
+              </div>
+              <p>Observe this content morph’s parent’s children.
+When the morph element’s containing element (morph) is removed, clean up the lazyvalue.
+Timeout delay hack to give out dom a change to get their parent</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">if</span>(morph._parent){
+      morph._parent.__lazyValue = lazyValue;
+      setTimeout(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{
+        <span class="hljs-keyword">if</span>(morph.contextualElement){
+          observer.observe(morph.contextualElement, { attributes: <span class="hljs-literal">false</span>, childList: <span class="hljs-literal">true</span>, characterData: <span class="hljs-literal">false</span>, subtree: <span class="hljs-literal">true</span> });
+        }
+      }, <span class="hljs-number">0</span>);
+    }
+  }
+};
+
+hooks.inline = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">inline</span><span class="hljs-params">(env, morph, context, path, params, hash)</span> </span>{
+
+  <span class="hljs-keyword">var</span> lazyValue,
+  value,
+  observer = subtreeObserver,
+  helper = helpers.lookupHelper(path, env);
+
+  <span class="hljs-keyword">if</span>(!_.isFunction(helper)){
+    <span class="hljs-keyword">return</span> <span class="hljs-built_in">console</span>.error(path + <span class="hljs-string">' is not a valid helper!'</span>);
+  }</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-177">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-177">&#182;</a>
+              </div>
+              <p>Abstracts our helper to provide a handlebars type interface. Constructs our LazyValue.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  lazyValue = constructHelper(morph, path, context, params, hash, {}, env, helper);</pre></div></div>
+            
+        </li>
+        
+        
         <li id="section-178">
             <div class="annotation">
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-178">&#182;</a>
+              </div>
+              <p>If we have our lazy value, update our dom.
+morph is a morph element representing our dom node</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span> (lazyValue) {
+    lazyValue.onNotify(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(lazyValue)</span> </span>{
+      <span class="hljs-keyword">var</span> val = lazyValue.value();
+      val = (_.isUndefined(val)) ? <span class="hljs-string">''</span> : val;
+      <span class="hljs-keyword">if</span>(!_.isNull(val)){
+        morph.setContent(val);
+      }
+    });
+
+    value = lazyValue.value();
+    value = (_.isUndefined(value)) ? <span class="hljs-string">''</span> : value;
+    <span class="hljs-keyword">if</span>(!_.isNull(value)){ morph.appendContent(value); }</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-179">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-179">&#182;</a>
               </div>
               <p>Observe this content morph’s parent’s children.
 When the morph element’s containing element (morph) is removed, clean up the lazyvalue.
@@ -3902,34 +3947,20 @@ Timeout delay hack to give out dom a change to get their parent</p>
       }
 
     }
+  };
 
-};
-
-hooks.inline = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">inline</span><span class="hljs-params">(env, morph, context, path, params, hash)</span> </span>{
+hooks.content = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">content</span><span class="hljs-params">(env, morph, context, path)</span> </span>{
 
   <span class="hljs-keyword">var</span> lazyValue,
-  value,
-  observer = subtreeObserver,
-  helper = helpers.lookupHelper(path, env, context);
+      value,
+      observer = subtreeObserver,
+      helper = helpers.lookupHelper(path, env);
 
-  <span class="hljs-keyword">if</span>(!_.isFunction(helper)){
-    <span class="hljs-keyword">return</span> <span class="hljs-built_in">console</span>.error(path + <span class="hljs-string">' is not a valid helper!'</span>);
+  <span class="hljs-keyword">if</span> (helper) {
+    lazyValue = constructHelper(morph, path, context, [], {}, {}, env, helper);
+  } <span class="hljs-keyword">else</span> {
+    lazyValue = hooks.get(env, context, path);
   }</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-179">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-179">&#182;</a>
-              </div>
-              <p>Abstracts our helper to provide a handlebars type interface. Constructs our LazyValue.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>  lazyValue = constructHelper(morph, path, context, params, hash, {}, env, helper);</pre></div></div>
             
         </li>
         
@@ -3973,69 +4004,6 @@ Timeout delay hack to give out dom a change to get their parent</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      <span class="hljs-keyword">if</span>(morph._parent){
-        morph._parent.__lazyValue = lazyValue;
-        setTimeout(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{
-          <span class="hljs-keyword">if</span>(morph.contextualElement){
-            observer.observe(morph.contextualElement, { attributes: <span class="hljs-literal">false</span>, childList: <span class="hljs-literal">true</span>, characterData: <span class="hljs-literal">false</span>, subtree: <span class="hljs-literal">true</span> });
-          }
-        }, <span class="hljs-number">0</span>);
-      }
-
-    }
-  };
-
-hooks.content = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">content</span><span class="hljs-params">(env, morph, context, path)</span> </span>{
-
-  <span class="hljs-keyword">var</span> lazyValue,
-      value,
-      observer = subtreeObserver,
-      helper = helpers.lookupHelper(path, env, context);
-
-  lazyValue = streamProperty(context, path);</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-182">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-182">&#182;</a>
-              </div>
-              <p>If we have our lazy value, update our dom.
-morph is a morph element representing our dom node</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span> (lazyValue) {
-    lazyValue.onNotify(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(lazyValue)</span> </span>{
-      <span class="hljs-keyword">var</span> val = lazyValue.value();
-      val = (_.isUndefined(val)) ? <span class="hljs-string">''</span> : val;
-      <span class="hljs-keyword">if</span>(!_.isNull(val)){
-        morph.setContent(val);
-      }
-    });
-
-    value = lazyValue.value();
-    value = (_.isUndefined(value)) ? <span class="hljs-string">''</span> : value;
-    <span class="hljs-keyword">if</span>(!_.isNull(value)){ morph.appendContent(value); }</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-183">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-183">&#182;</a>
-              </div>
-              <p>Observe this content morph’s parent’s children.
-When the morph element’s containing element (morph) is removed, clean up the lazyvalue.
-Timeout delay hack to give out dom a change to get their parent</p>
-
-            </div>
-            
             <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">if</span>(morph._parent){
       morph._parent.__lazyValue = lazyValue;
       setTimeout(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{
@@ -4051,11 +4019,11 @@ Timeout delay hack to give out dom a change to get their parent</p>
         </li>
         
         
-        <li id="section-184">
+        <li id="section-182">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-184">&#182;</a>
+                <a class="pilcrow" href="#section-182">&#182;</a>
               </div>
               <p>Handle morphs in element tags
 TODO: handle dynamic attribute names?</p>
@@ -4063,7 +4031,7 @@ TODO: handle dynamic attribute names?</p>
             </div>
             
             <div class="content"><div class='highlight'><pre>hooks.element = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">element</span><span class="hljs-params">(env, domElement, context, path, params, hash)</span> </span>{
-  <span class="hljs-keyword">var</span> helper = helpers.lookupHelper(path, env, context),
+  <span class="hljs-keyword">var</span> helper = helpers.lookupHelper(path, env),
       lazyValue,
       value;
 
@@ -4072,11 +4040,11 @@ TODO: handle dynamic attribute names?</p>
         </li>
         
         
-        <li id="section-185">
+        <li id="section-183">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-185">&#182;</a>
+                <a class="pilcrow" href="#section-183">&#182;</a>
               </div>
               <p>Abstracts our helper to provide a handlebars type interface. Constructs our LazyValue.</p>
 
@@ -4084,17 +4052,17 @@ TODO: handle dynamic attribute names?</p>
             
             <div class="content"><div class='highlight'><pre>    lazyValue = constructHelper(domElement, path, context, params, hash, {}, env, helper);
   } <span class="hljs-keyword">else</span> {
-    lazyValue = streamProperty(context, path);
+    lazyValue = hooks.get(env, context, path);
   }</pre></div></div>
             
         </li>
         
         
-        <li id="section-186">
+        <li id="section-184">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-186">&#182;</a>
+                <a class="pilcrow" href="#section-184">&#182;</a>
               </div>
               <p>When we have our lazy value run it and start listening for updates.</p>
 
@@ -4125,11 +4093,11 @@ hooks.attribute = <span class="hljs-function"><span class="hljs-keyword">functio
         </li>
         
         
-        <li id="section-187">
+        <li id="section-185">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-187">&#182;</a>
+                <a class="pilcrow" href="#section-185">&#182;</a>
               </div>
               <p>If is a text input element’s value prop with only one variable, wire default events</p>
 
@@ -4140,11 +4108,11 @@ hooks.attribute = <span class="hljs-function"><span class="hljs-keyword">functio
         </li>
         
         
-        <li id="section-188">
+        <li id="section-186">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-188">&#182;</a>
+                <a class="pilcrow" href="#section-186">&#182;</a>
               </div>
               <p>If our special input events have not been bound yet, bind them and set flag</p>
 
@@ -4163,11 +4131,11 @@ hooks.attribute = <span class="hljs-function"><span class="hljs-keyword">functio
         </li>
         
         
-        <li id="section-189">
+        <li id="section-187">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-189">&#182;</a>
+                <a class="pilcrow" href="#section-187">&#182;</a>
               </div>
               <p>Set the attribute on our element for visual referance</p>
 
@@ -4185,11 +4153,11 @@ hooks.attribute = <span class="hljs-function"><span class="hljs-keyword">functio
         </li>
         
         
-        <li id="section-190">
+        <li id="section-188">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-190">&#182;</a>
+                <a class="pilcrow" href="#section-188">&#182;</a>
               </div>
               <p>If our special input events have not been bound yet, bind them and set flag</p>
 
@@ -4207,11 +4175,11 @@ hooks.attribute = <span class="hljs-function"><span class="hljs-keyword">functio
         </li>
         
         
-        <li id="section-191">
+        <li id="section-189">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-191">&#182;</a>
+                <a class="pilcrow" href="#section-189">&#182;</a>
               </div>
               <p>Set the attribute on our element for visual referance</p>
 
@@ -4225,11 +4193,11 @@ hooks.attribute = <span class="hljs-function"><span class="hljs-keyword">functio
         </li>
         
         
-        <li id="section-192">
+        <li id="section-190">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-192">&#182;</a>
+                <a class="pilcrow" href="#section-190">&#182;</a>
               </div>
               <p>Special case for link elements with dynamic classes.
 If the router has assigned it a truthy ‘active’ property, ensure that the extra class is present on re-render.</p>
@@ -4282,11 +4250,11 @@ hooks.component = <span class="hljs-function"><span class="hljs-keyword">functio
         </li>
         
         
-        <li id="section-193">
+        <li id="section-191">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-193">&#182;</a>
+                <a class="pilcrow" href="#section-191">&#182;</a>
               </div>
               <p>Create a lazy value that returns the value of our evaluated component.</p>
 
@@ -4297,11 +4265,11 @@ hooks.component = <span class="hljs-function"><span class="hljs-keyword">functio
         </li>
         
         
-        <li id="section-194">
+        <li id="section-192">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-194">&#182;</a>
+                <a class="pilcrow" href="#section-192">&#182;</a>
               </div>
               <p>Create a plain data object from the lazyvalues/values passed to our component</p>
 
@@ -4314,11 +4282,11 @@ hooks.component = <span class="hljs-function"><span class="hljs-keyword">functio
         </li>
         
         
-        <li id="section-195">
+        <li id="section-193">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-195">&#182;</a>
+                <a class="pilcrow" href="#section-193">&#182;</a>
               </div>
               <p>For each param passed to our shared component, add it to our custom element
 TODO: there has to be a better way to get seed data to element instances
@@ -4334,11 +4302,11 @@ Global seed data is consumed by element as its created. This is not scoped and v
         </li>
         
         
-        <li id="section-196">
+        <li id="section-194">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-196">&#182;</a>
+                <a class="pilcrow" href="#section-194">&#182;</a>
               </div>
               <p>For each lazy param passed to our component, create its lazyValue</p>
 
@@ -4346,18 +4314,18 @@ Global seed data is consumed by element as its created. This is not scoped and v
             
             <div class="content"><div class='highlight'><pre>    _.each(plainData, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(value, key)</span> </span>{
       <span class="hljs-keyword">if</span>(contextData[key] &amp;&amp; contextData[key].isLazyValue){
-        componentData[key] = streamProperty(component, key);
+        componentData[key] = hooks.get(env, component, key);
       }
     });</pre></div></div>
             
         </li>
         
         
-        <li id="section-197">
+        <li id="section-195">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-197">&#182;</a>
+                <a class="pilcrow" href="#section-195">&#182;</a>
               </div>
               <p>Set up two way binding between component and original context for non-data attributes
 Syncing between models and collections passed are handled in model and collection</p>
@@ -4369,11 +4337,11 @@ Syncing between models and collections passed are handled in model and collectio
         </li>
         
         
-        <li id="section-198">
+        <li id="section-196">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-198">&#182;</a>
+                <a class="pilcrow" href="#section-196">&#182;</a>
               </div>
               <p>TODO: Make this sync work with complex arguments with more than one child</p>
 
@@ -4384,11 +4352,11 @@ Syncing between models and collections passed are handled in model and collectio
         </li>
         
         
-        <li id="section-199">
+        <li id="section-197">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-199">&#182;</a>
+                <a class="pilcrow" href="#section-197">&#182;</a>
               </div>
               <p>For each lazy param passed to our component, have it update the original context when changed.</p>
 
@@ -4402,11 +4370,11 @@ Syncing between models and collections passed are handled in model and collectio
         </li>
         
         
-        <li id="section-200">
+        <li id="section-198">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-200">&#182;</a>
+                <a class="pilcrow" href="#section-198">&#182;</a>
               </div>
               <p>For each lazy param passed to our component, have it update the component when changed.</p>
 
@@ -4419,11 +4387,11 @@ Syncing between models and collections passed are handled in model and collectio
         </li>
         
         
-        <li id="section-201">
+        <li id="section-199">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-201">&#182;</a>
+                <a class="pilcrow" href="#section-199">&#182;</a>
               </div>
               <p>Seed the cache</p>
 
@@ -4434,11 +4402,11 @@ Syncing between models and collections passed are handled in model and collectio
         </li>
         
         
-        <li id="section-202">
+        <li id="section-200">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-202">&#182;</a>
+                <a class="pilcrow" href="#section-200">&#182;</a>
               </div>
               <p>Notify the component’s lazyvalue when our model updates</p>
 
@@ -4452,11 +4420,11 @@ Syncing between models and collections passed are handled in model and collectio
         </li>
         
         
-        <li id="section-203">
+        <li id="section-201">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-203">&#182;</a>
+                <a class="pilcrow" href="#section-201">&#182;</a>
               </div>
               <p>// For each change on our component, update the states of the original context and the element’s proeprties.</p>
 
@@ -4470,11 +4438,11 @@ Syncing between models and collections passed are handled in model and collectio
         </li>
         
         
-        <li id="section-204">
+        <li id="section-202">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-204">&#182;</a>
+                <a class="pilcrow" href="#section-202">&#182;</a>
               </div>
               <p>Set the properties on our element for visual referance if we are on a top level attribute</p>
 
@@ -4485,11 +4453,11 @@ Syncing between models and collections passed are handled in model and collectio
         </li>
         
         
-        <li id="section-205">
+        <li id="section-203">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-205">&#182;</a>
+                <a class="pilcrow" href="#section-203">&#182;</a>
               </div>
               <p>TODO: Currently, showing objects as properties on the custom element causes problems.
 Linked models between the context and component become the same exact model and all hell breaks loose.
@@ -4518,11 +4486,11 @@ Find a way to remedy this. Until then, don’t show objects.</p>
         </li>
         
         
-        <li id="section-206">
+        <li id="section-204">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-206">&#182;</a>
+                <a class="pilcrow" href="#section-204">&#182;</a>
               </div>
               <p>TODO: break this out into its own function
 Set the properties on our element for visual referance if we are on a top level attribute</p>
@@ -4535,11 +4503,11 @@ Set the properties on our element for visual referance if we are on a top level 
         </li>
         
         
-        <li id="section-207">
+        <li id="section-205">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-207">&#182;</a>
+                <a class="pilcrow" href="#section-205">&#182;</a>
               </div>
               <p>TODO: Currently, showing objects as properties on the custom element causes problems. Linked models between the context and component become the same exact model and all hell breaks loose. Find a way to remedy this. Until then, don’t show objects.</p>
 
@@ -4558,11 +4526,11 @@ Set the properties on our element for visual referance if we are on a top level 
         </li>
         
         
-        <li id="section-208">
+        <li id="section-206">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-208">&#182;</a>
+                <a class="pilcrow" href="#section-206">&#182;</a>
               </div>
               <p>If an outlet marker is present in component’s template, and a template is provided, render it into <content></p>
 
@@ -4576,11 +4544,11 @@ Set the properties on our element for visual referance if we are on a top level 
         </li>
         
         
-        <li id="section-209">
+        <li id="section-207">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-209">&#182;</a>
+                <a class="pilcrow" href="#section-207">&#182;</a>
               </div>
               <p>Return the new element.</p>
 
@@ -4592,11 +4560,11 @@ Set the properties on our element for visual referance if we are on a top level 
         </li>
         
         
-        <li id="section-210">
+        <li id="section-208">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-210">&#182;</a>
+                <a class="pilcrow" href="#section-208">&#182;</a>
               </div>
               <p>If we have our lazy value, update our dom.
 morph is a morph element representing our dom node</p>
@@ -4617,11 +4585,11 @@ morph is a morph element representing our dom node</p>
         </li>
         
         
-        <li id="section-211">
+        <li id="section-209">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-211">&#182;</a>
+                <a class="pilcrow" href="#section-209">&#182;</a>
               </div>
               <p>registerHelper is a publically available function to register a helper with HTMLBars</p>
 
@@ -4633,11 +4601,11 @@ export <span class="hljs-keyword">default</span> hooks;</pre></div></div>
         </li>
         
         
-        <li id="section-212">
+        <li id="section-210">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-212">&#182;</a>
+                <a class="pilcrow" href="#section-210">&#182;</a>
               </div>
               <h2 id="rebound-lazy-value">Rebound Lazy Value</h2>
 
@@ -4646,11 +4614,11 @@ export <span class="hljs-keyword">default</span> hooks;</pre></div></div>
         </li>
         
         
-        <li id="section-213">
+        <li id="section-211">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-213">&#182;</a>
+                <a class="pilcrow" href="#section-211">&#182;</a>
               </div>
               
             </div>
@@ -4728,11 +4696,11 @@ LazyValue.prototype = {
         </li>
         
         
-        <li id="section-214">
+        <li id="section-212">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-214">&#182;</a>
+                <a class="pilcrow" href="#section-212">&#182;</a>
               </div>
               <p>Ensure _observers exists and is an object</p>
 
@@ -4743,11 +4711,11 @@ LazyValue.prototype = {
         </li>
         
         
-        <li id="section-215">
+        <li id="section-213">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-215">&#182;</a>
+                <a class="pilcrow" href="#section-213">&#182;</a>
               </div>
               <p>Ensure __observers[path] exists and is an array</p>
 
@@ -4758,11 +4726,11 @@ LazyValue.prototype = {
         </li>
         
         
-        <li id="section-216">
+        <li id="section-214">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-216">&#182;</a>
+                <a class="pilcrow" href="#section-214">&#182;</a>
               </div>
               <p>Save the type of object events this observer is for</p>
 
@@ -4774,11 +4742,11 @@ LazyValue.prototype = {
         </li>
         
         
-        <li id="section-217">
+        <li id="section-215">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-217">&#182;</a>
+                <a class="pilcrow" href="#section-215">&#182;</a>
               </div>
               <p>Add our callback, save the position it is being inserted so we can garbage collect later.</p>
 
@@ -4789,11 +4757,11 @@ LazyValue.prototype = {
         </li>
         
         
-        <li id="section-218">
+        <li id="section-216">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-218">&#182;</a>
+                <a class="pilcrow" href="#section-216">&#182;</a>
               </div>
               <p>Lazyvalue needs referance to its observers to remove listeners on destroy</p>
 
@@ -4809,11 +4777,11 @@ LazyValue.prototype = {
         </li>
         
         
-        <li id="section-219">
+        <li id="section-217">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-219">&#182;</a>
+                <a class="pilcrow" href="#section-217">&#182;</a>
               </div>
               <p>TODO: This check won’t be necessary once removed DOM has been cleaned of any bindings.
 If this lazyValue’s morph does not have an immediate parentNode, it has been removed from the dom tree. Destroy it.
@@ -4869,11 +4837,11 @@ export <span class="hljs-keyword">default</span> LazyValue;</pre></div></div>
         </li>
         
         
-        <li id="section-220">
+        <li id="section-218">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-220">&#182;</a>
+                <a class="pilcrow" href="#section-218">&#182;</a>
               </div>
               <h2 id="rebound-router">Rebound Router</h2>
 
@@ -4882,11 +4850,11 @@ export <span class="hljs-keyword">default</span> LazyValue;</pre></div></div>
         </li>
         
         
-        <li id="section-221">
+        <li id="section-219">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-221">&#182;</a>
+                <a class="pilcrow" href="#section-219">&#182;</a>
               </div>
               
             </div>
@@ -4897,11 +4865,11 @@ import $ from <span class="hljs-string">"rebound-component/utils"</span>;</pre><
         </li>
         
         
-        <li id="section-222">
+        <li id="section-220">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-222">&#182;</a>
+                <a class="pilcrow" href="#section-220">&#182;</a>
               </div>
               <p>If Backbone hasn’t been started yet, throw error</p>
 
@@ -4912,11 +4880,11 @@ import $ from <span class="hljs-string">"rebound-component/utils"</span>;</pre><
         </li>
         
         
-        <li id="section-223">
+        <li id="section-221">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-223">&#182;</a>
+                <a class="pilcrow" href="#section-221">&#182;</a>
               </div>
               <p>Clean up old page component and load routes from our new page component</p>
 
@@ -4928,11 +4896,11 @@ import $ from <span class="hljs-string">"rebound-component/utils"</span>;</pre><
         </li>
         
         
-        <li id="section-224">
+        <li id="section-222">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-224">&#182;</a>
+                <a class="pilcrow" href="#section-222">&#182;</a>
               </div>
               <p>De-initialize the previous app before rendering a new app
 This way we can ensure that every new page starts with a clean slate
@@ -4947,11 +4915,11 @@ This is crucial for scalability of a single page app.</p>
         </li>
         
         
-        <li id="section-225">
+        <li id="section-223">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-225">&#182;</a>
+                <a class="pilcrow" href="#section-223">&#182;</a>
               </div>
               <p>Unset Previous Application’s Routes. For each route in the page app:</p>
 
@@ -4964,11 +4932,11 @@ This is crucial for scalability of a single page app.</p>
         </li>
         
         
-        <li id="section-226">
+        <li id="section-224">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-226">&#182;</a>
+                <a class="pilcrow" href="#section-224">&#182;</a>
               </div>
               <p>Remove the handler from our route object</p>
 
@@ -4979,11 +4947,11 @@ This is crucial for scalability of a single page app.</p>
         </li>
         
         
-        <li id="section-227">
+        <li id="section-225">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-227">&#182;</a>
+                <a class="pilcrow" href="#section-225">&#182;</a>
               </div>
               <p>Delete our referance to the route’s callback</p>
 
@@ -4996,11 +4964,11 @@ This is crucial for scalability of a single page app.</p>
         </li>
         
         
-        <li id="section-228">
+        <li id="section-226">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-228">&#182;</a>
+                <a class="pilcrow" href="#section-226">&#182;</a>
               </div>
               <p>Un-hook Event Bindings, Delete Objects</p>
 
@@ -5011,11 +4979,11 @@ This is crucial for scalability of a single page app.</p>
         </li>
         
         
-        <li id="section-229">
+        <li id="section-227">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-229">&#182;</a>
+                <a class="pilcrow" href="#section-227">&#182;</a>
               </div>
               <p>Disable old css if it exists</p>
 
@@ -5030,11 +4998,11 @@ This is crucial for scalability of a single page app.</p>
         </li>
         
         
-        <li id="section-230">
+        <li id="section-228">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-230">&#182;</a>
+                <a class="pilcrow" href="#section-228">&#182;</a>
               </div>
               <p>Load New PageApp, give it it’s name so we know what css to remove when it deinitializes</p>
 
@@ -5046,11 +5014,11 @@ This is crucial for scalability of a single page app.</p>
         </li>
         
         
-        <li id="section-231">
+        <li id="section-229">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-231">&#182;</a>
+                <a class="pilcrow" href="#section-229">&#182;</a>
               </div>
               <p>Add to our page</p>
 
@@ -5063,11 +5031,11 @@ This is crucial for scalability of a single page app.</p>
         </li>
         
         
-        <li id="section-232">
+        <li id="section-230">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-232">&#182;</a>
+                <a class="pilcrow" href="#section-230">&#182;</a>
               </div>
               <p>Make sure we’re back at the top of the page</p>
 
@@ -5078,11 +5046,11 @@ This is crucial for scalability of a single page app.</p>
         </li>
         
         
-        <li id="section-233">
+        <li id="section-231">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-233">&#182;</a>
+                <a class="pilcrow" href="#section-231">&#182;</a>
               </div>
               <p>Augment ApplicationRouter with new routes from PageApp</p>
 
@@ -5093,11 +5061,11 @@ This is crucial for scalability of a single page app.</p>
         </li>
         
         
-        <li id="section-234">
+        <li id="section-232">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-234">&#182;</a>
+                <a class="pilcrow" href="#section-232">&#182;</a>
               </div>
               <p>Generate our route callback’s new name</p>
 
@@ -5109,11 +5077,11 @@ This is crucial for scalability of a single page app.</p>
         </li>
         
         
-        <li id="section-235">
+        <li id="section-233">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-235">&#182;</a>
+                <a class="pilcrow" href="#section-233">&#182;</a>
               </div>
               <p>Add the new callback referance on to our router</p>
 
@@ -5124,11 +5092,11 @@ This is crucial for scalability of a single page app.</p>
         </li>
         
         
-        <li id="section-236">
+        <li id="section-234">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-236">&#182;</a>
+                <a class="pilcrow" href="#section-234">&#182;</a>
               </div>
               <p>Add the route handler</p>
 
@@ -5144,11 +5112,11 @@ This is crucial for scalability of a single page app.</p>
         </li>
         
         
-        <li id="section-237">
+        <li id="section-235">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-237">&#182;</a>
+                <a class="pilcrow" href="#section-235">&#182;</a>
               </div>
               <p>Return our newly installed app</p>
 
@@ -5160,11 +5128,11 @@ This is crucial for scalability of a single page app.</p>
         </li>
         
         
-        <li id="section-238">
+        <li id="section-236">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-238">&#182;</a>
+                <a class="pilcrow" href="#section-236">&#182;</a>
               </div>
               <p>Fetches Pare HTML and CSS</p>
 
@@ -5175,11 +5143,11 @@ This is crucial for scalability of a single page app.</p>
         </li>
         
         
-        <li id="section-239">
+        <li id="section-237">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-239">&#182;</a>
+                <a class="pilcrow" href="#section-237">&#182;</a>
               </div>
               <p>Expecting Module Definition as ‘SearchApp’ Where ‘Search’ a Primary Route</p>
 
@@ -5197,11 +5165,11 @@ This is crucial for scalability of a single page app.</p>
         </li>
         
         
-        <li id="section-240">
+        <li id="section-238">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-240">&#182;</a>
+                <a class="pilcrow" href="#section-238">&#182;</a>
               </div>
               <p>Only Load CSS If Not Loaded Before</p>
 
@@ -5220,11 +5188,11 @@ This is crucial for scalability of a single page app.</p>
         </li>
         
         
-        <li id="section-241">
+        <li id="section-239">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-241">&#182;</a>
+                <a class="pilcrow" href="#section-239">&#182;</a>
               </div>
               <p>Install The Loaded Resources</p>
 
@@ -5235,11 +5203,11 @@ This is crucial for scalability of a single page app.</p>
         </li>
         
         
-        <li id="section-242">
+        <li id="section-240">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-242">&#182;</a>
+                <a class="pilcrow" href="#section-240">&#182;</a>
               </div>
               <p>Re-trigger route so the newly added route may execute if there’s a route match.
 If no routes are matched, app will hit wildCard route which will then trigger 404</p>
@@ -5260,11 +5228,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-243">
+        <li id="section-241">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-243">&#182;</a>
+                <a class="pilcrow" href="#section-241">&#182;</a>
               </div>
               <p>If it has been loaded bevore, enable it</p>
 
@@ -5278,11 +5246,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-244">
+        <li id="section-242">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-244">&#182;</a>
+                <a class="pilcrow" href="#section-242">&#182;</a>
               </div>
               <p>If if requirejs is not on the page, load the file manually. It better contain all its dependancies.</p>
 
@@ -5299,11 +5267,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-245">
+        <li id="section-243">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-245">&#182;</a>
+                <a class="pilcrow" href="#section-243">&#182;</a>
               </div>
               <p>AMD Will Manage Dependancies For Us. Load The App.</p>
 
@@ -5316,11 +5284,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-246">
+        <li id="section-244">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-246">&#182;</a>
+                <a class="pilcrow" href="#section-244">&#182;</a>
               </div>
               <p>Install The Loaded Resources</p>
 
@@ -5331,11 +5299,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-247">
+        <li id="section-245">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-247">&#182;</a>
+                <a class="pilcrow" href="#section-245">&#182;</a>
               </div>
               <p>Re-trigger route so the newly added route may execute if there’s a route match.
 If no routes are matched, app will hit wildCard route which will then trigger 404</p>
@@ -5360,11 +5328,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-248">
+        <li id="section-246">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-248">&#182;</a>
+                <a class="pilcrow" href="#section-246">&#182;</a>
               </div>
               <p>AMD Will Manage Dependancies For Us. Load The App.</p>
 
@@ -5377,11 +5345,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-249">
+        <li id="section-247">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-249">&#182;</a>
+                <a class="pilcrow" href="#section-247">&#182;</a>
               </div>
               <p>Install The Loaded Resources</p>
 
@@ -5392,11 +5360,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-250">
+        <li id="section-248">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-250">&#182;</a>
+                <a class="pilcrow" href="#section-248">&#182;</a>
               </div>
               <p>Re-trigger route so the newly added route may execute if there’s a route match.
 If no routes are matched, app will hit wildCard route which will then trigger 404</p>
@@ -5420,11 +5388,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-251">
+        <li id="section-249">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-251">&#182;</a>
+                <a class="pilcrow" href="#section-249">&#182;</a>
               </div>
               <p>ReboundRouter Constructor</p>
 
@@ -5439,11 +5407,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-252">
+        <li id="section-250">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-252">&#182;</a>
+                <a class="pilcrow" href="#section-250">&#182;</a>
               </div>
               <p>Called when no matching routes are found. Extracts root route and fetches it resources</p>
 
@@ -5455,11 +5423,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-253">
+        <li id="section-251">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-253">&#182;</a>
+                <a class="pilcrow" href="#section-251">&#182;</a>
               </div>
               <p>If empty route sent, route home</p>
 
@@ -5470,11 +5438,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-254">
+        <li id="section-252">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-254">&#182;</a>
+                <a class="pilcrow" href="#section-252">&#182;</a>
               </div>
               <p>Get Root of Route</p>
 
@@ -5485,11 +5453,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-255">
+        <li id="section-253">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-255">&#182;</a>
+                <a class="pilcrow" href="#section-253">&#182;</a>
               </div>
               <p>Find Any Custom Route Mappings</p>
 
@@ -5505,11 +5473,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-256">
+        <li id="section-254">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-256">&#182;</a>
+                <a class="pilcrow" href="#section-254">&#182;</a>
               </div>
               <p>If Page Is Already Loaded Then The Route Does Not Exist. 404 and Exit.</p>
 
@@ -5522,11 +5490,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-257">
+        <li id="section-255">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-257">&#182;</a>
+                <a class="pilcrow" href="#section-255">&#182;</a>
               </div>
               <p>Fetch Resources</p>
 
@@ -5539,11 +5507,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-258">
+        <li id="section-256">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-258">&#182;</a>
+                <a class="pilcrow" href="#section-256">&#182;</a>
               </div>
               <p>On startup, save our config object and start the router</p>
 
@@ -5554,11 +5522,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-259">
+        <li id="section-257">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-259">&#182;</a>
+                <a class="pilcrow" href="#section-257">&#182;</a>
               </div>
               <p>Save our config referance</p>
 
@@ -5574,11 +5542,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-260">
+        <li id="section-258">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-260">&#182;</a>
+                <a class="pilcrow" href="#section-258">&#182;</a>
               </div>
               <p>Convert our routeMappings to regexps and push to our handlers</p>
 
@@ -5592,11 +5560,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-261">
+        <li id="section-259">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-261">&#182;</a>
+                <a class="pilcrow" href="#section-259">&#182;</a>
               </div>
               <p>Navigate to route for any link with a relative href</p>
 
@@ -5609,11 +5577,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-262">
+        <li id="section-260">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-262">&#182;</a>
+                <a class="pilcrow" href="#section-260">&#182;</a>
               </div>
               <p>If path is not an remote url, ends in .[a-z], or blank, try and navigate to that route.</p>
 
@@ -5643,11 +5611,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-263">
+        <li id="section-261">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-263">&#182;</a>
+                <a class="pilcrow" href="#section-261">&#182;</a>
               </div>
               <p>Install our global components</p>
 
@@ -5660,11 +5628,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-264">
+        <li id="section-262">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-264">&#182;</a>
+                <a class="pilcrow" href="#section-262">&#182;</a>
               </div>
               <p>Let all of our components always have referance to our router</p>
 
@@ -5675,11 +5643,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-265">
+        <li id="section-263">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-265">&#182;</a>
+                <a class="pilcrow" href="#section-263">&#182;</a>
               </div>
               <p>Start the history</p>
 
@@ -5698,11 +5666,11 @@ export <span class="hljs-keyword">default</span> ReboundRouter;</pre></div></div
         </li>
         
         
-        <li id="section-266">
+        <li id="section-264">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-266">&#182;</a>
+                <a class="pilcrow" href="#section-264">&#182;</a>
               </div>
               <h2 id="rebound-utils">Rebound Utils</h2>
 
@@ -5711,11 +5679,11 @@ export <span class="hljs-keyword">default</span> ReboundRouter;</pre></div></div
         </li>
         
         
-        <li id="section-267">
+        <li id="section-265">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-267">&#182;</a>
+                <a class="pilcrow" href="#section-265">&#182;</a>
               </div>
               
             </div>
@@ -5732,11 +5700,11 @@ export <span class="hljs-keyword">default</span> ReboundRouter;</pre></div></div
         </li>
         
         
-        <li id="section-268">
+        <li id="section-266">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-268">&#182;</a>
+                <a class="pilcrow" href="#section-266">&#182;</a>
               </div>
               <p>Add selector to object for method chaining</p>
 
@@ -5757,11 +5725,11 @@ $.Event = <span class="hljs-function"><span class="hljs-keyword">function</span>
         </li>
         
         
-        <li id="section-269">
+        <li id="section-267">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-269">&#182;</a>
+                <a class="pilcrow" href="#section-267">&#182;</a>
               </div>
               <p>Allow instantiation without the ‘new’ keyword</p>
 
@@ -5774,11 +5742,11 @@ $.Event = <span class="hljs-function"><span class="hljs-keyword">function</span>
         </li>
         
         
-        <li id="section-270">
+        <li id="section-268">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-270">&#182;</a>
+                <a class="pilcrow" href="#section-268">&#182;</a>
               </div>
               <p>Event object</p>
 
@@ -5791,11 +5759,11 @@ $.Event = <span class="hljs-function"><span class="hljs-keyword">function</span>
         </li>
         
         
-        <li id="section-271">
+        <li id="section-269">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-271">&#182;</a>
+                <a class="pilcrow" href="#section-269">&#182;</a>
               </div>
               <p>Events bubbling up the document may have been marked as prevented
 by a handler lower down the tree; reflect the correct value.</p>
@@ -5808,11 +5776,11 @@ by a handler lower down the tree; reflect the correct value.</p>
         </li>
         
         
-        <li id="section-272">
+        <li id="section-270">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-272">&#182;</a>
+                <a class="pilcrow" href="#section-270">&#182;</a>
               </div>
               <p>Support: Android&lt;4.0</p>
 
@@ -5825,11 +5793,11 @@ by a handler lower down the tree; reflect the correct value.</p>
         </li>
         
         
-        <li id="section-273">
+        <li id="section-271">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-273">&#182;</a>
+                <a class="pilcrow" href="#section-271">&#182;</a>
               </div>
               <p>Event type</p>
 
@@ -5842,11 +5810,11 @@ by a handler lower down the tree; reflect the correct value.</p>
         </li>
         
         
-        <li id="section-274">
+        <li id="section-272">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-274">&#182;</a>
+                <a class="pilcrow" href="#section-272">&#182;</a>
               </div>
               <p>Put explicitly provided properties onto the event object</p>
 
@@ -5859,11 +5827,11 @@ by a handler lower down the tree; reflect the correct value.</p>
         </li>
         
         
-        <li id="section-275">
+        <li id="section-273">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-275">&#182;</a>
+                <a class="pilcrow" href="#section-273">&#182;</a>
               </div>
               <p>Copy over all original event properties</p>
 
@@ -5880,11 +5848,11 @@ by a handler lower down the tree; reflect the correct value.</p>
         </li>
         
         
-        <li id="section-276">
+        <li id="section-274">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-276">&#182;</a>
+                <a class="pilcrow" href="#section-274">&#182;</a>
               </div>
               <p>Create a timestamp if incoming event doesn’t have one</p>
 
@@ -5895,11 +5863,11 @@ by a handler lower down the tree; reflect the correct value.</p>
         </li>
         
         
-        <li id="section-277">
+        <li id="section-275">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-277">&#182;</a>
+                <a class="pilcrow" href="#section-275">&#182;</a>
               </div>
               <p>Mark it as fixed</p>
 
@@ -5951,11 +5919,11 @@ utils.prototype = {</pre></div></div>
         </li>
         
         
-        <li id="section-278">
+        <li id="section-276">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-278">&#182;</a>
+                <a class="pilcrow" href="#section-276">&#182;</a>
               </div>
               <p>Given a valid data path, split it into an array of its parts.
 ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
@@ -5972,11 +5940,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-279">
+        <li id="section-277">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-279">&#182;</a>
+                <a class="pilcrow" href="#section-277">&#182;</a>
               </div>
               <p>Applies function <code>func</code> depth first to every node in the subtree starting from <code>root</code></p>
 
@@ -5998,11 +5966,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-280">
+        <li id="section-278">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-280">&#182;</a>
+                <a class="pilcrow" href="#section-278">&#182;</a>
               </div>
               <p>Events registry. An object containing all events bound through this util shared among all instances.</p>
 
@@ -6013,11 +5981,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-281">
+        <li id="section-279">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-281">&#182;</a>
+                <a class="pilcrow" href="#section-279">&#182;</a>
               </div>
               <p>Takes the targed the event fired on and returns all callbacks for the delegated element</p>
 
@@ -6029,11 +5997,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-282">
+        <li id="section-280">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-282">&#182;</a>
+                <a class="pilcrow" href="#section-280">&#182;</a>
               </div>
               <p>Get our callbacks</p>
 
@@ -6053,11 +6021,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-283">
+        <li id="section-281">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-283">&#182;</a>
+                <a class="pilcrow" href="#section-281">&#182;</a>
               </div>
               <p>Triggers an event on a given dom node</p>
 
@@ -6102,11 +6070,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-284">
+        <li id="section-282">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-284">&#182;</a>
+                <a class="pilcrow" href="#section-282">&#182;</a>
               </div>
               <p>If there are no more of this event type delegated for this group, remove the listener</p>
 
@@ -6135,11 +6103,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-285">
+        <li id="section-283">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-285">&#182;</a>
+                <a class="pilcrow" href="#section-283">&#182;</a>
               </div>
               <p>Normalize data input</p>
 
@@ -6167,11 +6135,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-286">
+        <li id="section-284">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-286">&#182;</a>
+                <a class="pilcrow" href="#section-284">&#182;</a>
               </div>
               <p>Ensure event obj existance</p>
 
@@ -6182,11 +6150,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-287">
+        <li id="section-285">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-287">&#182;</a>
+                <a class="pilcrow" href="#section-285">&#182;</a>
               </div>
               <p>TODO: take out of loop</p>
 
@@ -6200,11 +6168,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-288">
+        <li id="section-286">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-288">&#182;</a>
+                <a class="pilcrow" href="#section-286">&#182;</a>
               </div>
               <p>Travel from target up to parent firing event on delegate when it exizts</p>
 
@@ -6215,11 +6183,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-289">
+        <li id="section-287">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-289">&#182;</a>
+                <a class="pilcrow" href="#section-287">&#182;</a>
               </div>
               <p>Get all specified callbacks (element specific and selector specified)</p>
 
@@ -6238,11 +6206,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-290">
+        <li id="section-288">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-290">&#182;</a>
+                <a class="pilcrow" href="#section-288">&#182;</a>
               </div>
               <p>If any of the callbacks returned false, prevent default and stop propagation</p>
 
@@ -6261,11 +6229,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-291">
+        <li id="section-289">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-291">&#182;</a>
+                <a class="pilcrow" href="#section-289">&#182;</a>
               </div>
               <p>If this is the first event of its type, add the event handler
 AddEventListener supports IE9+</p>
@@ -6277,11 +6245,11 @@ AddEventListener supports IE9+</p>
         </li>
         
         
-        <li id="section-292">
+        <li id="section-290">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-292">&#182;</a>
+                <a class="pilcrow" href="#section-290">&#182;</a>
               </div>
               <p>If event is focus or blur, use capture to allow for event delegation.</p>
 
@@ -6293,11 +6261,11 @@ AddEventListener supports IE9+</p>
         </li>
         
         
-        <li id="section-293">
+        <li id="section-291">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-293">&#182;</a>
+                <a class="pilcrow" href="#section-291">&#182;</a>
               </div>
               <p>Add our listener</p>
 
@@ -6338,11 +6306,11 @@ AddEventListener supports IE9+</p>
         </li>
         
         
-        <li id="section-294">
+        <li id="section-292">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-294">&#182;</a>
+                <a class="pilcrow" href="#section-292">&#182;</a>
               </div>
               <p><a href="http://krasimirtsonev.com/blog/article/Cross-browser-handling-of-Ajax-requests-in-absurdjs">http://krasimirtsonev.com/blog/article/Cross-browser-handling-of-Ajax-requests-in-absurdjs</a></p>
 
@@ -6440,11 +6408,11 @@ export <span class="hljs-keyword">default</span> $;</pre></div></div>
         </li>
         
         
-        <li id="section-295">
+        <li id="section-293">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-295">&#182;</a>
+                <a class="pilcrow" href="#section-293">&#182;</a>
               </div>
               <h2 id="property-compiler">Property Compiler</h2>
 
@@ -6453,11 +6421,11 @@ export <span class="hljs-keyword">default</span> $;</pre></div></div>
         </li>
         
         
-        <li id="section-296">
+        <li id="section-294">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-296">&#182;</a>
+                <a class="pilcrow" href="#section-294">&#182;</a>
               </div>
               
             </div>
@@ -6470,11 +6438,11 @@ import tokenizer from <span class="hljs-string">"property-compiler/tokenizer"</s
         </li>
         
         
-        <li id="section-297">
+        <li id="section-295">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-297">&#182;</a>
+                <a class="pilcrow" href="#section-295">&#182;</a>
               </div>
               <p>TODO: Make this farrrrrr more robust…very minimal right now</p>
 
@@ -6516,11 +6484,11 @@ import tokenizer from <span class="hljs-string">"property-compiler/tokenizer"</s
         </li>
         
         
-        <li id="section-298">
+        <li id="section-296">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-298">&#182;</a>
+                <a class="pilcrow" href="#section-296">&#182;</a>
               </div>
               <p>TODO: handle gets on collections</p>
 
@@ -6535,11 +6503,11 @@ import tokenizer from <span class="hljs-string">"property-compiler/tokenizer"</s
         </li>
         
         
-        <li id="section-299">
+        <li id="section-297">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-299">&#182;</a>
+                <a class="pilcrow" href="#section-297">&#182;</a>
               </div>
               <p>Replace any access to a collection with the generic @each placeholder and push dependancy</p>
 
@@ -6572,11 +6540,11 @@ import tokenizer from <span class="hljs-string">"property-compiler/tokenizer"</s
         </li>
         
         
-        <li id="section-300">
+        <li id="section-298">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-300">&#182;</a>
+                <a class="pilcrow" href="#section-298">&#182;</a>
               </div>
               <p>workingpath[workingpath.length -1] = workingpath[workingpath.length -1] + ‘[‘ + path.value + ‘]’;
 workingpath.push(‘[‘ + path.value + ‘]’);</p>
@@ -6627,11 +6595,11 @@ workingpath.push(‘[‘ + path.value + ‘]’);</p>
         </li>
         
         
-        <li id="section-301">
+        <li id="section-299">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-301">&#182;</a>
+                <a class="pilcrow" href="#section-299">&#182;</a>
               </div>
               <p>Return the dependancies list</p>
 
@@ -6646,11 +6614,11 @@ export <span class="hljs-keyword">default</span> { compile: compile };</pre></di
         </li>
         
         
-        <li id="section-302">
+        <li id="section-300">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-302">&#182;</a>
+                <a class="pilcrow" href="#section-300">&#182;</a>
               </div>
               <h2 id="rebound-compiler">Rebound Compiler</h2>
 
@@ -6659,11 +6627,11 @@ export <span class="hljs-keyword">default</span> { compile: compile };</pre></di
         </li>
         
         
-        <li id="section-303">
+        <li id="section-301">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-303">&#182;</a>
+                <a class="pilcrow" href="#section-301">&#182;</a>
               </div>
               
             </div>
@@ -6680,11 +6648,11 @@ import hooks from <span class="hljs-string">"rebound-component/hooks"</span>;
         </li>
         
         
-        <li id="section-304">
+        <li id="section-302">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-304">&#182;</a>
+                <a class="pilcrow" href="#section-302">&#182;</a>
               </div>
               <p>Ensure we have a well-formed object as var options</p>
 
@@ -6697,11 +6665,11 @@ import hooks from <span class="hljs-string">"rebound-component/hooks"</span>;
         </li>
         
         
-        <li id="section-305">
+        <li id="section-303">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-305">&#182;</a>
+                <a class="pilcrow" href="#section-303">&#182;</a>
               </div>
               <p>Merge our default helpers with user provided helpers</p>
 
@@ -6713,11 +6681,11 @@ import hooks from <span class="hljs-string">"rebound-component/hooks"</span>;
         </li>
         
         
-        <li id="section-306">
+        <li id="section-304">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-306">&#182;</a>
+                <a class="pilcrow" href="#section-304">&#182;</a>
               </div>
               <p>Compile our template function</p>
 
@@ -6733,11 +6701,11 @@ import hooks from <span class="hljs-string">"rebound-component/hooks"</span>;
         </li>
         
         
-        <li id="section-307">
+        <li id="section-305">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-307">&#182;</a>
+                <a class="pilcrow" href="#section-305">&#182;</a>
               </div>
               <p>Return a wrapper function that will merge user provided helpers with our defaults</p>
 
@@ -6748,11 +6716,11 @@ import hooks from <span class="hljs-string">"rebound-component/hooks"</span>;
         </li>
         
         
-        <li id="section-308">
+        <li id="section-306">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-308">&#182;</a>
+                <a class="pilcrow" href="#section-306">&#182;</a>
               </div>
               <p>Ensure we have a well-formed object as var options</p>
 
@@ -6766,11 +6734,11 @@ import hooks from <span class="hljs-string">"rebound-component/hooks"</span>;
         </li>
         
         
-        <li id="section-309">
+        <li id="section-307">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-309">&#182;</a>
+                <a class="pilcrow" href="#section-307">&#182;</a>
               </div>
               <p>Merge our default helpers and hooks with user provided helpers</p>
 
@@ -6782,11 +6750,11 @@ import hooks from <span class="hljs-string">"rebound-component/hooks"</span>;
         </li>
         
         
-        <li id="section-310">
+        <li id="section-308">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-310">&#182;</a>
+                <a class="pilcrow" href="#section-308">&#182;</a>
               </div>
               <p>Set a default context if it doesn’t exist</p>
 
@@ -6797,11 +6765,11 @@ import hooks from <span class="hljs-string">"rebound-component/hooks"</span>;
         </li>
         
         
-        <li id="section-311">
+        <li id="section-309">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-311">&#182;</a>
+                <a class="pilcrow" href="#section-309">&#182;</a>
               </div>
               <p>Call our func with merged helpers and hooks</p>
 
@@ -6821,11 +6789,11 @@ export { compile };</pre></div></div>
         </li>
         
         
-        <li id="section-312">
+        <li id="section-310">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-312">&#182;</a>
+                <a class="pilcrow" href="#section-310">&#182;</a>
               </div>
               <h2 id="rebound-precompiler">Rebound Precompiler</h2>
 
@@ -6834,11 +6802,11 @@ export { compile };</pre></div></div>
         </li>
         
         
-        <li id="section-313">
+        <li id="section-311">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-313">&#182;</a>
+                <a class="pilcrow" href="#section-311">&#182;</a>
               </div>
               
             </div>
@@ -6849,11 +6817,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-314">
+        <li id="section-312">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-314">&#182;</a>
+                <a class="pilcrow" href="#section-312">&#182;</a>
               </div>
               <p>Remove the contents of the component’s <code>script</code> tag.</p>
 
@@ -6866,11 +6834,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-315">
+        <li id="section-313">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-315">&#182;</a>
+                <a class="pilcrow" href="#section-313">&#182;</a>
               </div>
               <p>Remove the contents of the component’s <code>style</code> tag.</p>
 
@@ -6883,11 +6851,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-316">
+        <li id="section-314">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-316">&#182;</a>
+                <a class="pilcrow" href="#section-314">&#182;</a>
               </div>
               <p>Remove the contents of the component’s <code>template</code> tag.</p>
 
@@ -6900,11 +6868,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-317">
+        <li id="section-315">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-317">&#182;</a>
+                <a class="pilcrow" href="#section-315">&#182;</a>
               </div>
               <p>Get the component’s name from its <code>name</code> attribute.</p>
 
@@ -6917,11 +6885,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-318">
+        <li id="section-316">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-318">&#182;</a>
+                <a class="pilcrow" href="#section-316">&#182;</a>
               </div>
               <p>Minify the string passed in by replacing all whitespace.</p>
 
@@ -6934,11 +6902,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-319">
+        <li id="section-317">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-319">&#182;</a>
+                <a class="pilcrow" href="#section-317">&#182;</a>
               </div>
               <p>Strip javascript comments</p>
 
@@ -6977,11 +6945,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-320">
+        <li id="section-318">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-320">&#182;</a>
+                <a class="pilcrow" href="#section-318">&#182;</a>
               </div>
               <p>Remove comments
 str = removeComments(str);
@@ -7009,11 +6977,11 @@ str = minify(str);</p>
         </li>
         
         
-        <li id="section-321">
+        <li id="section-319">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-321">&#182;</a>
+                <a class="pilcrow" href="#section-319">&#182;</a>
               </div>
               <p>If the element tag is present</p>
 
@@ -7033,11 +7001,11 @@ str = minify(str);</p>
         </li>
         
         
-        <li id="section-322">
+        <li id="section-320">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-322">&#182;</a>
+                <a class="pilcrow" href="#section-320">&#182;</a>
               </div>
               <p>Assemple our component dependancies by finding link tags and parsing their src</p>
 
@@ -7056,11 +7024,11 @@ str = minify(str);</p>
         </li>
         
         
-        <li id="section-323">
+        <li id="section-321">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-323">&#182;</a>
+                <a class="pilcrow" href="#section-321">&#182;</a>
               </div>
               <p>Remove link tags from template</p>
 
@@ -7071,11 +7039,11 @@ str = minify(str);</p>
         </li>
         
         
-        <li id="section-324">
+        <li id="section-322">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-324">&#182;</a>
+                <a class="pilcrow" href="#section-322">&#182;</a>
               </div>
               <p>Assemble our partial dependancies</p>
 
@@ -7092,11 +7060,11 @@ str = minify(str);</p>
         </li>
         
         
-        <li id="section-325">
+        <li id="section-323">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-325">&#182;</a>
+                <a class="pilcrow" href="#section-323">&#182;</a>
               </div>
               <p>Compile</p>
 
@@ -7107,11 +7075,11 @@ str = minify(str);</p>
         </li>
         
         
-        <li id="section-326">
+        <li id="section-324">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-326">&#182;</a>
+                <a class="pilcrow" href="#section-324">&#182;</a>
               </div>
               <p>If is a partial</p>
 
@@ -7124,11 +7092,11 @@ str = minify(str);</p>
         </li>
         
         
-        <li id="section-327">
+        <li id="section-325">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-327">&#182;</a>
+                <a class="pilcrow" href="#section-325">&#182;</a>
               </div>
               <p>Else, is a component</p>
 
@@ -7146,11 +7114,11 @@ str = minify(str);</p>
         </li>
         
         
-        <li id="section-328">
+        <li id="section-326">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-328">&#182;</a>
+                <a class="pilcrow" href="#section-326">&#182;</a>
               </div>
               <p>Wrap in define</p>
 
