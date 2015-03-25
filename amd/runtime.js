@@ -37,6 +37,7 @@ define("runtime", ["exports", "module", "rebound-component/utils", "rebound-comp
 
   // Create Global Rebound Object
   window.Rebound = {
+    services: {},
     registerHelper: helpers.registerHelper,
     registerPartial: helpers.registerPartial,
     registerComponent: Component.register,

@@ -18,6 +18,7 @@ var $ = _interopRequire(require("rebound-component/utils"));
 var Model = require("rebound-data/rebound-data").Model;
 
 
+
 // If Backbone hasn't been started yet, throw error
 if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";
 
@@ -130,11 +131,7 @@ var Component = Model.extend({
     this.el.appendChild(this.template(this, { helpers: this.helpers }, this.el));
 
     // Add active class to this newly rendered template's link elements that require it
-    var links = this.el.querySelectorAll("a[href=\"/" + Backbone.history.fragment + "\"]");
-    for (var i = 0; i < links.length; i++) {
-      links.item(i).classList.add("active");
-      links.item(i).active = true;
-    }
+    $(this.el).markLinks();
 
     this.initialize();
   },

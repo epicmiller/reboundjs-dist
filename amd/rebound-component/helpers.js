@@ -246,6 +246,11 @@ define("rebound-component/helpers", ["exports", "module", "rebound-component/laz
       return element.cid === cid; // Returns true if currently observed element is the current model.
     };
 
+    if ((!_.isArray(value) || value.length === 0) && options.inverse) {
+      debugger;
+      return options.inverse.render(options.context, env, options.morph.contextualElement);
+    }
+
     // For each item in this collection
     for (i = 0; i < value.length; i++) {
       obj = value[i];

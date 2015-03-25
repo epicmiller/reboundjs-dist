@@ -71,7 +71,9 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
     }, this);
 
     if (!isGlobal) {
-      window.Rebound.page = (this.current = pageInstance).__component__;
+      window.Rebound.services.page = (this.current = pageInstance).__component__;
+    } else {
+      window.Rebound.services[pageInstance.__name] = pageInstance.__component__;
     }
 
     // Return our newly installed app
@@ -225,23 +227,13 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
         // If path is not an remote url, ends in .[a-z], or blank, try and navigate to that route.
         if (path && path !== "#" && !remoteUrl.test(path)) {
           e.preventDefault();
-          if (path !== "/" + Backbone.history.fragment) {
-            var links = document.querySelectorAll("a[href=\"/" + Backbone.history.fragment + "\"]");
-            for (var i = 0; i < links.length; i++) {
-              links.item(i).classList.remove("active");
-              links.item(i).active = false;
-            }
-          }
+          if (path !== "/" + Backbone.history.fragment) $(document).unMarkLinks();
           router.navigate(path, { trigger: true });
         }
       });
 
       Backbone.history.on("route", function (route, params) {
-        var links = document.querySelectorAll("a[href=\"/" + Backbone.history.fragment + "\"]");
-        for (var i = 0; i < links.length; i++) {
-          links.item(i).classList.add("active");
-          links.item(i).active = true;
-        }
+        $(document).markLinks();
       });
 
       // Install our global components
