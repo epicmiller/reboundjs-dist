@@ -20,7 +20,7 @@ define("rebound-precompiler/rebound-precompiler", ["exports", "htmlbars"], funct
 
   // Remove the contents of the component's `template` tag.
   function getTemplate(str) {
-    return str.replace(/[^]*<template>([^]*)<\/template>[^]*/gi, "$1").replace(/([^]*)<style>[^]*<\/style>([^]*)/ig, "$1$2");
+    return str.indexOf("<template>") > -1 && str.indexOf("</template>") > -1 ? str.replace(/[^]*<template>([^]*)<\/template>[^]*/gi, "$1").replace(/([^]*)<style>[^]*<\/style>([^]*)/ig, "$1$2") : "";
   }
 
   // Get the component's name from its `name` attribute.

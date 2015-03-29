@@ -111,7 +111,7 @@ define("rebound-component/helpers", ["exports", "module", "rebound-component/laz
 
     // Attach event
     $(element).on(eventName, delegate, hash, function (event) {
-      return env.helpers.__callOnComponent(callback, event);
+      return env.helpers._callOnComponent(callback, event);
     });
   };
 
@@ -247,7 +247,6 @@ define("rebound-component/helpers", ["exports", "module", "rebound-component/laz
     };
 
     if ((!_.isArray(value) || value.length === 0) && options.inverse) {
-      debugger;
       return options.inverse.render(options.context, env, options.morph.contextualElement);
     }
 

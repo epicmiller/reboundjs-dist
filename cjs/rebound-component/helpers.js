@@ -114,7 +114,7 @@ helpers.on = function (params, hash, options, env) {
 
   // Attach event
   $(element).on(eventName, delegate, hash, function (event) {
-    return env.helpers.__callOnComponent(callback, event);
+    return env.helpers._callOnComponent(callback, event);
   });
 };
 
@@ -250,7 +250,6 @@ helpers.each = function (params, hash, options, env) {
   };
 
   if ((!_.isArray(value) || value.length === 0) && options.inverse) {
-    debugger;
     return options.inverse.render(options.context, env, options.morph.contextualElement);
   }
 
