@@ -122,8 +122,8 @@ define("rebound-component/helpers", ["exports", "module", "rebound-component/laz
   helpers["if"] = function (params, hash, options, env) {
     var condition = params[0];
 
-    if (condition === undefined) {
-      return null;
+    if (condition === undefined || condition === null) {
+      condition = false;
     }
 
     if (condition.isModel) {
@@ -169,8 +169,8 @@ define("rebound-component/helpers", ["exports", "module", "rebound-component/laz
   helpers.unless = function (params, hash, options, env) {
     var condition = params[0];
 
-    if (condition === undefined) {
-      return null;
+    if (condition === undefined || condition === null) {
+      condition = false;
     }
 
     if (condition.isModel) {

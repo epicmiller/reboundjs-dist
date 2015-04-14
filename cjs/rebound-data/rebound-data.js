@@ -79,10 +79,14 @@ var sharedMethods = {
 
   // De-initializes a data tree starting with `this` and recursively calling `deinitialize()` on each child.
   deinitialize: function () {
+    var _this = this;
+
+
     // Undelegate Backbone Events from this data object
     if (this.undelegateEvents) this.undelegateEvents();
     if (this.stopListening) this.stopListening();
     if (this.off) this.off();
+    if (this.unwire) this.unwire();
 
     // Destroy this data object's lineage
     delete this.__parent__;
@@ -118,11 +122,14 @@ var sharedMethods = {
     _.each(this.models, function (val) {
       val && val.deinitialize && val.deinitialize();
     });
-    _.each(this.attributes, function (val) {
-      val && val.deinitialize && val.deinitialize();
+    this.models && (this.models.length = 0);
+    _.each(this.attributes, function (val, key) {
+      delete _this.attributes[key];val && val.deinitialize && val.deinitialize();
     });
-    this.cache && this.cache.collection.deinitialize();
-    this.cache && this.cache.model.deinitialize();
+    if (this.cache) {
+      this.cache.collection.deinitialize();
+      this.cache.model.deinitialize();
+    }
   }
 };
 

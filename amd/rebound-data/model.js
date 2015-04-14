@@ -197,7 +197,8 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
         };
         // - If val is `null` or `undefined`, set to default value.
         // - If val is a `Computed Property`, get its current cache object.
-        // - If val is `null`, set to default value or (fallback `undefined`).
+        // - If val (default value or evaluated computed property) is `null`, set to default value or (fallback `undefined`).
+        // - Else If `{raw: true}` option is passed, set the exact object that was passed. No promotion to a Rebound Data object.
         // - Else If this function is the same as the current computed property, continue.
         // - Else If this value is a `Function`, turn it into a `Computed Property`.
         // - Else If this is going to be a cyclical dependancy, use the original object, don't make a copy.
@@ -210,7 +211,8 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
 
 
         if (_.isNull(val) || _.isUndefined(val)) val = this.defaults[key];
-        if (val && val.isComputedProperty) val = val.value();else if (_.isNull(val) || _.isUndefined(val)) val = undefined;else if (val.isComponent) val = val;else if (destination.isComputedProperty && destination.func === val) continue;else if (_.isFunction(val)) val = new ComputedProperty(val, lineage);else if (val.isData && target.hasParent(val)) val = val;else if (destination.isComputedProperty || destination.isCollection && (_.isArray(val) || val.isCollection) || destination.isModel && (_.isObject(val) || val.isModel)) {
+        if (val && val.isComputedProperty) val = val.value();
+        if (_.isNull(val) || _.isUndefined(val)) val = undefined;else if (options.raw === true) val = val;else if (destination.isComputedProperty && destination.func === val) continue;else if (_.isFunction(val)) val = new ComputedProperty(val, lineage);else if (val.isData && target.hasParent(val)) val = val;else if (destination.isComputedProperty || destination.isCollection && (_.isArray(val) || val.isCollection) || destination.isModel && (_.isObject(val) || val.isModel)) {
           destination.set(val, options);
           continue;
         } else if (val.isData && options.clone !== false) val = new val.constructor(val.attributes || val.models, lineage);else if (_.isArray(val)) val = new Rebound.Collection(val, lineage); // TODO: Remove global referance
