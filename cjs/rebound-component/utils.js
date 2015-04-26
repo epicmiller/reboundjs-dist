@@ -9,7 +9,7 @@ var $ = function (query) {
 
 var utils = function (query) {
   var i,
-      selector = _.isElement(query) && [query] || query === document && [document] || _.isString(query) && querySelectorAll(query) || [];
+      selector = _.isElement(query) && [query] || query === document && [document] || _.isString(query) && document.querySelectorAll(query) || [];
   this.length = selector.length;
 
   // Add selector to object for method chaining

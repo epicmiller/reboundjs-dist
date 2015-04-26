@@ -426,7 +426,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       Rebound.seedData = plainData;
       element = document.createElement(tagName);
       delete Rebound.seedData;
-      component = element.__component__;
+      component = element.data;
 
       // For each lazy param passed to our component, create its lazyValue
       _.each(plainData, function (value, key) {

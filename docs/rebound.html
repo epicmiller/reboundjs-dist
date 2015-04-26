@@ -27,7 +27,7 @@
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-1">&#182;</a>
               </div>
-              <pre><code>Rebound.js <span class="hljs-number">0.0</span><span class="hljs-number">.60</span>
+              <pre><code>Rebound.js <span class="hljs-number">0.0</span>.60
 </code></pre>
             </div>
             
@@ -86,8 +86,7 @@ in use, throw an error</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre><span class="hljs-keyword">if</span>(!<span class="hljs-built_in">window</span>.Backbone) <span class="hljs-keyword">throw</span> <span class="hljs-string">"Backbone must be on the page for Rebound to load."</span>;
-<span class="hljs-keyword">if</span>(!<span class="hljs-built_in">window</span>.Rebound) <span class="hljs-keyword">throw</span> <span class="hljs-string">"Global Rebound namespace already taken."</span>;</pre></div></div>
+            <div class="content"><div class='highlight'><pre><span class="hljs-keyword">if</span>(!<span class="hljs-built_in">window</span>.Backbone) <span class="hljs-keyword">throw</span> <span class="hljs-string">"Backbone must be on the page for Rebound to load."</span>;</pre></div></div>
             
         </li>
         
@@ -103,11 +102,11 @@ in use, throw an error</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>import utils from <span class="hljs-string">"rebound-component/utils"</span>;
-import helpers from <span class="hljs-string">"rebound-component/helpers"</span>;
-import { Model, Collection, ComputedProperty } from <span class="hljs-string">"rebound-data/rebound-data"</span>;
-import Component from <span class="hljs-string">"rebound-component/component"</span>;
-import Router from <span class="hljs-string">"rebound-router/rebound-router"</span>;</pre></div></div>
+            <div class="content"><div class='highlight'><pre><span class="hljs-keyword">import</span> utils <span class="hljs-keyword">from</span> <span class="hljs-string">"rebound-component/utils"</span>;
+<span class="hljs-keyword">import</span> helpers <span class="hljs-keyword">from</span> <span class="hljs-string">"rebound-component/helpers"</span>;
+<span class="hljs-keyword">import</span> { Model, Collection, ComputedProperty } <span class="hljs-keyword">from</span> <span class="hljs-string">"rebound-data/rebound-data"</span>;
+<span class="hljs-keyword">import</span> Component <span class="hljs-keyword">from</span> <span class="hljs-string">"rebound-component/component"</span>;
+<span class="hljs-keyword">import</span> Router <span class="hljs-keyword">from</span> <span class="hljs-string">"rebound-router/rebound-router"</span>;</pre></div></div>
             
         </li>
         
@@ -137,7 +136,8 @@ import Router from <span class="hljs-string">"rebound-router/rebound-router"</sp
 
             </div>
             
-            <div class="content"><div class='highlight'><pre><span class="hljs-keyword">var</span> Config = <span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">'Rebound'</span>).innerHTML;</pre></div></div>
+            <div class="content"><div class='highlight'><pre><span class="hljs-keyword">var</span> Config = <span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">'Rebound'</span>);
+    Config = (Config) ? Config.innerHTML : <span class="hljs-literal">false</span>;</pre></div></div>
             
         </li>
         
@@ -152,7 +152,7 @@ import Router from <span class="hljs-string">"rebound-router/rebound-router"</sp
 
             </div>
             
-            <div class="content"><div class='highlight'><pre><span class="hljs-built_in">window</span>.Rebound = {
+            <div class="content"><div class='highlight'><pre><span class="hljs-keyword">var</span> Rebound = {
   services: {},
   registerHelper: helpers.registerHelper,
   registerPartial: helpers.registerPartial,
@@ -160,7 +160,15 @@ import Router from <span class="hljs-string">"rebound-router/rebound-router"</sp
   Model: Model,
   Collection: Collection,
   ComputedProperty: ComputedProperty,
-  Component: Component
+  Component: Component,
+  start: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(options)</span></span>{
+    <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Promise</span>(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(resolve, reject)</span> </span>{
+      <span class="hljs-built_in">document</span>.addEventListener(<span class="hljs-string">"DOMContentLoaded"</span>, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
+        Rebound.router = <span class="hljs-keyword">new</span> Router(options);
+        resolve(Rebound.router);
+      });
+    })
+  }
 };</pre></div></div>
             
         </li>
@@ -176,9 +184,9 @@ import Router from <span class="hljs-string">"rebound-router/rebound-router"</sp
 
             </div>
             
-            <div class="content"><div class='highlight'><pre><span class="hljs-keyword">if</span>(Config) <span class="hljs-built_in">window</span>.Rebound.router = <span class="hljs-keyword">new</span> Router({config: <span class="hljs-built_in">JSON</span>.parse(Config)});
+            <div class="content"><div class='highlight'><pre><span class="hljs-keyword">if</span>(Config) Rebound.start(<span class="hljs-built_in">JSON</span>.parse(Config));
 
-export <span class="hljs-keyword">default</span> Rebound;</pre></div></div>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> Rebound;</pre></div></div>
             
         </li>
         
@@ -209,10 +217,10 @@ tracking, deep event propagation and tree destruction.</p>
             </div>
             
             <div class="content"><div class='highlight'><pre>
-import Model from <span class="hljs-string">"rebound-data/model"</span>;
-import Collection from <span class="hljs-string">"rebound-data/collection"</span>;
-import ComputedProperty from <span class="hljs-string">"rebound-data/computed-property"</span>;
-import $ from <span class="hljs-string">"rebound-component/utils"</span>;
+<span class="hljs-keyword">import</span> Model <span class="hljs-keyword">from</span> <span class="hljs-string">"rebound-data/model"</span>;
+<span class="hljs-keyword">import</span> Collection <span class="hljs-keyword">from</span> <span class="hljs-string">"rebound-data/collection"</span>;
+<span class="hljs-keyword">import</span> ComputedProperty <span class="hljs-keyword">from</span> <span class="hljs-string">"rebound-data/computed-property"</span>;
+<span class="hljs-keyword">import</span> $ from <span class="hljs-string">"rebound-component/utils"</span>;
 
 <span class="hljs-keyword">var</span> sharedMethods = {</pre></div></div>
             
@@ -486,7 +494,7 @@ Attributes, if a Computed Property, de-init its Cache objects.</p>
 _.extend(Collection.prototype, sharedMethods);
 _.extend(ComputedProperty.prototype, sharedMethods);
 
-export { Model, Collection, ComputedProperty };</pre></div></div>
+<span class="hljs-keyword">export</span> { Model, Collection, ComputedProperty };</pre></div></div>
             
         </li>
         
@@ -532,8 +540,8 @@ and <strong>Rebound Computed Properties</strong> as properties of the Model.</p>
             </div>
             
             <div class="content"><div class='highlight'><pre>
-import ComputedProperty from <span class="hljs-string">"rebound-data/computed-property"</span>;
-import $ from <span class="hljs-string">"rebound-component/utils"</span>;</pre></div></div>
+<span class="hljs-keyword">import</span> ComputedProperty <span class="hljs-keyword">from</span> <span class="hljs-string">"rebound-data/computed-property"</span>;
+<span class="hljs-keyword">import</span> $ from <span class="hljs-string">"rebound-component/utils"</span>;</pre></div></div>
             
         </li>
         
@@ -1047,7 +1055,7 @@ If there are any cyclic dependancies the object’s <code>cid</code> is used ins
 
 });
 
-export <span class="hljs-keyword">default</span> Model;</pre></div></div>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> Model;</pre></div></div>
             
         </li>
         
@@ -1075,8 +1083,8 @@ export <span class="hljs-keyword">default</span> Model;</pre></div></div>
             </div>
             
             <div class="content"><div class='highlight'><pre>
-import Model from <span class="hljs-string">"rebound-data/model"</span>;
-import $ from <span class="hljs-string">"rebound-component/utils"</span>;
+<span class="hljs-keyword">import</span> Model <span class="hljs-keyword">from</span> <span class="hljs-string">"rebound-data/model"</span>;
+<span class="hljs-keyword">import</span> $ from <span class="hljs-string">"rebound-component/utils"</span>;
 
 <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">pathGenerator</span><span class="hljs-params">(collection)</span></span>{
   <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{
@@ -1365,7 +1373,7 @@ Otherwise, create our copy of this model, give them the same cid so our helpers 
 
 });
 
-export <span class="hljs-keyword">default</span> Collection;</pre></div></div>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> Collection;</pre></div></div>
             
         </li>
         
@@ -1393,8 +1401,8 @@ export <span class="hljs-keyword">default</span> Collection;</pre></div></div>
             </div>
             
             <div class="content"><div class='highlight'><pre>
-import propertyCompiler from <span class="hljs-string">"property-compiler/property-compiler"</span>;
-import $ from <span class="hljs-string">"rebound-component/utils"</span>;</pre></div></div>
+<span class="hljs-keyword">import</span> propertyCompiler <span class="hljs-keyword">from</span> <span class="hljs-string">"property-compiler/property-compiler"</span>;
+<span class="hljs-keyword">import</span> $ from <span class="hljs-string">"rebound-component/utils"</span>;</pre></div></div>
             
         </li>
         
@@ -2160,7 +2168,7 @@ If Computed Property returns a value, all downstream dependancies will re-comput
 
 });
 
-export <span class="hljs-keyword">default</span> ComputedProperty;</pre></div></div>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> ComputedProperty;</pre></div></div>
             
         </li>
         
@@ -2188,11 +2196,11 @@ export <span class="hljs-keyword">default</span> ComputedProperty;</pre></div></
             </div>
             
             <div class="content"><div class='highlight'><pre>
-import DOMHelper from <span class="hljs-string">"dom-helper"</span>;
-import hooks from <span class="hljs-string">"rebound-component/hooks"</span>;
-import helpers from <span class="hljs-string">"rebound-component/helpers"</span>;
-import $ from <span class="hljs-string">"rebound-component/utils"</span>;
-import { Model } from <span class="hljs-string">"rebound-data/rebound-data"</span>;</pre></div></div>
+<span class="hljs-keyword">import</span> DOMHelper <span class="hljs-keyword">from</span> <span class="hljs-string">"dom-helper"</span>;
+<span class="hljs-keyword">import</span> hooks <span class="hljs-keyword">from</span> <span class="hljs-string">"rebound-component/hooks"</span>;
+<span class="hljs-keyword">import</span> helpers <span class="hljs-keyword">from</span> <span class="hljs-string">"rebound-component/helpers"</span>;
+<span class="hljs-keyword">import</span> $ from <span class="hljs-string">"rebound-component/utils"</span>;
+<span class="hljs-keyword">import</span> { Model } <span class="hljs-keyword">from</span> <span class="hljs-string">"rebound-data/rebound-data"</span>;</pre></div></div>
             
         </li>
         
@@ -2232,15 +2240,6 @@ import { Model } from <span class="hljs-string">"rebound-data/rebound-data"</spa
     str.shift();
   }
   <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
-}
-
-<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">renderCallback</span><span class="hljs-params">()</span></span>{
-  <span class="hljs-keyword">var</span> i = <span class="hljs-number">0</span>, len = <span class="hljs-keyword">this</span>._toRender.length;
-  <span class="hljs-keyword">delete</span> <span class="hljs-keyword">this</span>._renderTimeout;
-  <span class="hljs-keyword">for</span>(i=<span class="hljs-number">0</span>;i&lt;len;i++){
-    <span class="hljs-keyword">this</span>._toRender.shift().notify();
-  }
-  <span class="hljs-keyword">this</span>._toRender.added = {};
 }
 
 <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">hydrate</span><span class="hljs-params">(spec, options)</span></span>{</pre></div></div>
@@ -2346,6 +2345,15 @@ augmented with helpers as it goes</p>
             <div class="content"><div class='highlight'><pre><span class="hljs-keyword">var</span> Component = Model.extend({
 
   isComponent: <span class="hljs-literal">true</span>,
+
+  _render: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{
+    <span class="hljs-keyword">var</span> i = <span class="hljs-number">0</span>, len = <span class="hljs-keyword">this</span>._toRender.length;
+    <span class="hljs-keyword">delete</span> <span class="hljs-keyword">this</span>._renderTimeout;
+    <span class="hljs-keyword">for</span>(i=<span class="hljs-number">0</span>;i&lt;len;i++){
+      <span class="hljs-keyword">this</span>._toRender.shift().notify();
+    }
+    <span class="hljs-keyword">this</span>._toRender.added = {};
+  },
 
   _callOnComponent: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(name, event)</span></span>{
     <span class="hljs-keyword">if</span>(!_.isFunction(<span class="hljs-keyword">this</span>[name])){ <span class="hljs-keyword">throw</span> <span class="hljs-string">"ERROR: No method named "</span> + name + <span class="hljs-string">" on component "</span> + <span class="hljs-keyword">this</span>.__name + <span class="hljs-string">"!"</span>; }
@@ -2466,7 +2474,7 @@ It also marks itself as a consumer of this component</p>
   constructor: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(options)</span></span>{
     <span class="hljs-keyword">var</span> key, attr, self = <span class="hljs-keyword">this</span>;
     options = options || (options = {});
-    _.bindAll(<span class="hljs-keyword">this</span>, <span class="hljs-string">'_callOnComponent'</span>, <span class="hljs-string">'_listenToService'</span>);
+    _.bindAll(<span class="hljs-keyword">this</span>, <span class="hljs-string">'_callOnComponent'</span>, <span class="hljs-string">'_listenToService'</span>, <span class="hljs-string">'_render'</span>);
     <span class="hljs-keyword">this</span>.cid = _.uniqueId(<span class="hljs-string">'component'</span>);
     <span class="hljs-keyword">this</span>.attributes = {};
     <span class="hljs-keyword">this</span>.changed = {};
@@ -2795,7 +2803,8 @@ object’s _toRender queue.</p>
             </div>
             
             <div class="content"><div class='highlight'><pre>    <span class="hljs-built_in">window</span>.clearTimeout(<span class="hljs-keyword">this</span>._renderTimeout);
-    <span class="hljs-keyword">this</span>._renderTimeout = <span class="hljs-built_in">window</span>.setTimeout(_.bind(renderCallback, <span class="hljs-keyword">this</span>), <span class="hljs-number">0</span>);
+    <span class="hljs-keyword">if</span>(<span class="hljs-keyword">this</span>.el &amp;&amp; <span class="hljs-keyword">this</span>.el.testing) <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>._render();
+    <span class="hljs-keyword">this</span>._renderTimeout = <span class="hljs-built_in">window</span>.setTimeout(<span class="hljs-keyword">this</span>._render, <span class="hljs-number">0</span>);
   }
 
 });
@@ -2990,7 +2999,7 @@ Component.register = <span class="hljs-function"><span class="hljs-keyword">func
   <span class="hljs-keyword">var</span> proto = <span class="hljs-built_in">Object</span>.create(HTMLElement.prototype, {});
 
   proto.createdCallback = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
-    <span class="hljs-keyword">this</span>.__component__ = <span class="hljs-keyword">new</span> component({
+    <span class="hljs-keyword">this</span>[<span class="hljs-string">'data'</span>] = <span class="hljs-keyword">new</span> component({
       template: template,
       outlet: <span class="hljs-keyword">this</span>,
       data: Rebound.seedData
@@ -2998,17 +3007,17 @@ Component.register = <span class="hljs-function"><span class="hljs-keyword">func
   };
 
   proto.attachedCallback = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
-    script.attachedCallback &amp;&amp; script.attachedCallback.call(<span class="hljs-keyword">this</span>.__component__);
+    script.attachedCallback &amp;&amp; script.attachedCallback.call(<span class="hljs-keyword">this</span>[<span class="hljs-string">'data'</span>]);
   };
 
   proto.detachedCallback = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
-    script.detachedCallback &amp;&amp; script.detachedCallback.call(<span class="hljs-keyword">this</span>.__component__);
-    <span class="hljs-keyword">this</span>.__component__.deinitialize();
+    script.detachedCallback &amp;&amp; script.detachedCallback.call(<span class="hljs-keyword">this</span>[<span class="hljs-string">'data'</span>]);
+    <span class="hljs-keyword">this</span>[<span class="hljs-string">'data'</span>].deinitialize();
   };
 
   proto.attributeChangedCallback = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(attrName, oldVal, newVal)</span> </span>{
-    <span class="hljs-keyword">this</span>.__component__._onAttributeChange(attrName, oldVal, newVal);
-    script.attributeChangedCallback &amp;&amp; script.attributeChangedCallback.call(<span class="hljs-keyword">this</span>.__component__, attrName, oldVal, newVal);
+    <span class="hljs-keyword">this</span>[<span class="hljs-string">'data'</span>]._onAttributeChange(attrName, oldVal, newVal);
+    script.attributeChangedCallback &amp;&amp; script.attributeChangedCallback.call(<span class="hljs-keyword">this</span>[<span class="hljs-string">'data'</span>], attrName, oldVal, newVal);
   };
 
   <span class="hljs-keyword">return</span> <span class="hljs-built_in">document</span>.registerElement(name, { prototype: proto });
@@ -3016,7 +3025,7 @@ Component.register = <span class="hljs-function"><span class="hljs-keyword">func
 
 _.bindAll(Component, <span class="hljs-string">'register'</span>);
 
-export <span class="hljs-keyword">default</span> Component;</pre></div></div>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> Component;</pre></div></div>
             
         </li>
         
@@ -3044,8 +3053,8 @@ export <span class="hljs-keyword">default</span> Component;</pre></div></div>
             </div>
             
             <div class="content"><div class='highlight'><pre>
-import LazyValue from <span class="hljs-string">"rebound-component/lazy-value"</span>;
-import $ from <span class="hljs-string">"rebound-component/utils"</span>;
+<span class="hljs-keyword">import</span> LazyValue <span class="hljs-keyword">from</span> <span class="hljs-string">"rebound-component/lazy-value"</span>;
+<span class="hljs-keyword">import</span> $ from <span class="hljs-string">"rebound-component/utils"</span>;
 
 
 <span class="hljs-keyword">var</span> helpers  = {},
@@ -3137,7 +3146,7 @@ helpers.registerHelper = <span class="hljs-function"><span class="hljs-keyword">
 ********************************/</span>
 
 helpers.debugger = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(params, hash, options, env)</span></span>{
-  debugger;
+  <span class="hljs-keyword">debugger</span>;
   <span class="hljs-keyword">return</span> <span class="hljs-string">''</span>;
 }
 
@@ -3608,7 +3617,7 @@ helpers.partial = <span class="hljs-function"><span class="hljs-keyword">functio
 
 };
 
-export <span class="hljs-keyword">default</span> helpers;</pre></div></div>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> helpers;</pre></div></div>
             
         </li>
         
@@ -3636,40 +3645,40 @@ export <span class="hljs-keyword">default</span> helpers;</pre></div></div>
             </div>
             
             <div class="content"><div class='highlight'><pre>
-import LazyValue from <span class="hljs-string">"rebound-component/lazy-value"</span>;
-import $ from <span class="hljs-string">"rebound-component/utils"</span>;
-import helpers from <span class="hljs-string">"rebound-component/helpers"</span>;
+import LazyValue from "rebound-component/lazy-value";
+import $ from "rebound-component/utils";
+import helpers from "rebound-component/helpers";
 
-<span class="hljs-keyword">var</span> hooks = {},
-    attributes = {  abbr: <span class="hljs-number">1</span>,      <span class="hljs-string">"accept-charset"</span>: <span class="hljs-number">1</span>,   accept: <span class="hljs-number">1</span>,      accesskey: <span class="hljs-number">1</span>,     action: <span class="hljs-number">1</span>,
-                    align: <span class="hljs-number">1</span>,      alink: <span class="hljs-number">1</span>,             alt: <span class="hljs-number">1</span>,         archive: <span class="hljs-number">1</span>,       axis: <span class="hljs-number">1</span>,
-                    background: <span class="hljs-number">1</span>, bgcolor: <span class="hljs-number">1</span>,           border: <span class="hljs-number">1</span>,      cellpadding: <span class="hljs-number">1</span>,   cellspacing: <span class="hljs-number">1</span>,
-                    char: <span class="hljs-number">1</span>,       charoff: <span class="hljs-number">1</span>,           charset: <span class="hljs-number">1</span>,     checked: <span class="hljs-number">1</span>,       cite: <span class="hljs-number">1</span>,
-                    <span class="hljs-keyword">class</span>: <span class="hljs-number">1</span>,      classid: <span class="hljs-number">1</span>,           clear: <span class="hljs-number">1</span>,       code: <span class="hljs-number">1</span>,          codebase: <span class="hljs-number">1</span>,
-                    codetype: <span class="hljs-number">1</span>,   color: <span class="hljs-number">1</span>,             cols: <span class="hljs-number">1</span>,        colspan: <span class="hljs-number">1</span>,       compact: <span class="hljs-number">1</span>,
-                    content: <span class="hljs-number">1</span>,    coords: <span class="hljs-number">1</span>,            data: <span class="hljs-number">1</span>,        datetime: <span class="hljs-number">1</span>,      declare: <span class="hljs-number">1</span>,
-                    defer: <span class="hljs-number">1</span>,      dir: <span class="hljs-number">1</span>,               disabled: <span class="hljs-number">1</span>,    enctype: <span class="hljs-number">1</span>,       face: <span class="hljs-number">1</span>,
-                    <span class="hljs-keyword">for</span>: <span class="hljs-number">1</span>,        frame: <span class="hljs-number">1</span>,             frameborder: <span class="hljs-number">1</span>, headers: <span class="hljs-number">1</span>,       height: <span class="hljs-number">1</span>,
-                    href: <span class="hljs-number">1</span>,       hreflang: <span class="hljs-number">1</span>,          hspace: <span class="hljs-number">1</span>,     <span class="hljs-string">"http-equiv"</span>: <span class="hljs-number">1</span>,   id: <span class="hljs-number">1</span>,
-                    ismap: <span class="hljs-number">1</span>,      label: <span class="hljs-number">1</span>,             lang: <span class="hljs-number">1</span>,        language: <span class="hljs-number">1</span>,      link: <span class="hljs-number">1</span>,
-                    longdesc: <span class="hljs-number">1</span>,   marginheight: <span class="hljs-number">1</span>,      marginwidth: <span class="hljs-number">1</span>, maxlength: <span class="hljs-number">1</span>,     media: <span class="hljs-number">1</span>,
-                    method: <span class="hljs-number">1</span>,     multiple: <span class="hljs-number">1</span>,          name: <span class="hljs-number">1</span>,        nohref: <span class="hljs-number">1</span>,        noresize: <span class="hljs-number">1</span>,
-                    noshade: <span class="hljs-number">1</span>,    nowrap: <span class="hljs-number">1</span>,            object: <span class="hljs-number">1</span>,      onblur: <span class="hljs-number">1</span>,        onchange: <span class="hljs-number">1</span>,
-                    onclick: <span class="hljs-number">1</span>,    ondblclick: <span class="hljs-number">1</span>,        onfocus: <span class="hljs-number">1</span>,     onkeydown: <span class="hljs-number">1</span>,     onkeypress: <span class="hljs-number">1</span>,
-                    onkeyup: <span class="hljs-number">1</span>,    onload: <span class="hljs-number">1</span>,            onmousedown: <span class="hljs-number">1</span>, onmousemove: <span class="hljs-number">1</span>,   onmouseout: <span class="hljs-number">1</span>,
-                    onmouseover: <span class="hljs-number">1</span>,onmouseup: <span class="hljs-number">1</span>,         onreset: <span class="hljs-number">1</span>,     onselect: <span class="hljs-number">1</span>,      onsubmit: <span class="hljs-number">1</span>,
-                    onunload: <span class="hljs-number">1</span>,   profile: <span class="hljs-number">1</span>,           prompt: <span class="hljs-number">1</span>,      readonly: <span class="hljs-number">1</span>,      rel: <span class="hljs-number">1</span>,
-                    rev: <span class="hljs-number">1</span>,        rows: <span class="hljs-number">1</span>,              rowspan: <span class="hljs-number">1</span>,     rules: <span class="hljs-number">1</span>,         scheme: <span class="hljs-number">1</span>,
-                    scope: <span class="hljs-number">1</span>,      scrolling: <span class="hljs-number">1</span>,         selected: <span class="hljs-number">1</span>,    shape: <span class="hljs-number">1</span>,         size: <span class="hljs-number">1</span>,
-                    span: <span class="hljs-number">1</span>,       src: <span class="hljs-number">1</span>,               standby: <span class="hljs-number">1</span>,     start: <span class="hljs-number">1</span>,         style: <span class="hljs-number">1</span>,
-                    summary: <span class="hljs-number">1</span>,    tabindex: <span class="hljs-number">1</span>,          target: <span class="hljs-number">1</span>,      text: <span class="hljs-number">1</span>,          title: <span class="hljs-number">1</span>,
-                    type: <span class="hljs-number">1</span>,       usemap: <span class="hljs-number">1</span>,            valign: <span class="hljs-number">1</span>,      value: <span class="hljs-number">1</span>,         valuetype: <span class="hljs-number">1</span>,
-                    version: <span class="hljs-number">1</span>,    vlink: <span class="hljs-number">1</span>,             vspace: <span class="hljs-number">1</span>,      width: <span class="hljs-number">1</span>  };
+var hooks = {},
+    attributes = {  abbr: 1,      "accept-charset": 1,   accept: 1,      accesskey: 1,     action: 1,
+                    align: 1,      alink: 1,             alt: 1,         archive: 1,       axis: 1,
+                    background: 1, bgcolor: 1,           border: 1,      cellpadding: 1,   cellspacing: 1,
+                    char: 1,       charoff: 1,           charset: 1,     checked: 1,       cite: 1,
+                    class: 1,      classid: 1,           clear: 1,       code: 1,          codebase: 1,
+                    codetype: 1,   color: 1,             cols: 1,        colspan: 1,       compact: 1,
+                    content: 1,    coords: 1,            data: 1,        datetime: 1,      declare: 1,
+                    defer: 1,      dir: 1,               disabled: 1,    enctype: 1,       face: 1,
+                    for: 1,        frame: 1,             frameborder: 1, headers: 1,       height: 1,
+                    href: 1,       hreflang: 1,          hspace: 1,     "http-equiv": 1,   id: 1,
+                    ismap: 1,      label: 1,             lang: 1,        language: 1,      link: 1,
+                    longdesc: 1,   marginheight: 1,      marginwidth: 1, maxlength: 1,     media: 1,
+                    method: 1,     multiple: 1,          name: 1,        nohref: 1,        noresize: 1,
+                    noshade: 1,    nowrap: 1,            object: 1,      onblur: 1,        onchange: 1,
+                    onclick: 1,    ondblclick: 1,        onfocus: 1,     onkeydown: 1,     onkeypress: 1,
+                    onkeyup: 1,    onload: 1,            onmousedown: 1, onmousemove: 1,   onmouseout: 1,
+                    onmouseover: 1,onmouseup: 1,         onreset: 1,     onselect: 1,      onsubmit: 1,
+                    onunload: 1,   profile: 1,           prompt: 1,      readonly: 1,      rel: 1,
+                    rev: 1,        rows: 1,              rowspan: 1,     rules: 1,         scheme: 1,
+                    scope: 1,      scrolling: 1,         selected: 1,    shape: 1,         size: 1,
+                    span: 1,       src: 1,               standby: 1,     start: 1,         style: 1,
+                    summary: 1,    tabindex: 1,          target: 1,      text: 1,          title: 1,
+                    type: 1,       usemap: 1,            valign: 1,      value: 1,         valuetype: 1,
+                    version: 1,    vlink: 1,             vspace: 1,      width: 1  };
 
 
-<span class="hljs-comment">/*******************************
+/*******************************
         Hook Utils
-********************************/</span></pre></div></div>
+********************************/</pre></div></div>
             
         </li>
         
@@ -4465,7 +4474,7 @@ Global seed data is consumed by element as its created. This is not scoped and v
             <div class="content"><div class='highlight'><pre>    Rebound.seedData = plainData;
     element = <span class="hljs-built_in">document</span>.createElement(tagName);
     <span class="hljs-keyword">delete</span> Rebound.seedData;
-    component = element.__component__;</pre></div></div>
+    component = element[<span class="hljs-string">'data'</span>];</pre></div></div>
             
         </li>
         
@@ -4767,7 +4776,7 @@ morph is a morph element representing our dom node</p>
             </div>
             
             <div class="content"><div class='highlight'><pre>
-export <span class="hljs-keyword">default</span> hooks;</pre></div></div>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> hooks;</pre></div></div>
             
         </li>
         
@@ -5003,7 +5012,7 @@ Right now, DOM that contains morphs throw an error if it is removed by another l
   }
 };
 
-export <span class="hljs-keyword">default</span> LazyValue;</pre></div></div>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> LazyValue;</pre></div></div>
             
         </li>
         
@@ -5031,7 +5040,7 @@ export <span class="hljs-keyword">default</span> LazyValue;</pre></div></div>
             </div>
             
             <div class="content"><div class='highlight'><pre>
-import $ from <span class="hljs-string">"rebound-component/utils"</span>;</pre></div></div>
+<span class="hljs-keyword">import</span> $ from <span class="hljs-string">"rebound-component/utils"</span>;</pre></div></div>
             
         </li>
         
@@ -5096,7 +5105,7 @@ This is crucial for scalability of a single page app.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      _.each(<span class="hljs-keyword">this</span>.current.__component__.routes, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(value, key)</span> </span>{
+            <div class="content"><div class='highlight'><pre>      _.each(<span class="hljs-keyword">this</span>.current[<span class="hljs-string">'data'</span>].routes, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(value, key)</span> </span>{
 
         <span class="hljs-keyword">var</span> regExp = router._routeToRegExp(key).toString();</pre></div></div>
             
@@ -5145,7 +5154,7 @@ This is crucial for scalability of a single page app.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      <span class="hljs-keyword">this</span>.current.__component__.deinitialize();</pre></div></div>
+            <div class="content"><div class='highlight'><pre>      <span class="hljs-keyword">this</span>.current[<span class="hljs-string">'data'</span>].deinitialize();</pre></div></div>
             
         </li>
         
@@ -5227,7 +5236,7 @@ This is crucial for scalability of a single page app.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    _.each(pageInstance.__component__.routes, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(value, key)</span> </span>{</pre></div></div>
+            <div class="content"><div class='highlight'><pre>    _.each(pageInstance[<span class="hljs-string">'data'</span>].routes, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(value, key)</span> </span>{</pre></div></div>
             
         </li>
         
@@ -5258,7 +5267,7 @@ This is crucial for scalability of a single page app.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      router[routeFunctionName] =  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">()</span> </span>{ pageInstance.__component__[value].apply(pageInstance.__component__, <span class="hljs-built_in">arguments</span>); };</pre></div></div>
+            <div class="content"><div class='highlight'><pre>      router[routeFunctionName] =  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">()</span> </span>{ pageInstance[<span class="hljs-string">'data'</span>][value].apply(pageInstance[<span class="hljs-string">'data'</span>], <span class="hljs-built_in">arguments</span>); };</pre></div></div>
             
         </li>
         
@@ -5279,8 +5288,8 @@ This is crucial for scalability of a single page app.</p>
     <span class="hljs-keyword">var</span> name = (isGlobal) ? primaryRoute : <span class="hljs-string">'page'</span>;
     <span class="hljs-keyword">if</span>(!isGlobal) <span class="hljs-keyword">this</span>.current = pageInstance;
     <span class="hljs-keyword">if</span>(<span class="hljs-built_in">window</span>.Rebound.services[name].isService)
-      <span class="hljs-built_in">window</span>.Rebound.services[name].hydrate(pageInstance.__component__);
-    <span class="hljs-built_in">window</span>.Rebound.services[name] = pageInstance.__component__;</pre></div></div>
+      <span class="hljs-built_in">window</span>.Rebound.services[name].hydrate(pageInstance[<span class="hljs-string">'data'</span>]);
+    <span class="hljs-built_in">window</span>.Rebound.services[name] = pageInstance[<span class="hljs-string">'data'</span>];</pre></div></div>
             
         </li>
         
@@ -5744,15 +5753,12 @@ its consumers over to the fully loaded service, and then destroy itself.</p>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-265">&#182;</a>
               </div>
-              <p>Save our config referance</p>
+              <p>Default to first content tag on the page if no container is provided</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      <span class="hljs-keyword">this</span>.config = options.config;
-      <span class="hljs-keyword">this</span>.config.handlers = [];
-
-      <span class="hljs-keyword">var</span> remoteUrl = <span class="hljs-regexp">/^([a-z]+:)|^(\/\/)|^([^\/]+\.)/</span>,
-          router = <span class="hljs-keyword">this</span>;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>      options.container || (options.container = <span class="hljs-string">'content'</span>);
+      <span class="hljs-keyword">var</span> container = $(options.container)[<span class="hljs-number">0</span>];</pre></div></div>
             
         </li>
         
@@ -5762,6 +5768,25 @@ its consumers over to the fully loaded service, and then destroy itself.</p>
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-266">&#182;</a>
+              </div>
+              <p>Save our config referance</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>      <span class="hljs-keyword">this</span>.config = options;
+      <span class="hljs-keyword">this</span>.config.handlers = [];
+
+      <span class="hljs-keyword">var</span> remoteUrl = <span class="hljs-regexp">/^([a-z]+:)|^(\/\/)|^([^\/]+\.)/</span>,
+          router = <span class="hljs-keyword">this</span>;</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-267">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-267">&#182;</a>
               </div>
               <p>Convert our routeMappings to regexps and push to our handlers</p>
 
@@ -5775,45 +5800,19 @@ its consumers over to the fully loaded service, and then destroy itself.</p>
         </li>
         
         
-        <li id="section-267">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-267">&#182;</a>
-              </div>
-              <p>Navigate to route for any link with a relative href</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>      $(<span class="hljs-built_in">document</span>).on(<span class="hljs-string">'click'</span>, <span class="hljs-string">'a'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(e)</span></span>{
-
-        <span class="hljs-keyword">var</span> path = e.target.getAttribute(<span class="hljs-string">'href'</span>);</pre></div></div>
-            
-        </li>
-        
-        
         <li id="section-268">
             <div class="annotation">
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-268">&#182;</a>
               </div>
-              <p>If path is not an remote url, ends in .[a-z], or blank, try and navigate to that route.</p>
+              <p>Navigate to route for any link with a relative href</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>        <span class="hljs-keyword">if</span>( path &amp;&amp; path !== <span class="hljs-string">'#'</span> &amp;&amp; !remoteUrl.test(path) ){
-          e.preventDefault();
-          <span class="hljs-keyword">if</span>(path !== <span class="hljs-string">'/'</span>+Backbone.history.fragment) $(<span class="hljs-built_in">document</span>).unMarkLinks();
-          router.navigate(path, {trigger: <span class="hljs-literal">true</span>});
-        }
-      });
+            <div class="content"><div class='highlight'><pre>      $(container).on(<span class="hljs-string">'click'</span>, <span class="hljs-string">'a'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(e)</span></span>{
 
-      Backbone.history.on(<span class="hljs-string">'route'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(route, params)</span></span>{
-        $(<span class="hljs-built_in">document</span>).markLinks();
-      });
-
-      Rebound.services.page = <span class="hljs-keyword">new</span> LazyComponent();</pre></div></div>
+        <span class="hljs-keyword">var</span> path = e.target.getAttribute(<span class="hljs-string">'href'</span>);</pre></div></div>
             
         </li>
         
@@ -5823,6 +5822,32 @@ its consumers over to the fully loaded service, and then destroy itself.</p>
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-269">&#182;</a>
+              </div>
+              <p>If path is not an remote url, ends in .[a-z], or blank, try and navigate to that route.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>        <span class="hljs-keyword">if</span>( path &amp;&amp; path !== <span class="hljs-string">'#'</span> &amp;&amp; !remoteUrl.test(path) ){
+          e.preventDefault();
+          <span class="hljs-keyword">if</span>(path !== <span class="hljs-string">'/'</span>+Backbone.history.fragment) $(container).unMarkLinks();
+          router.navigate(path, {trigger: <span class="hljs-literal">true</span>});
+        }
+      });
+
+      Backbone.history.on(<span class="hljs-string">'route'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(route, params)</span></span>{
+        $(container).markLinks();
+      });
+
+      Rebound.services.page = <span class="hljs-keyword">new</span> LazyComponent();</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-270">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-270">&#182;</a>
               </div>
               <p>Install our global components</p>
 
@@ -5836,11 +5861,11 @@ its consumers over to the fully loaded service, and then destroy itself.</p>
         </li>
         
         
-        <li id="section-270">
+        <li id="section-271">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-270">&#182;</a>
+                <a class="pilcrow" href="#section-271">&#182;</a>
               </div>
               <p>Let all of our components always have referance to our router</p>
 
@@ -5851,38 +5876,25 @@ its consumers over to the fully loaded service, and then destroy itself.</p>
         </li>
         
         
-        <li id="section-271">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-271">&#182;</a>
-              </div>
-              <p>Start the history</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>      Backbone.history.start({
-        pushState: <span class="hljs-literal">true</span>,
-        root: <span class="hljs-keyword">this</span>.config.root
-      });
-
-    }
-  });
-
-export <span class="hljs-keyword">default</span> ReboundRouter;</pre></div></div>
-            
-        </li>
-        
-        
         <li id="section-272">
             <div class="annotation">
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-272">&#182;</a>
               </div>
-              <h2 id="rebound-utils">Rebound Utils</h2>
+              <p>Start the history</p>
 
             </div>
+            
+            <div class="content"><div class='highlight'><pre>      Backbone.history.start({
+        pushState: (<span class="hljs-keyword">this</span>.config.pushState === <span class="hljs-literal">undefined</span>) ? <span class="hljs-literal">true</span> : <span class="hljs-keyword">this</span>.config.pushState,
+        root: <span class="hljs-keyword">this</span>.config.root
+      });
+
+    }
+  });
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> ReboundRouter;</pre></div></div>
             
         </li>
         
@@ -5893,17 +5905,9 @@ export <span class="hljs-keyword">default</span> ReboundRouter;</pre></div></div
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-273">&#182;</a>
               </div>
-              
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>
-<span class="hljs-keyword">var</span> $ = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(query)</span></span>{
-  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> utils(query);
-};
+              <h2 id="rebound-utils">Rebound Utils</h2>
 
-<span class="hljs-keyword">var</span> utils = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(query)</span></span>{
-  <span class="hljs-keyword">var</span> i, selector = _.isElement(query) &amp;&amp; [query] || (query === <span class="hljs-built_in">document</span>) &amp;&amp; [<span class="hljs-built_in">document</span>] || _.isString(query) &amp;&amp; querySelectorAll(query) || [];
-  <span class="hljs-keyword">this</span>.length = selector.length;</pre></div></div>
+            </div>
             
         </li>
         
@@ -5913,6 +5917,27 @@ export <span class="hljs-keyword">default</span> ReboundRouter;</pre></div></div
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-274">&#182;</a>
+              </div>
+              
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>
+<span class="hljs-keyword">var</span> $ = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(query)</span></span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> utils(query);
+};
+
+<span class="hljs-keyword">var</span> utils = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(query)</span></span>{
+  <span class="hljs-keyword">var</span> i, selector = _.isElement(query) &amp;&amp; [query] || (query === <span class="hljs-built_in">document</span>) &amp;&amp; [<span class="hljs-built_in">document</span>] || _.isString(query) &amp;&amp; <span class="hljs-built_in">document</span>.querySelectorAll(query) || [];
+  <span class="hljs-keyword">this</span>.length = selector.length;</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-275">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-275">&#182;</a>
               </div>
               <p>Add selector to object for method chaining</p>
 
@@ -5933,11 +5958,11 @@ $.Event = <span class="hljs-function"><span class="hljs-keyword">function</span>
         </li>
         
         
-        <li id="section-275">
+        <li id="section-276">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-275">&#182;</a>
+                <a class="pilcrow" href="#section-276">&#182;</a>
               </div>
               <p>Allow instantiation without the ‘new’ keyword</p>
 
@@ -5950,11 +5975,11 @@ $.Event = <span class="hljs-function"><span class="hljs-keyword">function</span>
         </li>
         
         
-        <li id="section-276">
+        <li id="section-277">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-276">&#182;</a>
+                <a class="pilcrow" href="#section-277">&#182;</a>
               </div>
               <p>Event object</p>
 
@@ -5967,11 +5992,11 @@ $.Event = <span class="hljs-function"><span class="hljs-keyword">function</span>
         </li>
         
         
-        <li id="section-277">
+        <li id="section-278">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-277">&#182;</a>
+                <a class="pilcrow" href="#section-278">&#182;</a>
               </div>
               <p>Events bubbling up the document may have been marked as prevented
 by a handler lower down the tree; reflect the correct value.</p>
@@ -5984,11 +6009,11 @@ by a handler lower down the tree; reflect the correct value.</p>
         </li>
         
         
-        <li id="section-278">
+        <li id="section-279">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-278">&#182;</a>
+                <a class="pilcrow" href="#section-279">&#182;</a>
               </div>
               <p>Support: Android&lt;4.0</p>
 
@@ -6001,11 +6026,11 @@ by a handler lower down the tree; reflect the correct value.</p>
         </li>
         
         
-        <li id="section-279">
+        <li id="section-280">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-279">&#182;</a>
+                <a class="pilcrow" href="#section-280">&#182;</a>
               </div>
               <p>Event type</p>
 
@@ -6018,11 +6043,11 @@ by a handler lower down the tree; reflect the correct value.</p>
         </li>
         
         
-        <li id="section-280">
+        <li id="section-281">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-280">&#182;</a>
+                <a class="pilcrow" href="#section-281">&#182;</a>
               </div>
               <p>Put explicitly provided properties onto the event object</p>
 
@@ -6035,11 +6060,11 @@ by a handler lower down the tree; reflect the correct value.</p>
         </li>
         
         
-        <li id="section-281">
+        <li id="section-282">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-281">&#182;</a>
+                <a class="pilcrow" href="#section-282">&#182;</a>
               </div>
               <p>Copy over all original event properties</p>
 
@@ -6056,11 +6081,11 @@ by a handler lower down the tree; reflect the correct value.</p>
         </li>
         
         
-        <li id="section-282">
+        <li id="section-283">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-282">&#182;</a>
+                <a class="pilcrow" href="#section-283">&#182;</a>
               </div>
               <p>Create a timestamp if incoming event doesn’t have one</p>
 
@@ -6071,11 +6096,11 @@ by a handler lower down the tree; reflect the correct value.</p>
         </li>
         
         
-        <li id="section-283">
+        <li id="section-284">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-283">&#182;</a>
+                <a class="pilcrow" href="#section-284">&#182;</a>
               </div>
               <p>Mark it as fixed</p>
 
@@ -6127,11 +6152,11 @@ utils.prototype = {</pre></div></div>
         </li>
         
         
-        <li id="section-284">
+        <li id="section-285">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-284">&#182;</a>
+                <a class="pilcrow" href="#section-285">&#182;</a>
               </div>
               <p>Given a valid data path, split it into an array of its parts.
 ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
@@ -6148,11 +6173,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-285">
+        <li id="section-286">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-285">&#182;</a>
+                <a class="pilcrow" href="#section-286">&#182;</a>
               </div>
               <p>Applies function <code>func</code> depth first to every node in the subtree starting from <code>root</code></p>
 
@@ -6174,11 +6199,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-286">
+        <li id="section-287">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-286">&#182;</a>
+                <a class="pilcrow" href="#section-287">&#182;</a>
               </div>
               <p>Events registry. An object containing all events bound through this util shared among all instances.</p>
 
@@ -6189,11 +6214,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-287">
+        <li id="section-288">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-287">&#182;</a>
+                <a class="pilcrow" href="#section-288">&#182;</a>
               </div>
               <p>Takes the targed the event fired on and returns all callbacks for the delegated element</p>
 
@@ -6205,11 +6230,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-288">
+        <li id="section-289">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-288">&#182;</a>
+                <a class="pilcrow" href="#section-289">&#182;</a>
               </div>
               <p>Get our callbacks</p>
 
@@ -6229,11 +6254,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-289">
+        <li id="section-290">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-289">&#182;</a>
+                <a class="pilcrow" href="#section-290">&#182;</a>
               </div>
               <p>Triggers an event on a given dom node</p>
 
@@ -6278,11 +6303,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-290">
+        <li id="section-291">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-290">&#182;</a>
+                <a class="pilcrow" href="#section-291">&#182;</a>
               </div>
               <p>If there are no more of this event type delegated for this group, remove the listener</p>
 
@@ -6311,11 +6336,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-291">
+        <li id="section-292">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-291">&#182;</a>
+                <a class="pilcrow" href="#section-292">&#182;</a>
               </div>
               <p>Normalize data input</p>
 
@@ -6343,11 +6368,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-292">
+        <li id="section-293">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-292">&#182;</a>
+                <a class="pilcrow" href="#section-293">&#182;</a>
               </div>
               <p>Ensure event obj existance</p>
 
@@ -6358,11 +6383,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-293">
+        <li id="section-294">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-293">&#182;</a>
+                <a class="pilcrow" href="#section-294">&#182;</a>
               </div>
               <p>TODO: take out of loop</p>
 
@@ -6376,11 +6401,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-294">
+        <li id="section-295">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-294">&#182;</a>
+                <a class="pilcrow" href="#section-295">&#182;</a>
               </div>
               <p>Travel from target up to parent firing event on delegate when it exizts</p>
 
@@ -6391,11 +6416,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-295">
+        <li id="section-296">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-295">&#182;</a>
+                <a class="pilcrow" href="#section-296">&#182;</a>
               </div>
               <p>Get all specified callbacks (element specific and selector specified)</p>
 
@@ -6414,11 +6439,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-296">
+        <li id="section-297">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-296">&#182;</a>
+                <a class="pilcrow" href="#section-297">&#182;</a>
               </div>
               <p>If any of the callbacks returned false, prevent default and stop propagation</p>
 
@@ -6437,11 +6462,11 @@ ex: foo.bar[0].baz —&gt; [‘foo’, ‘var’, ‘0’, ‘baz’]</p>
         </li>
         
         
-        <li id="section-297">
+        <li id="section-298">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-297">&#182;</a>
+                <a class="pilcrow" href="#section-298">&#182;</a>
               </div>
               <p>If this is the first event of its type, add the event handler
 AddEventListener supports IE9+</p>
@@ -6453,11 +6478,11 @@ AddEventListener supports IE9+</p>
         </li>
         
         
-        <li id="section-298">
+        <li id="section-299">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-298">&#182;</a>
+                <a class="pilcrow" href="#section-299">&#182;</a>
               </div>
               <p>If event is focus or blur, use capture to allow for event delegation.</p>
 
@@ -6469,11 +6494,11 @@ AddEventListener supports IE9+</p>
         </li>
         
         
-        <li id="section-299">
+        <li id="section-300">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-299">&#182;</a>
+                <a class="pilcrow" href="#section-300">&#182;</a>
               </div>
               <p>Add our listener</p>
 
@@ -6529,11 +6554,11 @@ AddEventListener supports IE9+</p>
         </li>
         
         
-        <li id="section-300">
+        <li id="section-301">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-300">&#182;</a>
+                <a class="pilcrow" href="#section-301">&#182;</a>
               </div>
               <p><a href="http://krasimirtsonev.com/blog/article/Cross-browser-handling-of-Ajax-requests-in-absurdjs">http://krasimirtsonev.com/blog/article/Cross-browser-handling-of-Ajax-requests-in-absurdjs</a></p>
 
@@ -6626,20 +6651,7 @@ _.extend($, utils.prototype);
 
 
 
-export <span class="hljs-keyword">default</span> $;</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-301">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-301">&#182;</a>
-              </div>
-              <h2 id="property-compiler">Property Compiler</h2>
-
-            </div>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> $;</pre></div></div>
             
         </li>
         
@@ -6650,13 +6662,9 @@ export <span class="hljs-keyword">default</span> $;</pre></div></div>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-302">&#182;</a>
               </div>
-              
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>
-import tokenizer from <span class="hljs-string">"property-compiler/tokenizer"</span>;
+              <h2 id="property-compiler">Property Compiler</h2>
 
-<span class="hljs-keyword">var</span> computedProperties = [];</pre></div></div>
+            </div>
             
         </li>
         
@@ -6666,6 +6674,23 @@ import tokenizer from <span class="hljs-string">"property-compiler/tokenizer"</s
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-303">&#182;</a>
+              </div>
+              
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>
+<span class="hljs-keyword">import</span> tokenizer <span class="hljs-keyword">from</span> <span class="hljs-string">"property-compiler/tokenizer"</span>;
+
+<span class="hljs-keyword">var</span> computedProperties = [];</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-304">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-304">&#182;</a>
               </div>
               <p>TODO: Make this farrrrrr more robust…very minimal right now</p>
 
@@ -6707,11 +6732,11 @@ import tokenizer from <span class="hljs-string">"property-compiler/tokenizer"</s
         </li>
         
         
-        <li id="section-304">
+        <li id="section-305">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-304">&#182;</a>
+                <a class="pilcrow" href="#section-305">&#182;</a>
               </div>
               <p>TODO: handle gets on collections</p>
 
@@ -6726,11 +6751,11 @@ import tokenizer from <span class="hljs-string">"property-compiler/tokenizer"</s
         </li>
         
         
-        <li id="section-305">
+        <li id="section-306">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-305">&#182;</a>
+                <a class="pilcrow" href="#section-306">&#182;</a>
               </div>
               <p>Replace any access to a collection with the generic @each placeholder and push dependancy</p>
 
@@ -6763,11 +6788,11 @@ import tokenizer from <span class="hljs-string">"property-compiler/tokenizer"</s
         </li>
         
         
-        <li id="section-306">
+        <li id="section-307">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-306">&#182;</a>
+                <a class="pilcrow" href="#section-307">&#182;</a>
               </div>
               <p>workingpath[workingpath.length -1] = workingpath[workingpath.length -1] + ‘[‘ + path.value + ‘]’;
 workingpath.push(‘[‘ + path.value + ‘]’);</p>
@@ -6818,11 +6843,11 @@ workingpath.push(‘[‘ + path.value + ‘]’);</p>
         </li>
         
         
-        <li id="section-307">
+        <li id="section-308">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-307">&#182;</a>
+                <a class="pilcrow" href="#section-308">&#182;</a>
               </div>
               <p>Return the dependancies list</p>
 
@@ -6832,20 +6857,7 @@ workingpath.push(‘[‘ + path.value + ‘]’);</p>
 
 }
 
-export <span class="hljs-keyword">default</span> { compile: compile };</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-308">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-308">&#182;</a>
-              </div>
-              <h2 id="rebound-compiler">Rebound Compiler</h2>
-
-            </div>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> { compile: compile };</pre></div></div>
             
         </li>
         
@@ -6856,17 +6868,9 @@ export <span class="hljs-keyword">default</span> { compile: compile };</pre></di
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-309">&#182;</a>
               </div>
-              
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>
-import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <span class="hljs-string">"htmlbars-compiler/compiler"</span>;
-import { merge } from <span class="hljs-string">"htmlbars-util/object-utils"</span>;
-import DOMHelper from <span class="hljs-string">"dom-helper"</span>;
-import helpers from <span class="hljs-string">"rebound-component/helpers"</span>;
-import hooks from <span class="hljs-string">"rebound-component/hooks"</span>;
+              <h2 id="rebound-compiler">Rebound Compiler</h2>
 
-<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">compile</span><span class="hljs-params">(string, options)</span></span>{</pre></div></div>
+            </div>
             
         </li>
         
@@ -6876,6 +6880,27 @@ import hooks from <span class="hljs-string">"rebound-component/hooks"</span>;
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-310">&#182;</a>
+              </div>
+              
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>
+<span class="hljs-keyword">import</span> { compile <span class="hljs-keyword">as</span> htmlbarsCompile, compileSpec <span class="hljs-keyword">as</span> htmlbarsCompileSpec } <span class="hljs-keyword">from</span> <span class="hljs-string">"htmlbars-compiler/compiler"</span>;
+<span class="hljs-keyword">import</span> { merge } <span class="hljs-keyword">from</span> <span class="hljs-string">"htmlbars-util/object-utils"</span>;
+<span class="hljs-keyword">import</span> DOMHelper <span class="hljs-keyword">from</span> <span class="hljs-string">"dom-helper"</span>;
+<span class="hljs-keyword">import</span> helpers <span class="hljs-keyword">from</span> <span class="hljs-string">"rebound-component/helpers"</span>;
+<span class="hljs-keyword">import</span> hooks <span class="hljs-keyword">from</span> <span class="hljs-string">"rebound-component/hooks"</span>;
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">compile</span><span class="hljs-params">(string, options)</span></span>{</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-311">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-311">&#182;</a>
               </div>
               <p>Ensure we have a well-formed object as var options</p>
 
@@ -6888,11 +6913,11 @@ import hooks from <span class="hljs-string">"rebound-component/hooks"</span>;
         </li>
         
         
-        <li id="section-311">
+        <li id="section-312">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-311">&#182;</a>
+                <a class="pilcrow" href="#section-312">&#182;</a>
               </div>
               <p>Merge our default helpers with user provided helpers</p>
 
@@ -6904,11 +6929,11 @@ import hooks from <span class="hljs-string">"rebound-component/hooks"</span>;
         </li>
         
         
-        <li id="section-312">
+        <li id="section-313">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-312">&#182;</a>
+                <a class="pilcrow" href="#section-313">&#182;</a>
               </div>
               <p>Compile our template function</p>
 
@@ -6924,11 +6949,11 @@ import hooks from <span class="hljs-string">"rebound-component/hooks"</span>;
         </li>
         
         
-        <li id="section-313">
+        <li id="section-314">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-313">&#182;</a>
+                <a class="pilcrow" href="#section-314">&#182;</a>
               </div>
               <p>Return a wrapper function that will merge user provided helpers with our defaults</p>
 
@@ -6939,11 +6964,11 @@ import hooks from <span class="hljs-string">"rebound-component/hooks"</span>;
         </li>
         
         
-        <li id="section-314">
+        <li id="section-315">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-314">&#182;</a>
+                <a class="pilcrow" href="#section-315">&#182;</a>
               </div>
               <p>Ensure we have a well-formed object as var options</p>
 
@@ -6957,11 +6982,11 @@ import hooks from <span class="hljs-string">"rebound-component/hooks"</span>;
         </li>
         
         
-        <li id="section-315">
+        <li id="section-316">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-315">&#182;</a>
+                <a class="pilcrow" href="#section-316">&#182;</a>
               </div>
               <p>Merge our default helpers and hooks with user provided helpers</p>
 
@@ -6973,11 +6998,11 @@ import hooks from <span class="hljs-string">"rebound-component/hooks"</span>;
         </li>
         
         
-        <li id="section-316">
+        <li id="section-317">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-316">&#182;</a>
+                <a class="pilcrow" href="#section-317">&#182;</a>
               </div>
               <p>Set a default context if it doesn’t exist</p>
 
@@ -6988,11 +7013,11 @@ import hooks from <span class="hljs-string">"rebound-component/hooks"</span>;
         </li>
         
         
-        <li id="section-317">
+        <li id="section-318">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-317">&#182;</a>
+                <a class="pilcrow" href="#section-318">&#182;</a>
               </div>
               <p>Call our func with merged helpers and hooks</p>
 
@@ -7007,20 +7032,7 @@ import hooks from <span class="hljs-string">"rebound-component/hooks"</span>;
 
 }
 
-export { compile };</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-318">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-318">&#182;</a>
-              </div>
-              <h2 id="rebound-precompiler">Rebound Precompiler</h2>
-
-            </div>
+<span class="hljs-keyword">export</span> { compile };</pre></div></div>
             
         </li>
         
@@ -7031,11 +7043,9 @@ export { compile };</pre></div></div>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-319">&#182;</a>
               </div>
-              
+              <h2 id="rebound-precompiler">Rebound Precompiler</h2>
+
             </div>
-            
-            <div class="content"><div class='highlight'><pre>
-import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <span class="hljs-string">"htmlbars"</span>;</pre></div></div>
             
         </li>
         
@@ -7045,6 +7055,21 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-320">&#182;</a>
+              </div>
+              
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>
+<span class="hljs-keyword">import</span> { compile <span class="hljs-keyword">as</span> htmlbarsCompile, compileSpec <span class="hljs-keyword">as</span> htmlbarsCompileSpec } <span class="hljs-keyword">from</span> <span class="hljs-string">"htmlbars"</span>;</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-321">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-321">&#182;</a>
               </div>
               <p>Remove the contents of the component’s <code>script</code> tag.</p>
 
@@ -7057,11 +7082,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-321">
+        <li id="section-322">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-321">&#182;</a>
+                <a class="pilcrow" href="#section-322">&#182;</a>
               </div>
               <p>Remove the contents of the component’s <code>style</code> tag.</p>
 
@@ -7074,11 +7099,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-322">
+        <li id="section-323">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-322">&#182;</a>
+                <a class="pilcrow" href="#section-323">&#182;</a>
               </div>
               <p>Remove the contents of the component’s <code>template</code> tag.</p>
 
@@ -7091,11 +7116,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-323">
+        <li id="section-324">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-323">&#182;</a>
+                <a class="pilcrow" href="#section-324">&#182;</a>
               </div>
               <p>Get the component’s name from its <code>name</code> attribute.</p>
 
@@ -7108,11 +7133,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-324">
+        <li id="section-325">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-324">&#182;</a>
+                <a class="pilcrow" href="#section-325">&#182;</a>
               </div>
               <p>Minify the string passed in by replacing all whitespace.</p>
 
@@ -7125,11 +7150,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-325">
+        <li id="section-326">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-325">&#182;</a>
+                <a class="pilcrow" href="#section-326">&#182;</a>
               </div>
               <p>Strip javascript comments</p>
 
@@ -7168,11 +7193,11 @@ import { compile as htmlbarsCompile, compileSpec as htmlbarsCompileSpec } from <
         </li>
         
         
-        <li id="section-326">
+        <li id="section-327">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-326">&#182;</a>
+                <a class="pilcrow" href="#section-327">&#182;</a>
               </div>
               <p>Remove comments
 str = removeComments(str);
@@ -7200,11 +7225,11 @@ str = minify(str);</p>
         </li>
         
         
-        <li id="section-327">
+        <li id="section-328">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-327">&#182;</a>
+                <a class="pilcrow" href="#section-328">&#182;</a>
               </div>
               <p>If the element tag is present</p>
 
@@ -7224,11 +7249,11 @@ str = minify(str);</p>
         </li>
         
         
-        <li id="section-328">
+        <li id="section-329">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-328">&#182;</a>
+                <a class="pilcrow" href="#section-329">&#182;</a>
               </div>
               <p>Assemple our component dependancies by finding link tags and parsing their src</p>
 
@@ -7247,11 +7272,11 @@ str = minify(str);</p>
         </li>
         
         
-        <li id="section-329">
+        <li id="section-330">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-329">&#182;</a>
+                <a class="pilcrow" href="#section-330">&#182;</a>
               </div>
               <p>Remove link tags from template</p>
 
@@ -7262,11 +7287,11 @@ str = minify(str);</p>
         </li>
         
         
-        <li id="section-330">
+        <li id="section-331">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-330">&#182;</a>
+                <a class="pilcrow" href="#section-331">&#182;</a>
               </div>
               <p>Assemble our partial dependancies</p>
 
@@ -7283,11 +7308,11 @@ str = minify(str);</p>
         </li>
         
         
-        <li id="section-331">
+        <li id="section-332">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-331">&#182;</a>
+                <a class="pilcrow" href="#section-332">&#182;</a>
               </div>
               <p>Compile</p>
 
@@ -7298,11 +7323,11 @@ str = minify(str);</p>
         </li>
         
         
-        <li id="section-332">
+        <li id="section-333">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-332">&#182;</a>
+                <a class="pilcrow" href="#section-333">&#182;</a>
               </div>
               <p>If is a partial</p>
 
@@ -7315,11 +7340,11 @@ str = minify(str);</p>
         </li>
         
         
-        <li id="section-333">
+        <li id="section-334">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-333">&#182;</a>
+                <a class="pilcrow" href="#section-334">&#182;</a>
               </div>
               <p>Else, is a component</p>
 
@@ -7337,11 +7362,11 @@ str = minify(str);</p>
         </li>
         
         
-        <li id="section-334">
+        <li id="section-335">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-334">&#182;</a>
+                <a class="pilcrow" href="#section-335">&#182;</a>
               </div>
               <p>Wrap in define</p>
 
@@ -7352,7 +7377,7 @@ str = minify(str);</p>
   <span class="hljs-keyword">return</span> template;
 }
 
-export { precompile };</pre></div></div>
+<span class="hljs-keyword">export</span> { precompile };</pre></div></div>
             
         </li>
         
