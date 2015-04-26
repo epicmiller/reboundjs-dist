@@ -10811,6 +10811,695 @@ define("runtime", ["exports", "module", "rebound-component/utils", "rebound-comp
 
   module.exports = Rebound;
 });
+define("rebound-component/helpers", ["exports", "module", "rebound-component/lazy-value", "rebound-component/utils"], function (exports, module, _reboundComponentLazyValue, _reboundComponentUtils) {
+  "use strict";
+
+  // Rebound Helpers
+  // ----------------
+
+  var LazyValue = to5Runtime.interopRequire(_reboundComponentLazyValue);
+
+  var $ = to5Runtime.interopRequire(_reboundComponentUtils);
+
+
+
+
+  var helpers = {},
+      partials = {};
+
+  helpers.registerPartial = function (name, func) {
+    if (func && func.isHTMLBars && typeof name === "string") {
+      partials[name] = func;
+    }
+  };
+
+  // lookupHelper returns the given function from the helpers object. Manual checks prevent user from overriding reserved words.
+  helpers.lookupHelper = function (name, env) {
+    env && env.helpers || (env = { helpers: {} });
+    // If a reserved helper, return it
+    if (name === "attribute") {
+      return this.attribute;
+    }
+    if (name === "if") {
+      return this["if"];
+    }
+    if (name === "unless") {
+      return this.unless;
+    }
+    if (name === "each") {
+      return this.each;
+    }
+    if (name === "partial") {
+      return this.partial;
+    }
+    if (name === "on") {
+      return this.on;
+    }
+    if (name === "debugger") {
+      return this["debugger"];
+    }
+    if (name === "log") {
+      return this.log;
+    }
+
+    // If not a reserved helper, check env, then global helpers, else return false
+    return env.helpers[name] || helpers[name] || false;
+  };
+
+  helpers.registerHelper = function (name, callback, params) {
+    if (!_.isString(name)) {
+      console.error("Name provided to registerHelper must be a string!");
+      return;
+    }
+    if (!_.isFunction(callback)) {
+      console.error("Callback provided to regierHelper must be a function!");
+      return;
+    }
+    if (helpers.lookupHelper(name)) {
+      console.error("A helper called \"" + name + "\" is already registered!");
+      return;
+    }
+
+    params = _.isArray(params) ? params : [params];
+    callback.__params = params;
+
+    helpers[name] = callback;
+  };
+
+  /*******************************
+          Default helpers
+  ********************************/
+
+  helpers["debugger"] = function (params, hash, options, env) {
+    debugger;
+    return "";
+  };
+
+  helpers.log = function (params, hash, options, env) {
+    console.log.apply(console, params);
+    return "";
+  };
+
+  helpers.on = function (params, hash, options, env) {
+    var i,
+        callback,
+        delegate,
+        element,
+        eventName = params[0],
+        len = params.length,
+        data = hash;
+
+    // By default everything is delegated on the parent component
+    if (len === 2) {
+      callback = params[1];
+      delegate = options.element;
+      element = this.el || options.element;
+    }
+    // If a selector is provided, delegate on the helper's element
+    else if (len === 3) {
+      callback = params[2];
+      delegate = params[1];
+      element = options.element;
+    }
+
+    // Attach event
+    $(element).on(eventName, delegate, hash, function (event) {
+      return env.helpers._callOnComponent(callback, event);
+    });
+  };
+
+  helpers.length = function (params, hash, options, env) {
+    return params[0] && params[0].length || 0;
+  };
+
+  helpers["if"] = function (params, hash, options, env) {
+    var condition = params[0];
+
+    if (condition === undefined || condition === null) {
+      condition = false;
+    }
+
+    if (condition.isModel) {
+      condition = true;
+    }
+
+    // If our condition is an array, handle properly
+    if (_.isArray(condition) || condition.isCollection) {
+      condition = condition.length ? true : false;
+    }
+
+    if (condition === "true") {
+      condition = true;
+    }
+    if (condition === "false") {
+      condition = false;
+    }
+
+    // If more than one param, this is not a block helper. Eval as such.
+    if (params.length > 1) {
+      return condition ? params[1] : params[2] || "";
+    }
+
+    // Check our cache. If the value hasn't actually changed, don't evaluate. Important for re-rendering of #each helpers.
+    if (options.morph.__ifCache === condition) {
+      return null; // Return null prevent's re-rending of our placeholder.
+    }
+
+    options.morph.__ifCache = condition;
+
+    // Render the apropreate block statement
+    if (condition && options.template) {
+      return options.template.render(options.context, env, options.morph.contextualElement);
+    } else if (!condition && options.inverse) {
+      return options.inverse.render(options.context, env, options.morph.contextualElement);
+    }
+
+    return "";
+  };
+
+
+  // TODO: Proxy to if helper with inverted params
+  helpers.unless = function (params, hash, options, env) {
+    var condition = params[0];
+
+    if (condition === undefined || condition === null) {
+      condition = false;
+    }
+
+    if (condition.isModel) {
+      condition = true;
+    }
+
+    // If our condition is an array, handle properly
+    if (_.isArray(condition) || condition.isCollection) {
+      condition = condition.length ? true : false;
+    }
+
+    // If more than one param, this is not a block helper. Eval as such.
+    if (params.length > 1) {
+      return !condition ? params[1] : params[2] || "";
+    }
+
+    // Check our cache. If the value hasn't actually changed, don't evaluate. Important for re-rendering of #each helpers.
+    if (options.morph.__unlessCache === condition) {
+      return null; // Return null prevent's re-rending of our placeholder.
+    }
+
+    options.morph.__unlessCache = condition;
+
+    // Render the apropreate block statement
+    if (!condition && options.template) {
+      return options.template.render(options.context, env, options.morph.contextualElement);
+    } else if (condition && options.inverse) {
+      return options.inverse.render(options.context, env, options.morph.contextualElement);
+    }
+
+    return "";
+  };
+
+  // Given an array, predicate and optional extra variable, finds the index in the array where predicate is true
+  function findIndex(arr, predicate, cid) {
+    if (arr == null) {
+      throw new TypeError("findIndex called on null or undefined");
+    }
+    if (typeof predicate !== "function") {
+      throw new TypeError("predicate must be a function");
+    }
+    var list = Object(arr);
+    var length = list.length >>> 0;
+    var thisArg = arguments[1];
+    var value;
+
+    for (var i = 0; i < length; i++) {
+      value = list[i];
+      if (predicate.call(thisArg, value, i, list, cid)) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  helpers.each = function (params, hash, options, env) {
+    if (_.isNull(params[0]) || _.isUndefined(params[0])) {
+      console.warn("Undefined value passed to each helper! Maybe try providing a default value?", options.context);return null;
+    }
+
+    var value = params[0].isCollection ? params[0].models : params[0],
+        // Accepts collections or arrays
+    morph = options.morph.firstChildMorph,
+        obj,
+        next,
+        lazyValue,
+        nmorph,
+        i,
+        // used below to remove trailing junk morphs from the dom
+    position,
+        // Stores the iterated element's integer position in the dom list
+    currentModel = function (element, index, array, cid) {
+      return element.cid === cid; // Returns true if currently observed element is the current model.
+    };
+
+    if ((!_.isArray(value) || value.length === 0) && options.inverse) {
+      return options.inverse.render(options.context, env, options.morph.contextualElement);
+    }
+
+    // For each item in this collection
+    for (i = 0; i < value.length; i++) {
+      obj = value[i];
+      next = morph ? morph.nextMorph : null;
+
+      // If this morph is the rendered version of this model, continue to the next one.
+      if (morph && morph.cid == obj.cid) {
+        morph = next;continue;
+      }
+
+      nmorph = options.morph.insertContentBeforeMorph("", morph);
+
+      // Create a lazyvalue whos value is the content inside our block helper rendered in the context of this current list object. Returns the rendered dom for this list item.
+      lazyValue = new LazyValue(function () {
+        return options.template.render(options.context, env, options.morph.contextualElement, [obj]);
+      }, { morph: options.morph });
+
+      // Insert our newly rendered value (a document tree) into our placeholder (the containing element) at its requested position (where we currently are in the object list)
+      nmorph.setContent(lazyValue.value());
+
+      // Label the inserted morph element with this model's cid
+      nmorph.cid = obj.cid;
+
+      // Destroy the old morph that was here
+      morph && morph.destroy();
+
+      // Move on to the next morph
+      morph = next;
+    }
+
+    // If any more morphs are left over, remove them. We've already gone through all the models.
+    while (morph) {
+      next = morph.nextMorph;
+      morph.destroy();
+      morph = next;
+    }
+
+    // Return null prevent's re-rending of our placeholder. Our placeholder (containing element) now has all the dom we need.
+    return null;
+  };
+
+  helpers.partial = function (params, hash, options, env) {
+    var partial = partials[params[0]];
+    if (partial && partial.isHTMLBars) {
+      return partial.render(options.context, env);
+    }
+  };
+
+  module.exports = helpers;
+});
+define("rebound-data/computed-property", ["exports", "module", "property-compiler/property-compiler", "rebound-component/utils"], function (exports, module, _propertyCompilerPropertyCompiler, _reboundComponentUtils) {
+  "use strict";
+
+  // Rebound Computed Property
+  // ----------------
+
+  var propertyCompiler = to5Runtime.interopRequire(_propertyCompilerPropertyCompiler);
+
+  var $ = to5Runtime.interopRequire(_reboundComponentUtils);
+
+  // Returns true if str starts with test
+  function startsWith(str, test) {
+    if (str === test) return true;
+    return str.substring(0, test.length + 1) === test + ".";
+  }
+
+
+  // Called after callstack is exausted to call all of this computed property's
+  // dependants that need to be recomputed
+  function recomputeCallback() {
+    var i = 0,
+        len = this._toCall.length;
+    delete this._recomputeTimeout;
+    for (i = 0; i < len; i++) {
+      this._toCall.shift().call();
+    }
+    this._toCall.added = {};
+  }
+
+  var ComputedProperty = function (prop, options) {
+    if (!_.isFunction(prop)) return console.error("ComputedProperty constructor must be passed a function!", prop, "Found instead.");
+    options = options || {};
+    this.cid = _.uniqueId("computedPropety");
+    this.name = options.name;
+    this.returnType = null;
+    this.__observers = {};
+    this.helpers = {};
+    this.waiting = {};
+    this.isChanging = false;
+    this.isDirty = true;
+    this.func = prop;
+    _.bindAll(this, "onModify", "markDirty");
+    this.deps = propertyCompiler.compile(prop, this.name);
+
+    // Create lineage to pass to our cache objects
+    var lineage = {
+      parent: this.setParent(options.parent || this),
+      root: this.setRoot(options.root || options.parent || this),
+      path: this.__path = options.path || this.__path
+    };
+
+    // Results Cache Objects
+    // These models will never be re-created for the lifetime of the Computed Proeprty
+    // On Recompute they are updated with new values.
+    // On Change their new values are pushed to the object it is tracking
+    this.cache = {
+      model: new Rebound.Model({}, lineage),
+      collection: new Rebound.Collection([], lineage),
+      value: undefined
+    };
+
+    this.wire();
+  };
+
+  _.extend(ComputedProperty.prototype, Backbone.Events, {
+
+    isComputedProperty: true,
+    isData: true,
+    __path: function () {
+      return "";
+    },
+
+
+    markDirty: function () {
+      if (this.isDirty) return;
+      this.isDirty = true;
+      this.trigger("dirty", this);
+    },
+
+    // Attached to listen to all events where this Computed Property's dependancies
+    // are stored. See wire(). Will re-evaluate any computed properties that
+    // depend on the changed data value which triggered this callback.
+    onRecompute: function (type, model, collection, options) {
+      var shortcircuit = { change: 1, sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1, dirty: 1 };
+      if (shortcircuit[type] || !model.isData) return;
+      model || (model = {});
+      collection || (collection = {});
+      options || (options = {});
+      this._toCall || (this._toCall = []);
+      this._toCall.added || (this._toCall.added = {});
+      !collection.isData && (options = collection) && (collection = model);
+      var push = function (arr) {
+        var i,
+            len = arr.length;
+        this.added || (this.added = {});
+        for (i = 0; i < len; i++) {
+          if (this.added[arr[i].cid]) continue;
+          this.added[arr[i].cid] = 1;
+          this.push(arr[i]);
+        }
+      },
+          path,
+          vector;
+      vector = path = collection.__path().replace(/\.?\[.*\]/ig, ".@each");
+
+      // If a reset event on a Model, check for computed properties that depend
+      // on each changed attribute's full path.
+      if (type === "reset" && options.previousAttributes) {
+        _.each(options.previousAttributes, function (value, key) {
+          vector = path + (path && ".") + key;
+          _.each(this.__computedDeps, function (dependants, dependancy) {
+            startsWith(vector, dependancy) && push.call(this._toCall, dependants);
+          }, this);
+        }, this);
+      }
+
+      // If a reset event on a Collction, check for computed properties that depend
+      // on anything inside that collection.
+      else if (type === "reset" && options.previousModels) {
+        _.each(this.__computedDeps, function (dependants, dependancy) {
+          startsWith(dependancy, vector) && push.call(this._toCall, dependants);
+        }, this);
+      }
+
+      // If an add or remove event, check for computed properties that depend on
+      // anything inside that collection or that contains that collection.
+      else if (type === "add" || type === "remove") {
+        _.each(this.__computedDeps, function (dependants, dependancy) {
+          if (startsWith(dependancy, vector) || startsWith(vector, dependancy)) push.call(this._toCall, dependants);;
+        }, this);
+      }
+
+      // If a change event, trigger anything that depends on that changed path.
+      else if (type.indexOf("change:") === 0) {
+        vector = type.replace("change:", "").replace(/\.?\[.*\]/ig, ".@each");
+        _.each(this.__computedDeps, function (dependants, dependancy) {
+          startsWith(vector, dependancy) && push.call(this._toCall, dependants);
+        }, this);
+      }
+
+      var i,
+          len = this._toCall.length;
+      for (i = 0; i < len; i++) {
+        this._toCall[i].markDirty();
+      }
+
+      // Notifies all computed properties in the dependants array to recompute.
+      // Marks everyone as dirty and then calls them.
+      if (!this._recomputeTimeout) this._recomputeTimeout = setTimeout(_.bind(recomputeCallback, this), 0);
+      return;
+    },
+
+
+    // Called when a Computed Property's active cache object changes.
+    // Pushes any changes to Computed Property that returns a data object back to
+    // the original object.
+    onModify: function (type, model, collection, options) {
+      var shortcircuit = { sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1 };
+      if (!this.tracking || shortcircuit[type] || ~type.indexOf("change:")) return;
+      model || (model = {});
+      collection || (collection = {});
+      options || (options = {});
+      !collection.isData && _.isObject(collection) && (options = collection) && (collection = model);
+      var src = this;
+      var path = collection.__path().replace(src.__path(), "").replace(/^\./, "");
+      var dest = this.tracking.get(path);
+
+      if (_.isUndefined(dest)) return;
+      if (type === "change") dest.set && dest.set(model.changedAttributes());else if (type === "reset") dest.reset && dest.reset(model);else if (type === "add") dest.add && dest.add(model);else if (type === "remove") dest.remove && dest.remove(model);
+      // TODO: Add sort
+    },
+
+    // Adds a litener to the root object and tells it what properties this
+    // Computed Property depend on.
+    // The listener will re-compute this Computed Property when any are changed.
+    wire: function () {
+      var root = this.__root__;
+      var context = this.__parent__;
+      root.__computedDeps || (root.__computedDeps = {});
+
+      _.each(this.deps, function (path) {
+        var dep = root.get(path, { raw: true });
+        if (!dep || !dep.isComputedProperty) return;
+        dep.on("dirty", this.markDirty);
+      }, this);
+
+      _.each(this.deps, function (path) {
+        // Find actual path from relative paths
+        var split = $.splitPath(path);
+        while (split[0] === "@parent") {
+          context = context.__parent__;
+          split.shift();
+        }
+
+        path = context.__path().replace(/\.?\[.*\]/ig, ".@each");
+        path = path + (path && ".") + split.join(".");
+
+        // Add ourselves as dependants
+        root.__computedDeps[path] || (root.__computedDeps[path] = []);
+        root.__computedDeps[path].push(this);
+      }, this);
+
+      // Ensure we only have one listener per Model at a time.
+      context.off("all", this.onRecompute).on("all", this.onRecompute);
+    },
+
+    unwire: function () {
+      var root = this.__root__;
+      var context = this.__parent__;
+
+      _.each(this.deps, function (path) {
+        var dep = root.get(path, { raw: true });
+        if (!dep || !dep.isComputedProperty) return;
+        dep.off("dirty", this.markDirty);
+      }, this);
+
+      context.off("all", this.onRecompute);
+    },
+
+    // Call this computed property like you would with Function.call()
+    call: function () {
+      var args = Array.prototype.slice.call(arguments),
+          context = args.shift();
+      return this.apply(context, args);
+    },
+
+    // Call this computed property like you would with Function.apply()
+    // Only properties that are marked as dirty and are not already computing
+    // themselves are evaluated to prevent cyclic callbacks. If any dependants
+    // aren't finished computeding, we add ourselved to their waiting list.
+    // Vanilla objects returned from the function are promoted to Rebound Objects.
+    // Then, set the proper return type for future fetches from the cache and set
+    // the new computed value. Track changes to the cache to push it back up to
+    // the original object and return the value.
+    apply: function (context, params) {
+      context || (context = this.__parent__);
+
+      if (!this.isDirty || this.isChanging || !context) return;
+      this.isChanging = true;
+
+      var value = this.cache[this.returnType],
+          result;
+
+      // Check all of our dependancies to see if they are evaluating.
+      // If we have a dependancy that is dirty and this isnt its first run,
+      // Let this dependancy know that we are waiting for it.
+      // It will re-run this Computed Property after it finishes.
+      _.each(this.deps, function (dep) {
+        var dependancy = context.get(dep, { raw: true });
+        if (!dependancy || !dependancy.isComputedProperty) return;
+        if (dependancy.isDirty && dependancy.returnType !== null) {
+          dependancy.waiting[this.cid] = this;
+          dependancy.apply(); // Try to re-evaluate this dependancy if it is dirty
+          if (dependancy.isDirty) return this.isChanging = false;
+        }
+        delete dependancy.waiting[this.cid];
+        // TODO: There can be a check here looking for cyclic dependancies.
+      }, this);
+
+      if (!this.isChanging) return;
+
+      if (this.returnType !== "value") this.stopListening(value, "all", this.onModify);
+
+      result = this.func.apply(context, params);
+
+      // Promote vanilla objects to Rebound Data keeping the same original objects
+      if (_.isArray(result)) result = new Rebound.Collection(result, { clone: false });else if (_.isObject(result) && !result.isData) result = new Rebound.Model(result, { clone: false });
+
+      // If result is undefined, reset our cache item
+      if (_.isUndefined(result) || _.isNull(result)) {
+        this.returnType = "value";
+        this.isCollection = this.isModel = false;
+        this.set(undefined);
+      }
+      // Set result and return types, bind events
+      else if (result.isCollection) {
+        this.returnType = "collection";
+        this.isCollection = true;
+        this.isModel = false;
+        this.set(result);
+        this.track(result);
+      } else if (result.isModel) {
+        this.returnType = "model";
+        this.isCollection = false;
+        this.isModel = true;
+        this.reset(result);
+        this.track(result);
+      } else {
+        this.returnType = "value";
+        this.isCollection = this.isModel = false;
+        this.reset(result);
+      }
+
+      return this.value();
+    },
+
+    // When we receive a new model to set in our cache, unbind the tracker from
+    // the previous cache object, sync the objects' cids so helpers think they
+    // are the same object, save a referance to the object we are tracking,
+    // and re-bind our onModify hook.
+    track: function (object) {
+      var target = this.value();
+      if (!object || !target || !target.isData || !object.isData) return;
+      target._cid || (target._cid = target.cid);
+      object._cid || (object._cid = object.cid);
+      target.cid = object.cid;
+      this.tracking = object;
+      this.listenTo(target, "all", this.onModify);
+    },
+
+    // Get from the Computed Property's cache
+    get: function (key, options) {
+      var value = this.value();
+      options || (options = {});
+      if (this.returnType === "value") return console.error("Called get on the `" + this.name + "` computed property which returns a primitive value.");
+      return value.get(key, options);
+    },
+
+    // Set the Computed Property's cache to a new value and trigger appropreate events.
+    // Changes will propagate back to the original object if a Rebound Data Object and re-compute.
+    // If Computed Property returns a value, all downstream dependancies will re-compute.
+    set: function (key, val, options) {
+      if (this.returnType === null) return undefined;
+      options || (options = {});
+      var attrs = key;
+      var value = this.value();
+      if (this.returnType === "model") {
+        if (typeof key === "object") {
+          attrs = key.isModel ? key.attributes : key;
+          options = val;
+        } else {
+          (attrs = {})[key] = val;
+        }
+      }
+      if (this.returnType !== "model") options = val || {};
+      attrs = attrs && attrs.isComputedProperty ? attrs.value() : attrs;
+
+      // If a new value, set it and trigger events
+      if (this.returnType === "value" && this.cache.value !== attrs) {
+        this.cache.value = attrs;
+        if (!options.quiet) {
+          // If set was called not through computedProperty.call(), this is a fresh new event burst.
+          if (!this.isDirty && !this.isChanging) this.__parent__.changed = {};
+          this.__parent__.changed[this.name] = attrs;
+          this.trigger("change", this.__parent__);
+          this.trigger("change:" + this.name, this.__parent__, attrs);
+          delete this.__parent__.changed[this.name];
+        }
+      } else if (this.returnType !== "value" && options.reset) key = value.reset(attrs, options);else if (this.returnType !== "value") key = value.set(attrs, options);
+      this.isDirty = this.isChanging = false;
+
+      // Call all reamining computed properties waiting for this value to resolve.
+      _.each(this.waiting, function (prop) {
+        prop && prop.call();
+      });
+
+      return key;
+    },
+
+    // Return the current value from the cache, running if dirty.
+    value: function () {
+      if (this.isDirty) this.apply();
+      return this.cache[this.returnType];
+    },
+
+    // Reset the current value in the cache, running if first run.
+    reset: function (obj, options) {
+      if (_.isNull(this.returnType)) return; // First run
+      options || (options = {});
+      options.reset = true;
+      return this.set(obj, options);
+    },
+
+    // Cyclic dependancy safe toJSON method.
+    toJSON: function () {
+      if (this._isSerializing) return this.cid;
+      var val = this.value();
+      this._isSerializing = true;
+      var json = val && _.isFunction(val.toJSON) ? val.toJSON() : val;
+      this._isSerializing = false;
+      return json;
+    }
+
+  });
+
+  module.exports = ComputedProperty;
+});
 define("property-compiler/tokenizer", ["exports", "module"], function (exports, module) {
   "use strict";
 
@@ -11839,695 +12528,6 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
 
 
   module.exports = { tokenize: exports.tokenize };
-});
-define("rebound-component/helpers", ["exports", "module", "rebound-component/lazy-value", "rebound-component/utils"], function (exports, module, _reboundComponentLazyValue, _reboundComponentUtils) {
-  "use strict";
-
-  // Rebound Helpers
-  // ----------------
-
-  var LazyValue = to5Runtime.interopRequire(_reboundComponentLazyValue);
-
-  var $ = to5Runtime.interopRequire(_reboundComponentUtils);
-
-
-
-
-  var helpers = {},
-      partials = {};
-
-  helpers.registerPartial = function (name, func) {
-    if (func && func.isHTMLBars && typeof name === "string") {
-      partials[name] = func;
-    }
-  };
-
-  // lookupHelper returns the given function from the helpers object. Manual checks prevent user from overriding reserved words.
-  helpers.lookupHelper = function (name, env) {
-    env && env.helpers || (env = { helpers: {} });
-    // If a reserved helper, return it
-    if (name === "attribute") {
-      return this.attribute;
-    }
-    if (name === "if") {
-      return this["if"];
-    }
-    if (name === "unless") {
-      return this.unless;
-    }
-    if (name === "each") {
-      return this.each;
-    }
-    if (name === "partial") {
-      return this.partial;
-    }
-    if (name === "on") {
-      return this.on;
-    }
-    if (name === "debugger") {
-      return this["debugger"];
-    }
-    if (name === "log") {
-      return this.log;
-    }
-
-    // If not a reserved helper, check env, then global helpers, else return false
-    return env.helpers[name] || helpers[name] || false;
-  };
-
-  helpers.registerHelper = function (name, callback, params) {
-    if (!_.isString(name)) {
-      console.error("Name provided to registerHelper must be a string!");
-      return;
-    }
-    if (!_.isFunction(callback)) {
-      console.error("Callback provided to regierHelper must be a function!");
-      return;
-    }
-    if (helpers.lookupHelper(name)) {
-      console.error("A helper called \"" + name + "\" is already registered!");
-      return;
-    }
-
-    params = _.isArray(params) ? params : [params];
-    callback.__params = params;
-
-    helpers[name] = callback;
-  };
-
-  /*******************************
-          Default helpers
-  ********************************/
-
-  helpers["debugger"] = function (params, hash, options, env) {
-    debugger;
-    return "";
-  };
-
-  helpers.log = function (params, hash, options, env) {
-    console.log.apply(console, params);
-    return "";
-  };
-
-  helpers.on = function (params, hash, options, env) {
-    var i,
-        callback,
-        delegate,
-        element,
-        eventName = params[0],
-        len = params.length,
-        data = hash;
-
-    // By default everything is delegated on the parent component
-    if (len === 2) {
-      callback = params[1];
-      delegate = options.element;
-      element = this.el || options.element;
-    }
-    // If a selector is provided, delegate on the helper's element
-    else if (len === 3) {
-      callback = params[2];
-      delegate = params[1];
-      element = options.element;
-    }
-
-    // Attach event
-    $(element).on(eventName, delegate, hash, function (event) {
-      return env.helpers._callOnComponent(callback, event);
-    });
-  };
-
-  helpers.length = function (params, hash, options, env) {
-    return params[0] && params[0].length || 0;
-  };
-
-  helpers["if"] = function (params, hash, options, env) {
-    var condition = params[0];
-
-    if (condition === undefined || condition === null) {
-      condition = false;
-    }
-
-    if (condition.isModel) {
-      condition = true;
-    }
-
-    // If our condition is an array, handle properly
-    if (_.isArray(condition) || condition.isCollection) {
-      condition = condition.length ? true : false;
-    }
-
-    if (condition === "true") {
-      condition = true;
-    }
-    if (condition === "false") {
-      condition = false;
-    }
-
-    // If more than one param, this is not a block helper. Eval as such.
-    if (params.length > 1) {
-      return condition ? params[1] : params[2] || "";
-    }
-
-    // Check our cache. If the value hasn't actually changed, don't evaluate. Important for re-rendering of #each helpers.
-    if (options.morph.__ifCache === condition) {
-      return null; // Return null prevent's re-rending of our placeholder.
-    }
-
-    options.morph.__ifCache = condition;
-
-    // Render the apropreate block statement
-    if (condition && options.template) {
-      return options.template.render(options.context, env, options.morph.contextualElement);
-    } else if (!condition && options.inverse) {
-      return options.inverse.render(options.context, env, options.morph.contextualElement);
-    }
-
-    return "";
-  };
-
-
-  // TODO: Proxy to if helper with inverted params
-  helpers.unless = function (params, hash, options, env) {
-    var condition = params[0];
-
-    if (condition === undefined || condition === null) {
-      condition = false;
-    }
-
-    if (condition.isModel) {
-      condition = true;
-    }
-
-    // If our condition is an array, handle properly
-    if (_.isArray(condition) || condition.isCollection) {
-      condition = condition.length ? true : false;
-    }
-
-    // If more than one param, this is not a block helper. Eval as such.
-    if (params.length > 1) {
-      return !condition ? params[1] : params[2] || "";
-    }
-
-    // Check our cache. If the value hasn't actually changed, don't evaluate. Important for re-rendering of #each helpers.
-    if (options.morph.__unlessCache === condition) {
-      return null; // Return null prevent's re-rending of our placeholder.
-    }
-
-    options.morph.__unlessCache = condition;
-
-    // Render the apropreate block statement
-    if (!condition && options.template) {
-      return options.template.render(options.context, env, options.morph.contextualElement);
-    } else if (condition && options.inverse) {
-      return options.inverse.render(options.context, env, options.morph.contextualElement);
-    }
-
-    return "";
-  };
-
-  // Given an array, predicate and optional extra variable, finds the index in the array where predicate is true
-  function findIndex(arr, predicate, cid) {
-    if (arr == null) {
-      throw new TypeError("findIndex called on null or undefined");
-    }
-    if (typeof predicate !== "function") {
-      throw new TypeError("predicate must be a function");
-    }
-    var list = Object(arr);
-    var length = list.length >>> 0;
-    var thisArg = arguments[1];
-    var value;
-
-    for (var i = 0; i < length; i++) {
-      value = list[i];
-      if (predicate.call(thisArg, value, i, list, cid)) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
-  helpers.each = function (params, hash, options, env) {
-    if (_.isNull(params[0]) || _.isUndefined(params[0])) {
-      console.warn("Undefined value passed to each helper! Maybe try providing a default value?", options.context);return null;
-    }
-
-    var value = params[0].isCollection ? params[0].models : params[0],
-        // Accepts collections or arrays
-    morph = options.morph.firstChildMorph,
-        obj,
-        next,
-        lazyValue,
-        nmorph,
-        i,
-        // used below to remove trailing junk morphs from the dom
-    position,
-        // Stores the iterated element's integer position in the dom list
-    currentModel = function (element, index, array, cid) {
-      return element.cid === cid; // Returns true if currently observed element is the current model.
-    };
-
-    if ((!_.isArray(value) || value.length === 0) && options.inverse) {
-      return options.inverse.render(options.context, env, options.morph.contextualElement);
-    }
-
-    // For each item in this collection
-    for (i = 0; i < value.length; i++) {
-      obj = value[i];
-      next = morph ? morph.nextMorph : null;
-
-      // If this morph is the rendered version of this model, continue to the next one.
-      if (morph && morph.cid == obj.cid) {
-        morph = next;continue;
-      }
-
-      nmorph = options.morph.insertContentBeforeMorph("", morph);
-
-      // Create a lazyvalue whos value is the content inside our block helper rendered in the context of this current list object. Returns the rendered dom for this list item.
-      lazyValue = new LazyValue(function () {
-        return options.template.render(options.context, env, options.morph.contextualElement, [obj]);
-      }, { morph: options.morph });
-
-      // Insert our newly rendered value (a document tree) into our placeholder (the containing element) at its requested position (where we currently are in the object list)
-      nmorph.setContent(lazyValue.value());
-
-      // Label the inserted morph element with this model's cid
-      nmorph.cid = obj.cid;
-
-      // Destroy the old morph that was here
-      morph && morph.destroy();
-
-      // Move on to the next morph
-      morph = next;
-    }
-
-    // If any more morphs are left over, remove them. We've already gone through all the models.
-    while (morph) {
-      next = morph.nextMorph;
-      morph.destroy();
-      morph = next;
-    }
-
-    // Return null prevent's re-rending of our placeholder. Our placeholder (containing element) now has all the dom we need.
-    return null;
-  };
-
-  helpers.partial = function (params, hash, options, env) {
-    var partial = partials[params[0]];
-    if (partial && partial.isHTMLBars) {
-      return partial.render(options.context, env);
-    }
-  };
-
-  module.exports = helpers;
-});
-define("rebound-data/computed-property", ["exports", "module", "property-compiler/property-compiler", "rebound-component/utils"], function (exports, module, _propertyCompilerPropertyCompiler, _reboundComponentUtils) {
-  "use strict";
-
-  // Rebound Computed Property
-  // ----------------
-
-  var propertyCompiler = to5Runtime.interopRequire(_propertyCompilerPropertyCompiler);
-
-  var $ = to5Runtime.interopRequire(_reboundComponentUtils);
-
-  // Returns true if str starts with test
-  function startsWith(str, test) {
-    if (str === test) return true;
-    return str.substring(0, test.length + 1) === test + ".";
-  }
-
-
-  // Called after callstack is exausted to call all of this computed property's
-  // dependants that need to be recomputed
-  function recomputeCallback() {
-    var i = 0,
-        len = this._toCall.length;
-    delete this._recomputeTimeout;
-    for (i = 0; i < len; i++) {
-      this._toCall.shift().call();
-    }
-    this._toCall.added = {};
-  }
-
-  var ComputedProperty = function (prop, options) {
-    if (!_.isFunction(prop)) return console.error("ComputedProperty constructor must be passed a function!", prop, "Found instead.");
-    options = options || {};
-    this.cid = _.uniqueId("computedPropety");
-    this.name = options.name;
-    this.returnType = null;
-    this.__observers = {};
-    this.helpers = {};
-    this.waiting = {};
-    this.isChanging = false;
-    this.isDirty = true;
-    this.func = prop;
-    _.bindAll(this, "onModify", "markDirty");
-    this.deps = propertyCompiler.compile(prop, this.name);
-
-    // Create lineage to pass to our cache objects
-    var lineage = {
-      parent: this.setParent(options.parent || this),
-      root: this.setRoot(options.root || options.parent || this),
-      path: this.__path = options.path || this.__path
-    };
-
-    // Results Cache Objects
-    // These models will never be re-created for the lifetime of the Computed Proeprty
-    // On Recompute they are updated with new values.
-    // On Change their new values are pushed to the object it is tracking
-    this.cache = {
-      model: new Rebound.Model({}, lineage),
-      collection: new Rebound.Collection([], lineage),
-      value: undefined
-    };
-
-    this.wire();
-  };
-
-  _.extend(ComputedProperty.prototype, Backbone.Events, {
-
-    isComputedProperty: true,
-    isData: true,
-    __path: function () {
-      return "";
-    },
-
-
-    markDirty: function () {
-      if (this.isDirty) return;
-      this.isDirty = true;
-      this.trigger("dirty", this);
-    },
-
-    // Attached to listen to all events where this Computed Property's dependancies
-    // are stored. See wire(). Will re-evaluate any computed properties that
-    // depend on the changed data value which triggered this callback.
-    onRecompute: function (type, model, collection, options) {
-      var shortcircuit = { change: 1, sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1, dirty: 1 };
-      if (shortcircuit[type] || !model.isData) return;
-      model || (model = {});
-      collection || (collection = {});
-      options || (options = {});
-      this._toCall || (this._toCall = []);
-      this._toCall.added || (this._toCall.added = {});
-      !collection.isData && (options = collection) && (collection = model);
-      var push = function (arr) {
-        var i,
-            len = arr.length;
-        this.added || (this.added = {});
-        for (i = 0; i < len; i++) {
-          if (this.added[arr[i].cid]) continue;
-          this.added[arr[i].cid] = 1;
-          this.push(arr[i]);
-        }
-      },
-          path,
-          vector;
-      vector = path = collection.__path().replace(/\.?\[.*\]/ig, ".@each");
-
-      // If a reset event on a Model, check for computed properties that depend
-      // on each changed attribute's full path.
-      if (type === "reset" && options.previousAttributes) {
-        _.each(options.previousAttributes, function (value, key) {
-          vector = path + (path && ".") + key;
-          _.each(this.__computedDeps, function (dependants, dependancy) {
-            startsWith(vector, dependancy) && push.call(this._toCall, dependants);
-          }, this);
-        }, this);
-      }
-
-      // If a reset event on a Collction, check for computed properties that depend
-      // on anything inside that collection.
-      else if (type === "reset" && options.previousModels) {
-        _.each(this.__computedDeps, function (dependants, dependancy) {
-          startsWith(dependancy, vector) && push.call(this._toCall, dependants);
-        }, this);
-      }
-
-      // If an add or remove event, check for computed properties that depend on
-      // anything inside that collection or that contains that collection.
-      else if (type === "add" || type === "remove") {
-        _.each(this.__computedDeps, function (dependants, dependancy) {
-          if (startsWith(dependancy, vector) || startsWith(vector, dependancy)) push.call(this._toCall, dependants);;
-        }, this);
-      }
-
-      // If a change event, trigger anything that depends on that changed path.
-      else if (type.indexOf("change:") === 0) {
-        vector = type.replace("change:", "").replace(/\.?\[.*\]/ig, ".@each");
-        _.each(this.__computedDeps, function (dependants, dependancy) {
-          startsWith(vector, dependancy) && push.call(this._toCall, dependants);
-        }, this);
-      }
-
-      var i,
-          len = this._toCall.length;
-      for (i = 0; i < len; i++) {
-        this._toCall[i].markDirty();
-      }
-
-      // Notifies all computed properties in the dependants array to recompute.
-      // Marks everyone as dirty and then calls them.
-      if (!this._recomputeTimeout) this._recomputeTimeout = setTimeout(_.bind(recomputeCallback, this), 0);
-      return;
-    },
-
-
-    // Called when a Computed Property's active cache object changes.
-    // Pushes any changes to Computed Property that returns a data object back to
-    // the original object.
-    onModify: function (type, model, collection, options) {
-      var shortcircuit = { sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1 };
-      if (!this.tracking || shortcircuit[type] || ~type.indexOf("change:")) return;
-      model || (model = {});
-      collection || (collection = {});
-      options || (options = {});
-      !collection.isData && _.isObject(collection) && (options = collection) && (collection = model);
-      var src = this;
-      var path = collection.__path().replace(src.__path(), "").replace(/^\./, "");
-      var dest = this.tracking.get(path);
-
-      if (_.isUndefined(dest)) return;
-      if (type === "change") dest.set && dest.set(model.changedAttributes());else if (type === "reset") dest.reset && dest.reset(model);else if (type === "add") dest.add && dest.add(model);else if (type === "remove") dest.remove && dest.remove(model);
-      // TODO: Add sort
-    },
-
-    // Adds a litener to the root object and tells it what properties this
-    // Computed Property depend on.
-    // The listener will re-compute this Computed Property when any are changed.
-    wire: function () {
-      var root = this.__root__;
-      var context = this.__parent__;
-      root.__computedDeps || (root.__computedDeps = {});
-
-      _.each(this.deps, function (path) {
-        var dep = root.get(path, { raw: true });
-        if (!dep || !dep.isComputedProperty) return;
-        dep.on("dirty", this.markDirty);
-      }, this);
-
-      _.each(this.deps, function (path) {
-        // Find actual path from relative paths
-        var split = $.splitPath(path);
-        while (split[0] === "@parent") {
-          context = context.__parent__;
-          split.shift();
-        }
-
-        path = context.__path().replace(/\.?\[.*\]/ig, ".@each");
-        path = path + (path && ".") + split.join(".");
-
-        // Add ourselves as dependants
-        root.__computedDeps[path] || (root.__computedDeps[path] = []);
-        root.__computedDeps[path].push(this);
-      }, this);
-
-      // Ensure we only have one listener per Model at a time.
-      context.off("all", this.onRecompute).on("all", this.onRecompute);
-    },
-
-    unwire: function () {
-      var root = this.__root__;
-      var context = this.__parent__;
-
-      _.each(this.deps, function (path) {
-        var dep = root.get(path, { raw: true });
-        if (!dep || !dep.isComputedProperty) return;
-        dep.off("dirty", this.markDirty);
-      }, this);
-
-      context.off("all", this.onRecompute);
-    },
-
-    // Call this computed property like you would with Function.call()
-    call: function () {
-      var args = Array.prototype.slice.call(arguments),
-          context = args.shift();
-      return this.apply(context, args);
-    },
-
-    // Call this computed property like you would with Function.apply()
-    // Only properties that are marked as dirty and are not already computing
-    // themselves are evaluated to prevent cyclic callbacks. If any dependants
-    // aren't finished computeding, we add ourselved to their waiting list.
-    // Vanilla objects returned from the function are promoted to Rebound Objects.
-    // Then, set the proper return type for future fetches from the cache and set
-    // the new computed value. Track changes to the cache to push it back up to
-    // the original object and return the value.
-    apply: function (context, params) {
-      context || (context = this.__parent__);
-
-      if (!this.isDirty || this.isChanging || !context) return;
-      this.isChanging = true;
-
-      var value = this.cache[this.returnType],
-          result;
-
-      // Check all of our dependancies to see if they are evaluating.
-      // If we have a dependancy that is dirty and this isnt its first run,
-      // Let this dependancy know that we are waiting for it.
-      // It will re-run this Computed Property after it finishes.
-      _.each(this.deps, function (dep) {
-        var dependancy = context.get(dep, { raw: true });
-        if (!dependancy || !dependancy.isComputedProperty) return;
-        if (dependancy.isDirty && dependancy.returnType !== null) {
-          dependancy.waiting[this.cid] = this;
-          dependancy.apply(); // Try to re-evaluate this dependancy if it is dirty
-          if (dependancy.isDirty) return this.isChanging = false;
-        }
-        delete dependancy.waiting[this.cid];
-        // TODO: There can be a check here looking for cyclic dependancies.
-      }, this);
-
-      if (!this.isChanging) return;
-
-      if (this.returnType !== "value") this.stopListening(value, "all", this.onModify);
-
-      result = this.func.apply(context, params);
-
-      // Promote vanilla objects to Rebound Data keeping the same original objects
-      if (_.isArray(result)) result = new Rebound.Collection(result, { clone: false });else if (_.isObject(result) && !result.isData) result = new Rebound.Model(result, { clone: false });
-
-      // If result is undefined, reset our cache item
-      if (_.isUndefined(result) || _.isNull(result)) {
-        this.returnType = "value";
-        this.isCollection = this.isModel = false;
-        this.set(undefined);
-      }
-      // Set result and return types, bind events
-      else if (result.isCollection) {
-        this.returnType = "collection";
-        this.isCollection = true;
-        this.isModel = false;
-        this.set(result);
-        this.track(result);
-      } else if (result.isModel) {
-        this.returnType = "model";
-        this.isCollection = false;
-        this.isModel = true;
-        this.reset(result);
-        this.track(result);
-      } else {
-        this.returnType = "value";
-        this.isCollection = this.isModel = false;
-        this.reset(result);
-      }
-
-      return this.value();
-    },
-
-    // When we receive a new model to set in our cache, unbind the tracker from
-    // the previous cache object, sync the objects' cids so helpers think they
-    // are the same object, save a referance to the object we are tracking,
-    // and re-bind our onModify hook.
-    track: function (object) {
-      var target = this.value();
-      if (!object || !target || !target.isData || !object.isData) return;
-      target._cid || (target._cid = target.cid);
-      object._cid || (object._cid = object.cid);
-      target.cid = object.cid;
-      this.tracking = object;
-      this.listenTo(target, "all", this.onModify);
-    },
-
-    // Get from the Computed Property's cache
-    get: function (key, options) {
-      var value = this.value();
-      options || (options = {});
-      if (this.returnType === "value") return console.error("Called get on the `" + this.name + "` computed property which returns a primitive value.");
-      return value.get(key, options);
-    },
-
-    // Set the Computed Property's cache to a new value and trigger appropreate events.
-    // Changes will propagate back to the original object if a Rebound Data Object and re-compute.
-    // If Computed Property returns a value, all downstream dependancies will re-compute.
-    set: function (key, val, options) {
-      if (this.returnType === null) return undefined;
-      options || (options = {});
-      var attrs = key;
-      var value = this.value();
-      if (this.returnType === "model") {
-        if (typeof key === "object") {
-          attrs = key.isModel ? key.attributes : key;
-          options = val;
-        } else {
-          (attrs = {})[key] = val;
-        }
-      }
-      if (this.returnType !== "model") options = val || {};
-      attrs = attrs && attrs.isComputedProperty ? attrs.value() : attrs;
-
-      // If a new value, set it and trigger events
-      if (this.returnType === "value" && this.cache.value !== attrs) {
-        this.cache.value = attrs;
-        if (!options.quiet) {
-          // If set was called not through computedProperty.call(), this is a fresh new event burst.
-          if (!this.isDirty && !this.isChanging) this.__parent__.changed = {};
-          this.__parent__.changed[this.name] = attrs;
-          this.trigger("change", this.__parent__);
-          this.trigger("change:" + this.name, this.__parent__, attrs);
-          delete this.__parent__.changed[this.name];
-        }
-      } else if (this.returnType !== "value" && options.reset) key = value.reset(attrs, options);else if (this.returnType !== "value") key = value.set(attrs, options);
-      this.isDirty = this.isChanging = false;
-
-      // Call all reamining computed properties waiting for this value to resolve.
-      _.each(this.waiting, function (prop) {
-        prop && prop.call();
-      });
-
-      return key;
-    },
-
-    // Return the current value from the cache, running if dirty.
-    value: function () {
-      if (this.isDirty) this.apply();
-      return this.cache[this.returnType];
-    },
-
-    // Reset the current value in the cache, running if first run.
-    reset: function (obj, options) {
-      if (_.isNull(this.returnType)) return; // First run
-      options || (options = {});
-      options.reset = true;
-      return this.set(obj, options);
-    },
-
-    // Cyclic dependancy safe toJSON method.
-    toJSON: function () {
-      if (this._isSerializing) return this.cid;
-      var val = this.value();
-      this._isSerializing = true;
-      var json = val && _.isFunction(val.toJSON) ? val.toJSON() : val;
-      this._isSerializing = false;
-      return json;
-    }
-
-  });
-
-  module.exports = ComputedProperty;
 });
 define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-value", "rebound-component/utils", "rebound-component/helpers"], function (exports, module, _reboundComponentLazyValue, _reboundComponentUtils, _reboundComponentHelpers) {
   "use strict";
@@ -14035,6 +14035,10 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
 
   return require('runtime');
 }));
+
+require.config({
+    baseUrl: "/"
+});
 // Used to test a specific component.
 // Marks constructor as in "test" mode so dom updates are syncrynous.
 // TODO: Turn this into an override of Component's _onchange function.
