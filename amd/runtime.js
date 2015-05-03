@@ -31,10 +31,6 @@ define("runtime", ["exports", "module", "rebound-component/utils", "rebound-comp
   // If Backbone doesn't have an ajax method from an external DOM library, use ours
   window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || utils.ajax;
 
-  // Fetch Rebound's Config Object from Rebound's `script` tag
-  var Config = document.getElementById("Rebound");
-  Config = Config ? Config.innerHTML : false;
-
   // Create Global Rebound Object
   var Rebound = {
     services: {},
@@ -47,13 +43,20 @@ define("runtime", ["exports", "module", "rebound-component/utils", "rebound-comp
     Component: Component,
     start: function (options) {
       return new Promise(function (resolve, reject) {
-        document.addEventListener("DOMContentLoaded", function () {
-          Rebound.router = new Router(options);
-          resolve(Rebound.router);
-        });
+        var run = function () {
+          if (document.readyState !== "complete") return;
+          Rebound.router = new Router(options, resolve);
+        };
+
+        if (document.readyState === "complete") return run();
+        document.addEventListener("readystatechange", run);
       });
     }
   };
+
+  // Fetch Rebound's Config Object from Rebound's `script` tag
+  var Config = document.getElementById("Rebound");
+  Config = Config ? Config.innerHTML : false;
 
   // Start the router if a config object is preset
   if (Config) Rebound.start(JSON.parse(Config));
