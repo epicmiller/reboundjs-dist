@@ -1,4 +1,4 @@
-define("rebound-router/rebound-router", ["exports", "module", "rebound-component/utils"], function (exports, module, _reboundComponentUtils) {
+define("rebound-router/rebound-router", ["exports", "module", "rebound-component/utils", "rebound-router/lazy-component"], function (exports, module, _reboundComponentUtils, _reboundRouterLazyComponent) {
   "use strict";
 
   // Rebound Router
@@ -6,44 +6,10 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
 
   var $ = to5Runtime.interopRequire(_reboundComponentUtils);
 
-  // If Backbone hasn't been started yet, throw error
-  if (!window.Backbone) {
-    throw "Backbone must be on the page for Rebound to load.";
-  }
-
-  // Services keep track of their consumers. LazyComponent are placeholders
-  // for services that haven't loaded yet. A LazyComponent mimics the api of a
-  // real service/component (they are the same), and when the service finally
-  // loads, its ```hydrate``` method is called. All consumers of the service will
-  // have the now fully loaded service set, the LazyService will transfer all of
-  // its consumers over to the fully loaded service, and then destroy itself.
-  function LazyComponent() {
-    this.isService = true;
-    this.isComponent = true;
-    this.isModel = true;
-    this.attributes = {};
-    this.consumers = [];
-    this.set = this.on = this.off = function () {
-      return 1;
-    };
-    this.get = function (path) {
-      return path ? undefined : this;
-    };
-    this.hydrate = function (service) {
-      _.each(this.consumers, function (consumer) {
-        var component = consumer.component,
-            key = consumer.key;
-        if (component.attributes && component.set) component.set(key, service);
-        if (component.services) component.services[key] = service;
-        if (component.defaults) component.defaults[key] = service;
-      });
-      service.consumers = this.consumers;
-      delete this.consumers;
-    };
-  }
+  var LazyComponent = to5Runtime.interopRequire(_reboundRouterLazyComponent);
 
   // Overload Backbone's loadUrl so it returns the value of the routed callback
-  // inside of a promise instead of undefined
+  // instead of undefined
   Backbone.history.loadUrl = function (fragment) {
     fragment = this.fragment = this.getFragment(fragment);
     var resp = false;
@@ -67,37 +33,24 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
 
     // Called when no matching routes are found. Extracts root route and fetches it's resources
     wildcardRoute: function (route) {
-      var appName, primaryRoute;
+      var primaryRoute;
 
       // If empty route sent, route home
       route = route || "";
 
       // Get Root of Route
-      appName = primaryRoute = route ? route.split("/")[0] : "index";
-
-      // Find Any Custom Route Mappings
-      _.any(this.config.handlers, function (handler) {
-        if (handler.route.test(route)) {
-          appName = handler.primaryRoute;
-          return true;
-        }
-      });
-
-      // If Page Is Already Loaded Then The Route Does Not Exist. 404 and Exit.
-      if (this.current && this.current.name === primaryRoute) {
-        return this._fetchResource("404", "error", false);
-      }
+      primaryRoute = route ? route.split("/")[0] : "index";
 
       // Fetch Resources
       document.body.classList.add("loading");
 
-      return this._fetchResource(appName, primaryRoute, this.config.container).then(function () {
+      return this._fetchResource(route, this.config.container).then(function () {
         document.body.classList.remove("loading");
-      });
+      })["catch"](function () {});
     },
 
     // Modify navigate to default to `trigger=true` and to return the value of
-    // `Backbone.history.navigate`
+    // `Backbone.history.navigate` inside of a promise.
     navigate: function (fragment) {
       var options = arguments[1] === undefined ? {} : arguments[1];
       options.trigger === undefined && (options.trigger = true);
@@ -162,10 +115,10 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
 
       // Install our global components
       _.each(this.config.services, function (selector, route) {
-        var container = $(selector)[0];
+        var container = $(selector)[0] || document.createElement(selector || "span");
         this._watchLinks(container);
         Rebound.services[route] = new LazyComponent();
-        this._fetchResource(route, route, container);
+        this._fetchResource(route, container)["catch"](function () {});
       }, this);
 
       // Start the history and call the provided callback
@@ -205,6 +158,8 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       var _this3 = this;
 
 
+      if (!this.current) return;
+
       var oldPageName = this.current.__name;
 
       // Unset Previous Application's Routes. For each route in the page app:
@@ -234,9 +189,10 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
     _installResource: function (PageApp, primaryRoute, container) {
       var _this4 = this;
       var oldPageName, pageInstance, container;
-      var isGlobal = container !== this.config.container;
+      var isService = container !== this.config.container;
+      container.classList.remove("error", "loading");
 
-      if (!isGlobal && this.current) this._uninstallResource();
+      if (!isService && this.current) this._uninstallResource();
 
       // Load New PageApp, give it it's name so we know what css to remove when it deinitializes
       pageInstance = new PageApp();
@@ -261,15 +217,15 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
         _this4.route(key, value, _this4[routeFunctionName]);
       }, this);
 
-      var name = isGlobal ? primaryRoute : "page";
-      if (!isGlobal) this.current = pageInstance;
+      var name = isService ? primaryRoute : "page";
+      if (!isService) this.current = pageInstance;
       if (window.Rebound.services[name].isService) window.Rebound.services[name].hydrate(pageInstance.data);
       window.Rebound.services[name] = pageInstance.data;
 
 
       // Re-trigger route so the newly added route may execute if there's a route match.
       // If no routes are matched, app will hit wildCard route which will then trigger 404
-      if (!isGlobal) {
+      if (!isService) {
         if (this.config.triggerOnFirstLoad) Backbone.history.loadUrl(Backbone.history.fragment);
         this.config.triggerOnFirstLoad = true;
       }
@@ -279,21 +235,58 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
     },
 
     // Fetches Pare HTML and CSS
-    _fetchResource: function (appName, primaryRoute, container) {
+    _fetchResource: function (route, container) {
       var _this5 = this;
-
-
-      // Expecting Module Definition as 'SearchApp' Where 'Search' a Primary Route
-      var jsUrl = this.config.jsPath.replace(/:route/g, primaryRoute).replace(/:app/g, appName),
-          cssUrl = this.config.cssPath.replace(/:route/g, primaryRoute).replace(/:app/g, appName),
+      var jsUrl,
+          cssUrl,
           cssLoaded = false,
           jsLoaded = false,
-          cssElement = document.getElementById(appName + "-css"),
-          jsElement = document.getElementById(appName + "-js"),
-          PageClass;
+          cssElement,
+          jsElement,
+          PageClass,
+          appName,
+          primaryRoute,
+          isService = container !== this.config.container;
 
+      // Get the root of this route
+      appName = primaryRoute = route ? route.split("/")[0] : "index";
+
+      // If Page Is Already Loaded Then The Route Does Not Exist. 404 and Exit.
+      if (this.current && this.current.name === primaryRoute) {
+        return this._fetchResource("error", container);
+      }
+
+      // Find Any Custom Route Mappings
+      _.any(this.config.handlers, function (handler) {
+        if (handler.route.test(route)) {
+          appName = handler.primaryRoute;
+          return true;
+        }
+      });
+
+      jsUrl = this.config.jsPath.replace(/:route/g, primaryRoute).replace(/:app/g, appName);
+      cssUrl = this.config.cssPath.replace(/:route/g, primaryRoute).replace(/:app/g, appName);
+      cssElement = document.getElementById(appName + "-css");
+      jsElement = document.getElementById(appName + "-js");
+
+      // Wrap these async resource fetches in a promise and return it.
+      // This promise resolves when both css and js resources are loaded
+      // It rejects if either of the css or js resources fails to load.
       return new Promise(function (resolve, reject) {
-        // Only Load CSS If Not Loaded Before
+        var defaultError = function (err) {
+          console.error("Could not " + (isService ? "load the " + route + " service:" : "find the " + route + " page:") + "\n  - CSS Url: " + cssUrl + "\n  - JavaScript Url: " + jsUrl);
+
+          if (isService) return reject(err);
+
+          _this5._uninstallResource();
+
+          container.innerHTML = "\n          <div style=\"\n            display: block;\n            text-align: center;\n            font-size: 22px;\n            color: rgba(0,0,0,.75);\n            margin-top: 60px;\n            text-shadow: 0 1px 0 rgba(255,255,255,.75);\"\n          >\n          Oops! We couldn't find this page.\n          <a href=\"#\" onclick=\"window.history.back();return false;\"\n            style=\"\n              display: block;\n              text-align: center;\n              text-decoration: none;\n              margin-top: 30px;\n          \">Take me back</a>\n          </div>";
+          reject(err);
+        };
+
+        // If this css element is not on the page already, it hasn't been loaded before -
+        // create the element and load the css resource.
+        // Else if the css resource has been loaded before, enable it
         if (cssElement === null) {
           cssElement = document.createElement("link");
           cssElement.setAttribute("type", "text/css");
@@ -303,30 +296,36 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
           $(cssElement).on("load", function (event) {
             if ((cssLoaded = true) && jsLoaded) {
               _this5._installResource(PageClass, appName, container);
-              resolve && resolve(_this5);
+              resolve(_this5);
             }
           });
           $(cssElement).on("error", function (err) {
-            _this5._fetchResource("404", "error", false);
-            reject && reject(err);
+            if (!container.classList.contains("error")) {
+              container.classList.add("error");
+              _this5._fetchResource("error/" + (isService ? appName : "page"), container).then(reject, defaultError);
+            } else {
+              reject(err);
+            }
           });
           document.head.appendChild(cssElement);
-        }
-        // If it has been loaded before, enable it
-        else {
+        } else {
           cssElement && cssElement.removeAttribute("disabled");
           cssLoaded = true;
         }
 
-        // AMD Will Manage Dependancies For Us. Load The App.
+        // AMD will manage dependancies for us. Load the JavaScript.
         window.require([jsUrl], function (c) {
           if ((jsLoaded = true) && (PageClass = c) && cssLoaded) {
             _this5._installResource(PageClass, appName, container);
-            resolve && resolve(_this5);
+            resolve(_this5);
           }
         }, function (err) {
-          _this5._fetchResource("404", "error", false);
-          reject && reject(err);
+          if (!container.classList.contains("error")) {
+            container.classList.add("error");
+            _this5._fetchResource("error", container).then(reject, defaultError);
+          } else {
+            reject(err);
+          }
         });
       });
     }

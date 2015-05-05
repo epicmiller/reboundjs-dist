@@ -9590,65 +9590,6 @@ define("morph-range/utils",
 
     __exports__.insertBefore = insertBefore;
   });
-define("rebound-compiler/rebound-compiler", ["exports", "htmlbars-compiler/compiler", "htmlbars-util/object-utils", "dom-helper", "rebound-component/helpers", "rebound-component/hooks"], function (exports, _htmlbarsCompilerCompiler, _htmlbarsUtilObjectUtils, _domHelper, _reboundComponentHelpers, _reboundComponentHooks) {
-  "use strict";
-
-  // Rebound Compiler
-  // ----------------
-
-  var htmlbarsCompile = _htmlbarsCompilerCompiler.compile;
-  var htmlbarsCompileSpec = _htmlbarsCompilerCompiler.compileSpec;
-  var merge = _htmlbarsUtilObjectUtils.merge;
-  var DOMHelper = to5Runtime.interopRequire(_domHelper);
-
-  var helpers = to5Runtime.interopRequire(_reboundComponentHelpers);
-
-  var hooks = to5Runtime.interopRequire(_reboundComponentHooks);
-
-  function compile(string, options) {
-    // Ensure we have a well-formed object as var options
-    options = options || {};
-    options.helpers = options.helpers || {};
-    options.hooks = options.hooks || {};
-
-    // Merge our default helpers with user provided helpers
-    options.helpers = merge(helpers, options.helpers);
-    options.hooks = merge(hooks, options.hooks);
-
-    // Compile our template function
-    var func = htmlbarsCompile(string, {
-      helpers: options.helpers,
-      hooks: options.hooks
-    });
-
-    func._render = func.render;
-
-    // Return a wrapper function that will merge user provided helpers with our defaults
-    func.render = function (data, env, context) {
-      // Ensure we have a well-formed object as var options
-      env = env || {};
-      env.helpers = env.helpers || {};
-      env.hooks = env.hooks || {};
-      env.dom = env.dom || new DOMHelper();
-
-      // Merge our default helpers and hooks with user provided helpers
-      env.helpers = merge(helpers, env.helpers);
-      env.hooks = merge(hooks, env.hooks);
-
-      // Set a default context if it doesn't exist
-      context = context || document.body;
-
-      // Call our func with merged helpers and hooks
-      return func._render(data, env, context);
-    };
-
-    helpers.registerPartial(options.name, func);
-
-    return func;
-  }
-
-  exports.compile = compile;
-});
 define("property-compiler/property-compiler", ["exports", "module", "property-compiler/tokenizer"], function (exports, module, _propertyCompilerTokenizer) {
   "use strict";
 
@@ -9770,6 +9711,65 @@ define("property-compiler/property-compiler", ["exports", "module", "property-co
 
   module.exports = { compile: compile };
 });
+define("rebound-compiler/rebound-compiler", ["exports", "htmlbars-compiler/compiler", "htmlbars-util/object-utils", "dom-helper", "rebound-component/helpers", "rebound-component/hooks"], function (exports, _htmlbarsCompilerCompiler, _htmlbarsUtilObjectUtils, _domHelper, _reboundComponentHelpers, _reboundComponentHooks) {
+  "use strict";
+
+  // Rebound Compiler
+  // ----------------
+
+  var htmlbarsCompile = _htmlbarsCompilerCompiler.compile;
+  var htmlbarsCompileSpec = _htmlbarsCompilerCompiler.compileSpec;
+  var merge = _htmlbarsUtilObjectUtils.merge;
+  var DOMHelper = to5Runtime.interopRequire(_domHelper);
+
+  var helpers = to5Runtime.interopRequire(_reboundComponentHelpers);
+
+  var hooks = to5Runtime.interopRequire(_reboundComponentHooks);
+
+  function compile(string, options) {
+    // Ensure we have a well-formed object as var options
+    options = options || {};
+    options.helpers = options.helpers || {};
+    options.hooks = options.hooks || {};
+
+    // Merge our default helpers with user provided helpers
+    options.helpers = merge(helpers, options.helpers);
+    options.hooks = merge(hooks, options.hooks);
+
+    // Compile our template function
+    var func = htmlbarsCompile(string, {
+      helpers: options.helpers,
+      hooks: options.hooks
+    });
+
+    func._render = func.render;
+
+    // Return a wrapper function that will merge user provided helpers with our defaults
+    func.render = function (data, env, context) {
+      // Ensure we have a well-formed object as var options
+      env = env || {};
+      env.helpers = env.helpers || {};
+      env.hooks = env.hooks || {};
+      env.dom = env.dom || new DOMHelper();
+
+      // Merge our default helpers and hooks with user provided helpers
+      env.helpers = merge(helpers, env.helpers);
+      env.hooks = merge(hooks, env.hooks);
+
+      // Set a default context if it doesn't exist
+      context = context || document.body;
+
+      // Call our func with merged helpers and hooks
+      return func._render(data, env, context);
+    };
+
+    helpers.registerPartial(options.name, func);
+
+    return func;
+  }
+
+  exports.compile = compile;
+});
 define("rebound-component/component", ["exports", "module", "dom-helper", "rebound-component/hooks", "rebound-component/helpers", "rebound-component/utils", "rebound-data/rebound-data"], function (exports, module, _domHelper, _reboundComponentHooks, _reboundComponentHelpers, _reboundComponentUtils, _reboundDataReboundData) {
   "use strict";
 
@@ -9786,10 +9786,6 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "rebou
 
   var Model = _reboundDataReboundData.Model;
 
-
-
-  // If Backbone hasn't been started yet, throw error
-  if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";
 
   // Returns true if `str` starts with `test`
   function startsWith(str, test) {
@@ -10311,6 +10307,71 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
 });
 
 // model.deinitialize();
+define("runtime", ["exports", "module", "rebound-component/utils", "rebound-component/helpers", "rebound-data/rebound-data", "rebound-component/component", "rebound-router/rebound-router"], function (exports, module, _reboundComponentUtils, _reboundComponentHelpers, _reboundDataReboundData, _reboundComponentComponent, _reboundRouterReboundRouter) {
+  "use strict";
+
+  //     Rebound.js 0.0.60
+
+  //     (c) 2015 Adam Miller
+  //     Rebound may be freely distributed under the MIT license.
+  //     For all details and documentation:
+  //     http://reboundjs.com
+
+  // Rebound Runtime
+  // ----------------
+
+  // If Backbone isn't preset on the page yet, or if `window.Rebound` is already
+  // in use, throw an error
+  if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";
+
+  // Load our **Utils**, helper environment, **Rebound Data**,
+  // **Rebound Components** and the **Rebound Router**
+  var utils = to5Runtime.interopRequire(_reboundComponentUtils);
+
+  var helpers = to5Runtime.interopRequire(_reboundComponentHelpers);
+
+  var Model = _reboundDataReboundData.Model;
+  var Collection = _reboundDataReboundData.Collection;
+  var ComputedProperty = _reboundDataReboundData.ComputedProperty;
+  var Component = to5Runtime.interopRequire(_reboundComponentComponent);
+
+  var Router = to5Runtime.interopRequire(_reboundRouterReboundRouter);
+
+  // If Backbone doesn't have an ajax method from an external DOM library, use ours
+  window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || utils.ajax;
+
+  // Create Global Rebound Object
+  var Rebound = {
+    services: {},
+    registerHelper: helpers.registerHelper,
+    registerPartial: helpers.registerPartial,
+    registerComponent: Component.register,
+    Model: Model,
+    Collection: Collection,
+    ComputedProperty: ComputedProperty,
+    Component: Component,
+    start: function (options) {
+      return new Promise(function (resolve, reject) {
+        var run = function () {
+          if (document.readyState !== "complete") return;
+          Rebound.router = new Router(options, resolve);
+        };
+
+        if (document.readyState === "complete") return run();
+        document.addEventListener("readystatechange", run);
+      });
+    }
+  };
+
+  // Fetch Rebound's Config Object from Rebound's `script` tag
+  var Config = document.getElementById("Rebound");
+  Config = Config ? Config.innerHTML : false;
+
+  // Start the router if a config object is preset
+  if (Config) Rebound.start(JSON.parse(Config));
+
+  module.exports = Rebound;
+});
 define("rebound-precompiler/rebound-precompiler", ["exports", "htmlbars"], function (exports, _htmlbars) {
   "use strict";
 
@@ -10456,18 +10517,8 @@ define("rebound-precompiler/rebound-precompiler", ["exports", "htmlbars"], funct
 
   exports.precompile = precompile;
 });
-define("rebound-router/rebound-router", ["exports", "module", "rebound-component/utils"], function (exports, module, _reboundComponentUtils) {
+define("rebound-router/lazy-component", ["exports", "module"], function (exports, module) {
   "use strict";
-
-  // Rebound Router
-  // ----------------
-
-  var $ = to5Runtime.interopRequire(_reboundComponentUtils);
-
-  // If Backbone hasn't been started yet, throw error
-  if (!window.Backbone) {
-    throw "Backbone must be on the page for Rebound to load.";
-  }
 
   // Services keep track of their consumers. LazyComponent are placeholders
   // for services that haven't loaded yet. A LazyComponent mimics the api of a
@@ -10500,363 +10551,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
     };
   }
 
-  // Overload Backbone's loadUrl so it returns the value of the routed callback
-  // inside of a promise instead of undefined
-  Backbone.history.loadUrl = function (fragment) {
-    fragment = this.fragment = this.getFragment(fragment);
-    var resp = false;
-    _.any(this.handlers, function (handler) {
-      if (handler.route.test(fragment)) {
-        resp = handler.callback(fragment);
-        return true;
-      }
-    });
-    return resp;
-  };
-
-  // ReboundRouter Constructor
-  var ReboundRouter = Backbone.Router.extend({
-
-    // By default there is one route. The wildcard route fetches the required
-    // page assets based on user-defined naming convention.
-    routes: {
-      "*route": "wildcardRoute"
-    },
-
-    // Called when no matching routes are found. Extracts root route and fetches it's resources
-    wildcardRoute: function (route) {
-      var appName, primaryRoute;
-
-      // If empty route sent, route home
-      route = route || "";
-
-      // Get Root of Route
-      appName = primaryRoute = route ? route.split("/")[0] : "index";
-
-      // Find Any Custom Route Mappings
-      _.any(this.config.handlers, function (handler) {
-        if (handler.route.test(route)) {
-          appName = handler.primaryRoute;
-          return true;
-        }
-      });
-
-      // If Page Is Already Loaded Then The Route Does Not Exist. 404 and Exit.
-      if (this.current && this.current.name === primaryRoute) {
-        return this._fetchResource("404", "error", false);
-      }
-
-      // Fetch Resources
-      document.body.classList.add("loading");
-
-      return this._fetchResource(appName, primaryRoute, this.config.container).then(function () {
-        document.body.classList.remove("loading");
-      });
-    },
-
-    // Modify navigate to default to `trigger=true` and to return the value of
-    // `Backbone.history.navigate`
-    navigate: function (fragment) {
-      var options = arguments[1] === undefined ? {} : arguments[1];
-      options.trigger === undefined && (options.trigger = true);
-      var resp = Backbone.history.navigate(fragment, options);
-
-      // Always return a promise
-      return new Promise(function (resolve, reject) {
-        if (resp && resp.constructor === Promise) resp.then(resolve);
-        resolve(resp);
-      });
-    },
-
-    // Modify `router.execute` to return the value of our route callback
-    execute: function (callback, args, name) {
-      if (callback) return callback.apply(this, args);
-    },
-
-    route: function (route, name, callback) {
-      var _this = this;
-      if (!_.isRegExp(route)) route = this._routeToRegExp(route);
-      if (_.isFunction(name)) {
-        callback = name;
-        name = "";
-      }
-
-      if (!callback) callback = this[name];
-      Backbone.history.route(route, function (fragment) {
-        var args = _this._extractParameters(route, fragment);
-        var resp = _this.execute(callback, args, name);
-        if (resp !== false) {
-          _this.trigger.apply(_this, ["route:" + name].concat(args));
-          _this.trigger("route", name, args);
-          Backbone.history.trigger("route", _this, name, args);
-        }
-        return resp;
-      });
-      return this;
-    },
-
-    // On startup, save our config object and start the router
-    initialize: function () {
-      var options = arguments[0] === undefined ? {} : arguments[0];
-      var callback = arguments[1] === undefined ? function () {} : arguments[1];
-
-
-      // Let all of our components always have referance to our router
-      Rebound.Component.prototype.router = this;
-
-      // Save our config referance
-      this.config = options;
-      this.config.handlers = [];
-      var container = this.config.container = $(this.config.container || "content")[0];
-
-      // Convert our routeMappings to regexps and push to our handlers
-      _.each(this.config.routeMapping, function (value, route) {
-        if (!_.isRegExp(route)) route = this._routeToRegExp(route);
-        this.config.handlers.unshift({ route: route, primaryRoute: value });
-      }, this);
-
-      this._watchLinks(container);
-      Rebound.services.page = new LazyComponent();
-
-      // Install our global components
-      _.each(this.config.services, function (selector, route) {
-        var container = $(selector)[0];
-        this._watchLinks(container);
-        Rebound.services[route] = new LazyComponent();
-        this._fetchResource(route, route, container);
-      }, this);
-
-      // Start the history and call the provided callback
-      Backbone.history.start({
-        pushState: this.config.pushState === undefined ? true : this.config.pushState,
-        root: this.config.root
-      }).then(callback);
-
-      return this;
-    },
-
-    // Given a dom element, watch for all click events on anchor tags.
-    // If the clicked anchor has a relative url, attempt to route to that path.
-    // Give all links on the page that match this path the class `active`.
-    _watchLinks: function (container) {
-      var _this2 = this;
-      // Navigate to route for any link with a relative href
-      var remoteUrl = /^([a-z]+:)|^(\/\/)|^([^\/]+\.)/;
-      $(container).on("click", "a", function (e) {
-        var path = e.target.getAttribute("href");
-        // If path is not an remote url, ends in .[a-z], or blank, try and navigate to that route.
-        if (path && path !== "#" && !remoteUrl.test(path)) e.preventDefault();
-        // If this is not our current route, navigate to the new route
-        if (path !== "/" + Backbone.history.fragment) {
-          $(container).unMarkLinks();
-          _this2.navigate(path, { trigger: true }).then(function () {
-            $(container).markLinks();
-          });
-        }
-      });
-    },
-
-    // De-initializes the previous app before rendering a new app
-    // This way we can ensure that every new page starts with a clean slate
-    // This is crucial for scalability of a single page app.
-    _uninstallResource: function () {
-      var _this3 = this;
-
-
-      var oldPageName = this.current.__name;
-
-      // Unset Previous Application's Routes. For each route in the page app:
-      _.each(this.current.data.routes, function (value, key) {
-        var regExp = _this3._routeToRegExp(key).toString();
-
-        // Remove the handler from our route object
-        Backbone.history.handlers = _.filter(Backbone.history.handlers, function (obj) {
-          return obj.route.toString() !== regExp;
-        });
-
-        // Delete our referance to the route's callback
-        delete _this3["_function_" + key];
-      });
-
-      // Un-hook Event Bindings, Delete Objects
-      this.current.data.deinitialize();
-
-      // Disable old css if it exists
-      setTimeout(function () {
-        document.getElementById(oldPageName + "-css").setAttribute("disabled", true);
-      }, 500);
-    },
-
-    // Give our new page component, load routes and render a new instance of the
-    // page component in the top level outlet.
-    _installResource: function (PageApp, primaryRoute, container) {
-      var _this4 = this;
-      var oldPageName, pageInstance, container;
-      var isGlobal = container !== this.config.container;
-
-      if (!isGlobal && this.current) this._uninstallResource();
-
-      // Load New PageApp, give it it's name so we know what css to remove when it deinitializes
-      pageInstance = new PageApp();
-      pageInstance.__name = primaryRoute;
-
-      // Add to our page
-      container.innerHTML = "";
-      container.appendChild(pageInstance);
-
-      // Make sure we're back at the top of the page
-      document.body.scrollTop = 0;
-
-      // Augment ApplicationRouter with new routes from PageApp
-      _.each(pageInstance.data.routes, function (value, key) {
-        // Generate our route callback's new name
-        var routeFunctionName = "_function_" + key,
-            functionName;
-        // Add the new callback referance on to our router and add the route handler
-        _this4[routeFunctionName] = function () {
-          pageInstance.data[value].apply(pageInstance.data, arguments);
-        };
-        _this4.route(key, value, _this4[routeFunctionName]);
-      }, this);
-
-      var name = isGlobal ? primaryRoute : "page";
-      if (!isGlobal) this.current = pageInstance;
-      if (window.Rebound.services[name].isService) window.Rebound.services[name].hydrate(pageInstance.data);
-      window.Rebound.services[name] = pageInstance.data;
-
-
-      // Re-trigger route so the newly added route may execute if there's a route match.
-      // If no routes are matched, app will hit wildCard route which will then trigger 404
-      if (!isGlobal) {
-        if (this.config.triggerOnFirstLoad) Backbone.history.loadUrl(Backbone.history.fragment);
-        this.config.triggerOnFirstLoad = true;
-      }
-
-      // Return our newly installed app
-      return pageInstance;
-    },
-
-    // Fetches Pare HTML and CSS
-    _fetchResource: function (appName, primaryRoute, container) {
-      var _this5 = this;
-
-
-      // Expecting Module Definition as 'SearchApp' Where 'Search' a Primary Route
-      var jsUrl = this.config.jsPath.replace(/:route/g, primaryRoute).replace(/:app/g, appName),
-          cssUrl = this.config.cssPath.replace(/:route/g, primaryRoute).replace(/:app/g, appName),
-          cssLoaded = false,
-          jsLoaded = false,
-          cssElement = document.getElementById(appName + "-css"),
-          jsElement = document.getElementById(appName + "-js"),
-          PageClass;
-
-      return new Promise(function (resolve, reject) {
-        // Only Load CSS If Not Loaded Before
-        if (cssElement === null) {
-          cssElement = document.createElement("link");
-          cssElement.setAttribute("type", "text/css");
-          cssElement.setAttribute("rel", "stylesheet");
-          cssElement.setAttribute("href", cssUrl);
-          cssElement.setAttribute("id", appName + "-css");
-          $(cssElement).on("load", function (event) {
-            if ((cssLoaded = true) && jsLoaded) {
-              _this5._installResource(PageClass, appName, container);
-              resolve && resolve(_this5);
-            }
-          });
-          $(cssElement).on("error", function (err) {
-            _this5._fetchResource("404", "error", false);
-            reject && reject(err);
-          });
-          document.head.appendChild(cssElement);
-        }
-        // If it has been loaded before, enable it
-        else {
-          cssElement && cssElement.removeAttribute("disabled");
-          cssLoaded = true;
-        }
-
-        // AMD Will Manage Dependancies For Us. Load The App.
-        window.require([jsUrl], function (c) {
-          if ((jsLoaded = true) && (PageClass = c) && cssLoaded) {
-            _this5._installResource(PageClass, appName, container);
-            resolve && resolve(_this5);
-          }
-        }, function (err) {
-          _this5._fetchResource("404", "error", false);
-          reject && reject(err);
-        });
-      });
-    }
-
-  });
-
-  module.exports = ReboundRouter;
-});
-define("runtime", ["exports", "module", "rebound-component/utils", "rebound-component/helpers", "rebound-data/rebound-data", "rebound-component/component", "rebound-router/rebound-router"], function (exports, module, _reboundComponentUtils, _reboundComponentHelpers, _reboundDataReboundData, _reboundComponentComponent, _reboundRouterReboundRouter) {
-  "use strict";
-
-  //     Rebound.js 0.0.60
-
-  //     (c) 2015 Adam Miller
-  //     Rebound may be freely distributed under the MIT license.
-  //     For all details and documentation:
-  //     http://reboundjs.com
-
-  // Rebound Runtime
-  // ----------------
-
-  // If Backbone isn't preset on the page yet, or if `window.Rebound` is already
-  // in use, throw an error
-  if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";
-
-  // Load our **Utils**, helper environment, **Rebound Data**,
-  // **Rebound Components** and the **Rebound Router**
-  var utils = to5Runtime.interopRequire(_reboundComponentUtils);
-
-  var helpers = to5Runtime.interopRequire(_reboundComponentHelpers);
-
-  var Model = _reboundDataReboundData.Model;
-  var Collection = _reboundDataReboundData.Collection;
-  var ComputedProperty = _reboundDataReboundData.ComputedProperty;
-  var Component = to5Runtime.interopRequire(_reboundComponentComponent);
-
-  var Router = to5Runtime.interopRequire(_reboundRouterReboundRouter);
-
-  // If Backbone doesn't have an ajax method from an external DOM library, use ours
-  window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || utils.ajax;
-
-  // Create Global Rebound Object
-  var Rebound = {
-    services: {},
-    registerHelper: helpers.registerHelper,
-    registerPartial: helpers.registerPartial,
-    registerComponent: Component.register,
-    Model: Model,
-    Collection: Collection,
-    ComputedProperty: ComputedProperty,
-    Component: Component,
-    start: function (options) {
-      return new Promise(function (resolve, reject) {
-        var run = function () {
-          if (document.readyState !== "complete") return;
-          Rebound.router = new Router(options, resolve);
-        };
-
-        if (document.readyState === "complete") return run();
-        document.addEventListener("readystatechange", run);
-      });
-    }
-  };
-
-  // Fetch Rebound's Config Object from Rebound's `script` tag
-  var Config = document.getElementById("Rebound");
-  Config = Config ? Config.innerHTML : false;
-
-  // Start the router if a config object is preset
-  if (Config) Rebound.start(JSON.parse(Config));
-
-  module.exports = Rebound;
+  module.exports = LazyComponent;
 });
 define("rebound-component/helpers", ["exports", "module", "rebound-component/lazy-value", "rebound-component/utils"], function (exports, module, _reboundComponentLazyValue, _reboundComponentUtils) {
   "use strict";
@@ -11159,6 +10854,729 @@ define("rebound-component/helpers", ["exports", "module", "rebound-component/laz
   };
 
   module.exports = helpers;
+});
+define("rebound-data/computed-property", ["exports", "module", "property-compiler/property-compiler", "rebound-component/utils"], function (exports, module, _propertyCompilerPropertyCompiler, _reboundComponentUtils) {
+  "use strict";
+
+  // Rebound Computed Property
+  // ----------------
+
+  var propertyCompiler = to5Runtime.interopRequire(_propertyCompilerPropertyCompiler);
+
+  var $ = to5Runtime.interopRequire(_reboundComponentUtils);
+
+  // Returns true if str starts with test
+  function startsWith(str, test) {
+    if (str === test) return true;
+    return str.substring(0, test.length + 1) === test + ".";
+  }
+
+
+  // Called after callstack is exausted to call all of this computed property's
+  // dependants that need to be recomputed
+  function recomputeCallback() {
+    var i = 0,
+        len = this._toCall.length;
+    delete this._recomputeTimeout;
+    for (i = 0; i < len; i++) {
+      this._toCall.shift().call();
+    }
+    this._toCall.added = {};
+  }
+
+  var ComputedProperty = function (prop, options) {
+    if (!_.isFunction(prop)) return console.error("ComputedProperty constructor must be passed a function!", prop, "Found instead.");
+    options = options || {};
+    this.cid = _.uniqueId("computedPropety");
+    this.name = options.name;
+    this.returnType = null;
+    this.__observers = {};
+    this.helpers = {};
+    this.waiting = {};
+    this.isChanging = false;
+    this.isDirty = true;
+    this.func = prop;
+    _.bindAll(this, "onModify", "markDirty");
+    this.deps = propertyCompiler.compile(prop, this.name);
+
+    // Create lineage to pass to our cache objects
+    var lineage = {
+      parent: this.setParent(options.parent || this),
+      root: this.setRoot(options.root || options.parent || this),
+      path: this.__path = options.path || this.__path
+    };
+
+    // Results Cache Objects
+    // These models will never be re-created for the lifetime of the Computed Proeprty
+    // On Recompute they are updated with new values.
+    // On Change their new values are pushed to the object it is tracking
+    this.cache = {
+      model: new Rebound.Model({}, lineage),
+      collection: new Rebound.Collection([], lineage),
+      value: undefined
+    };
+
+    this.wire();
+  };
+
+  _.extend(ComputedProperty.prototype, Backbone.Events, {
+
+    isComputedProperty: true,
+    isData: true,
+    __path: function () {
+      return "";
+    },
+
+
+    markDirty: function () {
+      if (this.isDirty) return;
+      this.isDirty = true;
+      this.trigger("dirty", this);
+    },
+
+    // Attached to listen to all events where this Computed Property's dependancies
+    // are stored. See wire(). Will re-evaluate any computed properties that
+    // depend on the changed data value which triggered this callback.
+    onRecompute: function (type, model, collection, options) {
+      var shortcircuit = { change: 1, sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1, dirty: 1 };
+      if (shortcircuit[type] || !model.isData) return;
+      model || (model = {});
+      collection || (collection = {});
+      options || (options = {});
+      this._toCall || (this._toCall = []);
+      this._toCall.added || (this._toCall.added = {});
+      !collection.isData && (options = collection) && (collection = model);
+      var push = function (arr) {
+        var i,
+            len = arr.length;
+        this.added || (this.added = {});
+        for (i = 0; i < len; i++) {
+          if (this.added[arr[i].cid]) continue;
+          this.added[arr[i].cid] = 1;
+          this.push(arr[i]);
+        }
+      },
+          path,
+          vector;
+      vector = path = collection.__path().replace(/\.?\[.*\]/ig, ".@each");
+
+      // If a reset event on a Model, check for computed properties that depend
+      // on each changed attribute's full path.
+      if (type === "reset" && options.previousAttributes) {
+        _.each(options.previousAttributes, function (value, key) {
+          vector = path + (path && ".") + key;
+          _.each(this.__computedDeps, function (dependants, dependancy) {
+            startsWith(vector, dependancy) && push.call(this._toCall, dependants);
+          }, this);
+        }, this);
+      }
+
+      // If a reset event on a Collction, check for computed properties that depend
+      // on anything inside that collection.
+      else if (type === "reset" && options.previousModels) {
+        _.each(this.__computedDeps, function (dependants, dependancy) {
+          startsWith(dependancy, vector) && push.call(this._toCall, dependants);
+        }, this);
+      }
+
+      // If an add or remove event, check for computed properties that depend on
+      // anything inside that collection or that contains that collection.
+      else if (type === "add" || type === "remove") {
+        _.each(this.__computedDeps, function (dependants, dependancy) {
+          if (startsWith(dependancy, vector) || startsWith(vector, dependancy)) push.call(this._toCall, dependants);;
+        }, this);
+      }
+
+      // If a change event, trigger anything that depends on that changed path.
+      else if (type.indexOf("change:") === 0) {
+        vector = type.replace("change:", "").replace(/\.?\[.*\]/ig, ".@each");
+        _.each(this.__computedDeps, function (dependants, dependancy) {
+          startsWith(vector, dependancy) && push.call(this._toCall, dependants);
+        }, this);
+      }
+
+      var i,
+          len = this._toCall.length;
+      for (i = 0; i < len; i++) {
+        this._toCall[i].markDirty();
+      }
+
+      // Notifies all computed properties in the dependants array to recompute.
+      // Marks everyone as dirty and then calls them.
+      if (!this._recomputeTimeout) this._recomputeTimeout = setTimeout(_.bind(recomputeCallback, this), 0);
+      return;
+    },
+
+
+    // Called when a Computed Property's active cache object changes.
+    // Pushes any changes to Computed Property that returns a data object back to
+    // the original object.
+    onModify: function (type, model, collection, options) {
+      var shortcircuit = { sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1 };
+      if (!this.tracking || shortcircuit[type] || ~type.indexOf("change:")) return;
+      model || (model = {});
+      collection || (collection = {});
+      options || (options = {});
+      !collection.isData && _.isObject(collection) && (options = collection) && (collection = model);
+      var src = this;
+      var path = collection.__path().replace(src.__path(), "").replace(/^\./, "");
+      var dest = this.tracking.get(path);
+
+      if (_.isUndefined(dest)) return;
+      if (type === "change") dest.set && dest.set(model.changedAttributes());else if (type === "reset") dest.reset && dest.reset(model);else if (type === "add") dest.add && dest.add(model);else if (type === "remove") dest.remove && dest.remove(model);
+      // TODO: Add sort
+    },
+
+    // Adds a litener to the root object and tells it what properties this
+    // Computed Property depend on.
+    // The listener will re-compute this Computed Property when any are changed.
+    wire: function () {
+      var root = this.__root__;
+      var context = this.__parent__;
+      root.__computedDeps || (root.__computedDeps = {});
+
+      _.each(this.deps, function (path) {
+        var dep = root.get(path, { raw: true });
+        if (!dep || !dep.isComputedProperty) return;
+        dep.on("dirty", this.markDirty);
+      }, this);
+
+      _.each(this.deps, function (path) {
+        // Find actual path from relative paths
+        var split = $.splitPath(path);
+        while (split[0] === "@parent") {
+          context = context.__parent__;
+          split.shift();
+        }
+
+        path = context.__path().replace(/\.?\[.*\]/ig, ".@each");
+        path = path + (path && ".") + split.join(".");
+
+        // Add ourselves as dependants
+        root.__computedDeps[path] || (root.__computedDeps[path] = []);
+        root.__computedDeps[path].push(this);
+      }, this);
+
+      // Ensure we only have one listener per Model at a time.
+      context.off("all", this.onRecompute).on("all", this.onRecompute);
+    },
+
+    unwire: function () {
+      var root = this.__root__;
+      var context = this.__parent__;
+
+      _.each(this.deps, function (path) {
+        var dep = root.get(path, { raw: true });
+        if (!dep || !dep.isComputedProperty) return;
+        dep.off("dirty", this.markDirty);
+      }, this);
+
+      context.off("all", this.onRecompute);
+    },
+
+    // Call this computed property like you would with Function.call()
+    call: function () {
+      var args = Array.prototype.slice.call(arguments),
+          context = args.shift();
+      return this.apply(context, args);
+    },
+
+    // Call this computed property like you would with Function.apply()
+    // Only properties that are marked as dirty and are not already computing
+    // themselves are evaluated to prevent cyclic callbacks. If any dependants
+    // aren't finished computeding, we add ourselved to their waiting list.
+    // Vanilla objects returned from the function are promoted to Rebound Objects.
+    // Then, set the proper return type for future fetches from the cache and set
+    // the new computed value. Track changes to the cache to push it back up to
+    // the original object and return the value.
+    apply: function (context, params) {
+      context || (context = this.__parent__);
+
+      if (!this.isDirty || this.isChanging || !context) return;
+      this.isChanging = true;
+
+      var value = this.cache[this.returnType],
+          result;
+
+      // Check all of our dependancies to see if they are evaluating.
+      // If we have a dependancy that is dirty and this isnt its first run,
+      // Let this dependancy know that we are waiting for it.
+      // It will re-run this Computed Property after it finishes.
+      _.each(this.deps, function (dep) {
+        var dependancy = context.get(dep, { raw: true });
+        if (!dependancy || !dependancy.isComputedProperty) return;
+        if (dependancy.isDirty && dependancy.returnType !== null) {
+          dependancy.waiting[this.cid] = this;
+          dependancy.apply(); // Try to re-evaluate this dependancy if it is dirty
+          if (dependancy.isDirty) return this.isChanging = false;
+        }
+        delete dependancy.waiting[this.cid];
+        // TODO: There can be a check here looking for cyclic dependancies.
+      }, this);
+
+      if (!this.isChanging) return;
+
+      if (this.returnType !== "value") this.stopListening(value, "all", this.onModify);
+
+      result = this.func.apply(context, params);
+
+      // Promote vanilla objects to Rebound Data keeping the same original objects
+      if (_.isArray(result)) result = new Rebound.Collection(result, { clone: false });else if (_.isObject(result) && !result.isData) result = new Rebound.Model(result, { clone: false });
+
+      // If result is undefined, reset our cache item
+      if (_.isUndefined(result) || _.isNull(result)) {
+        this.returnType = "value";
+        this.isCollection = this.isModel = false;
+        this.set(undefined);
+      }
+      // Set result and return types, bind events
+      else if (result.isCollection) {
+        this.returnType = "collection";
+        this.isCollection = true;
+        this.isModel = false;
+        this.set(result);
+        this.track(result);
+      } else if (result.isModel) {
+        this.returnType = "model";
+        this.isCollection = false;
+        this.isModel = true;
+        this.reset(result);
+        this.track(result);
+      } else {
+        this.returnType = "value";
+        this.isCollection = this.isModel = false;
+        this.reset(result);
+      }
+
+      return this.value();
+    },
+
+    // When we receive a new model to set in our cache, unbind the tracker from
+    // the previous cache object, sync the objects' cids so helpers think they
+    // are the same object, save a referance to the object we are tracking,
+    // and re-bind our onModify hook.
+    track: function (object) {
+      var target = this.value();
+      if (!object || !target || !target.isData || !object.isData) return;
+      target._cid || (target._cid = target.cid);
+      object._cid || (object._cid = object.cid);
+      target.cid = object.cid;
+      this.tracking = object;
+      this.listenTo(target, "all", this.onModify);
+    },
+
+    // Get from the Computed Property's cache
+    get: function (key, options) {
+      var value = this.value();
+      options || (options = {});
+      if (this.returnType === "value") return console.error("Called get on the `" + this.name + "` computed property which returns a primitive value.");
+      return value.get(key, options);
+    },
+
+    // Set the Computed Property's cache to a new value and trigger appropreate events.
+    // Changes will propagate back to the original object if a Rebound Data Object and re-compute.
+    // If Computed Property returns a value, all downstream dependancies will re-compute.
+    set: function (key, val, options) {
+      if (this.returnType === null) return undefined;
+      options || (options = {});
+      var attrs = key;
+      var value = this.value();
+      if (this.returnType === "model") {
+        if (typeof key === "object") {
+          attrs = key.isModel ? key.attributes : key;
+          options = val;
+        } else {
+          (attrs = {})[key] = val;
+        }
+      }
+      if (this.returnType !== "model") options = val || {};
+      attrs = attrs && attrs.isComputedProperty ? attrs.value() : attrs;
+
+      // If a new value, set it and trigger events
+      if (this.returnType === "value" && this.cache.value !== attrs) {
+        this.cache.value = attrs;
+        if (!options.quiet) {
+          // If set was called not through computedProperty.call(), this is a fresh new event burst.
+          if (!this.isDirty && !this.isChanging) this.__parent__.changed = {};
+          this.__parent__.changed[this.name] = attrs;
+          this.trigger("change", this.__parent__);
+          this.trigger("change:" + this.name, this.__parent__, attrs);
+          delete this.__parent__.changed[this.name];
+        }
+      } else if (this.returnType !== "value" && options.reset) key = value.reset(attrs, options);else if (this.returnType !== "value") key = value.set(attrs, options);
+      this.isDirty = this.isChanging = false;
+
+      // Call all reamining computed properties waiting for this value to resolve.
+      _.each(this.waiting, function (prop) {
+        prop && prop.call();
+      });
+
+      return key;
+    },
+
+    // Return the current value from the cache, running if dirty.
+    value: function () {
+      if (this.isDirty) this.apply();
+      return this.cache[this.returnType];
+    },
+
+    // Reset the current value in the cache, running if first run.
+    reset: function (obj, options) {
+      if (_.isNull(this.returnType)) return; // First run
+      options || (options = {});
+      options.reset = true;
+      return this.set(obj, options);
+    },
+
+    // Cyclic dependancy safe toJSON method.
+    toJSON: function () {
+      if (this._isSerializing) return this.cid;
+      var val = this.value();
+      this._isSerializing = true;
+      var json = val && _.isFunction(val.toJSON) ? val.toJSON() : val;
+      this._isSerializing = false;
+      return json;
+    }
+
+  });
+
+  module.exports = ComputedProperty;
+});
+define("rebound-router/rebound-router", ["exports", "module", "rebound-component/utils", "rebound-router/lazy-component"], function (exports, module, _reboundComponentUtils, _reboundRouterLazyComponent) {
+  "use strict";
+
+  // Rebound Router
+  // ----------------
+
+  var $ = to5Runtime.interopRequire(_reboundComponentUtils);
+
+  var LazyComponent = to5Runtime.interopRequire(_reboundRouterLazyComponent);
+
+  // Overload Backbone's loadUrl so it returns the value of the routed callback
+  // instead of undefined
+  Backbone.history.loadUrl = function (fragment) {
+    fragment = this.fragment = this.getFragment(fragment);
+    var resp = false;
+    _.any(this.handlers, function (handler) {
+      if (handler.route.test(fragment)) {
+        resp = handler.callback(fragment);
+        return true;
+      }
+    });
+    return resp;
+  };
+
+  // ReboundRouter Constructor
+  var ReboundRouter = Backbone.Router.extend({
+
+    // By default there is one route. The wildcard route fetches the required
+    // page assets based on user-defined naming convention.
+    routes: {
+      "*route": "wildcardRoute"
+    },
+
+    // Called when no matching routes are found. Extracts root route and fetches it's resources
+    wildcardRoute: function (route) {
+      var primaryRoute;
+
+      // If empty route sent, route home
+      route = route || "";
+
+      // Get Root of Route
+      primaryRoute = route ? route.split("/")[0] : "index";
+
+      // Fetch Resources
+      document.body.classList.add("loading");
+
+      return this._fetchResource(route, this.config.container).then(function () {
+        document.body.classList.remove("loading");
+      })["catch"](function () {});
+    },
+
+    // Modify navigate to default to `trigger=true` and to return the value of
+    // `Backbone.history.navigate` inside of a promise.
+    navigate: function (fragment) {
+      var options = arguments[1] === undefined ? {} : arguments[1];
+      options.trigger === undefined && (options.trigger = true);
+      var resp = Backbone.history.navigate(fragment, options);
+
+      // Always return a promise
+      return new Promise(function (resolve, reject) {
+        if (resp && resp.constructor === Promise) resp.then(resolve);
+        resolve(resp);
+      });
+    },
+
+    // Modify `router.execute` to return the value of our route callback
+    execute: function (callback, args, name) {
+      if (callback) return callback.apply(this, args);
+    },
+
+    route: function (route, name, callback) {
+      var _this = this;
+      if (!_.isRegExp(route)) route = this._routeToRegExp(route);
+      if (_.isFunction(name)) {
+        callback = name;
+        name = "";
+      }
+
+      if (!callback) callback = this[name];
+      Backbone.history.route(route, function (fragment) {
+        var args = _this._extractParameters(route, fragment);
+        var resp = _this.execute(callback, args, name);
+        if (resp !== false) {
+          _this.trigger.apply(_this, ["route:" + name].concat(args));
+          _this.trigger("route", name, args);
+          Backbone.history.trigger("route", _this, name, args);
+        }
+        return resp;
+      });
+      return this;
+    },
+
+    // On startup, save our config object and start the router
+    initialize: function () {
+      var options = arguments[0] === undefined ? {} : arguments[0];
+      var callback = arguments[1] === undefined ? function () {} : arguments[1];
+
+
+      // Let all of our components always have referance to our router
+      Rebound.Component.prototype.router = this;
+
+      // Save our config referance
+      this.config = options;
+      this.config.handlers = [];
+      var container = this.config.container = $(this.config.container || "content")[0];
+
+      // Convert our routeMappings to regexps and push to our handlers
+      _.each(this.config.routeMapping, function (value, route) {
+        if (!_.isRegExp(route)) route = this._routeToRegExp(route);
+        this.config.handlers.unshift({ route: route, primaryRoute: value });
+      }, this);
+
+      this._watchLinks(container);
+      Rebound.services.page = new LazyComponent();
+
+      // Install our global components
+      _.each(this.config.services, function (selector, route) {
+        var container = $(selector)[0] || document.createElement(selector || "span");
+        this._watchLinks(container);
+        Rebound.services[route] = new LazyComponent();
+        this._fetchResource(route, container)["catch"](function () {});
+      }, this);
+
+      // Start the history and call the provided callback
+      Backbone.history.start({
+        pushState: this.config.pushState === undefined ? true : this.config.pushState,
+        root: this.config.root
+      }).then(callback);
+
+      return this;
+    },
+
+    // Given a dom element, watch for all click events on anchor tags.
+    // If the clicked anchor has a relative url, attempt to route to that path.
+    // Give all links on the page that match this path the class `active`.
+    _watchLinks: function (container) {
+      var _this2 = this;
+      // Navigate to route for any link with a relative href
+      var remoteUrl = /^([a-z]+:)|^(\/\/)|^([^\/]+\.)/;
+      $(container).on("click", "a", function (e) {
+        var path = e.target.getAttribute("href");
+        // If path is not an remote url, ends in .[a-z], or blank, try and navigate to that route.
+        if (path && path !== "#" && !remoteUrl.test(path)) e.preventDefault();
+        // If this is not our current route, navigate to the new route
+        if (path !== "/" + Backbone.history.fragment) {
+          $(container).unMarkLinks();
+          _this2.navigate(path, { trigger: true }).then(function () {
+            $(container).markLinks();
+          });
+        }
+      });
+    },
+
+    // De-initializes the previous app before rendering a new app
+    // This way we can ensure that every new page starts with a clean slate
+    // This is crucial for scalability of a single page app.
+    _uninstallResource: function () {
+      var _this3 = this;
+
+
+      if (!this.current) return;
+
+      var oldPageName = this.current.__name;
+
+      // Unset Previous Application's Routes. For each route in the page app:
+      _.each(this.current.data.routes, function (value, key) {
+        var regExp = _this3._routeToRegExp(key).toString();
+
+        // Remove the handler from our route object
+        Backbone.history.handlers = _.filter(Backbone.history.handlers, function (obj) {
+          return obj.route.toString() !== regExp;
+        });
+
+        // Delete our referance to the route's callback
+        delete _this3["_function_" + key];
+      });
+
+      // Un-hook Event Bindings, Delete Objects
+      this.current.data.deinitialize();
+
+      // Disable old css if it exists
+      setTimeout(function () {
+        document.getElementById(oldPageName + "-css").setAttribute("disabled", true);
+      }, 500);
+    },
+
+    // Give our new page component, load routes and render a new instance of the
+    // page component in the top level outlet.
+    _installResource: function (PageApp, primaryRoute, container) {
+      var _this4 = this;
+      var oldPageName, pageInstance, container;
+      var isService = container !== this.config.container;
+      container.classList.remove("error", "loading");
+
+      if (!isService && this.current) this._uninstallResource();
+
+      // Load New PageApp, give it it's name so we know what css to remove when it deinitializes
+      pageInstance = new PageApp();
+      pageInstance.__name = primaryRoute;
+
+      // Add to our page
+      container.innerHTML = "";
+      container.appendChild(pageInstance);
+
+      // Make sure we're back at the top of the page
+      document.body.scrollTop = 0;
+
+      // Augment ApplicationRouter with new routes from PageApp
+      _.each(pageInstance.data.routes, function (value, key) {
+        // Generate our route callback's new name
+        var routeFunctionName = "_function_" + key,
+            functionName;
+        // Add the new callback referance on to our router and add the route handler
+        _this4[routeFunctionName] = function () {
+          pageInstance.data[value].apply(pageInstance.data, arguments);
+        };
+        _this4.route(key, value, _this4[routeFunctionName]);
+      }, this);
+
+      var name = isService ? primaryRoute : "page";
+      if (!isService) this.current = pageInstance;
+      if (window.Rebound.services[name].isService) window.Rebound.services[name].hydrate(pageInstance.data);
+      window.Rebound.services[name] = pageInstance.data;
+
+
+      // Re-trigger route so the newly added route may execute if there's a route match.
+      // If no routes are matched, app will hit wildCard route which will then trigger 404
+      if (!isService) {
+        if (this.config.triggerOnFirstLoad) Backbone.history.loadUrl(Backbone.history.fragment);
+        this.config.triggerOnFirstLoad = true;
+      }
+
+      // Return our newly installed app
+      return pageInstance;
+    },
+
+    // Fetches Pare HTML and CSS
+    _fetchResource: function (route, container) {
+      var _this5 = this;
+      var jsUrl,
+          cssUrl,
+          cssLoaded = false,
+          jsLoaded = false,
+          cssElement,
+          jsElement,
+          PageClass,
+          appName,
+          primaryRoute,
+          isService = container !== this.config.container;
+
+      // Get the root of this route
+      appName = primaryRoute = route ? route.split("/")[0] : "index";
+
+      // If Page Is Already Loaded Then The Route Does Not Exist. 404 and Exit.
+      if (this.current && this.current.name === primaryRoute) {
+        return this._fetchResource("error", container);
+      }
+
+      // Find Any Custom Route Mappings
+      _.any(this.config.handlers, function (handler) {
+        if (handler.route.test(route)) {
+          appName = handler.primaryRoute;
+          return true;
+        }
+      });
+
+      jsUrl = this.config.jsPath.replace(/:route/g, primaryRoute).replace(/:app/g, appName);
+      cssUrl = this.config.cssPath.replace(/:route/g, primaryRoute).replace(/:app/g, appName);
+      cssElement = document.getElementById(appName + "-css");
+      jsElement = document.getElementById(appName + "-js");
+
+      // Wrap these async resource fetches in a promise and return it.
+      // This promise resolves when both css and js resources are loaded
+      // It rejects if either of the css or js resources fails to load.
+      return new Promise(function (resolve, reject) {
+        var defaultError = function (err) {
+          console.error("Could not " + (isService ? "load the " + route + " service:" : "find the " + route + " page:") + "\n  - CSS Url: " + cssUrl + "\n  - JavaScript Url: " + jsUrl);
+
+          if (isService) return reject(err);
+
+          _this5._uninstallResource();
+
+          container.innerHTML = "\n          <div style=\"\n            display: block;\n            text-align: center;\n            font-size: 22px;\n            color: rgba(0,0,0,.75);\n            margin-top: 60px;\n            text-shadow: 0 1px 0 rgba(255,255,255,.75);\"\n          >\n          Oops! We couldn't find this page.\n          <a href=\"#\" onclick=\"window.history.back();return false;\"\n            style=\"\n              display: block;\n              text-align: center;\n              text-decoration: none;\n              margin-top: 30px;\n          \">Take me back</a>\n          </div>";
+          reject(err);
+        };
+
+        // If this css element is not on the page already, it hasn't been loaded before -
+        // create the element and load the css resource.
+        // Else if the css resource has been loaded before, enable it
+        if (cssElement === null) {
+          cssElement = document.createElement("link");
+          cssElement.setAttribute("type", "text/css");
+          cssElement.setAttribute("rel", "stylesheet");
+          cssElement.setAttribute("href", cssUrl);
+          cssElement.setAttribute("id", appName + "-css");
+          $(cssElement).on("load", function (event) {
+            if ((cssLoaded = true) && jsLoaded) {
+              _this5._installResource(PageClass, appName, container);
+              resolve(_this5);
+            }
+          });
+          $(cssElement).on("error", function (err) {
+            if (!container.classList.contains("error")) {
+              container.classList.add("error");
+              _this5._fetchResource("error/" + (isService ? appName : "page"), container).then(reject, defaultError);
+            } else {
+              reject(err);
+            }
+          });
+          document.head.appendChild(cssElement);
+        } else {
+          cssElement && cssElement.removeAttribute("disabled");
+          cssLoaded = true;
+        }
+
+        // AMD will manage dependancies for us. Load the JavaScript.
+        window.require([jsUrl], function (c) {
+          if ((jsLoaded = true) && (PageClass = c) && cssLoaded) {
+            _this5._installResource(PageClass, appName, container);
+            resolve(_this5);
+          }
+        }, function (err) {
+          if (!container.classList.contains("error")) {
+            container.classList.add("error");
+            _this5._fetchResource("error", container).then(reject, defaultError);
+          } else {
+            reject(err);
+          }
+        });
+      });
+    }
+
+  });
+
+  module.exports = ReboundRouter;
 });
 define("property-compiler/tokenizer", ["exports", "module"], function (exports, module) {
   "use strict";
@@ -12189,393 +12607,6 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
 
   module.exports = { tokenize: exports.tokenize };
 });
-define("rebound-data/computed-property", ["exports", "module", "property-compiler/property-compiler", "rebound-component/utils"], function (exports, module, _propertyCompilerPropertyCompiler, _reboundComponentUtils) {
-  "use strict";
-
-  // Rebound Computed Property
-  // ----------------
-
-  var propertyCompiler = to5Runtime.interopRequire(_propertyCompilerPropertyCompiler);
-
-  var $ = to5Runtime.interopRequire(_reboundComponentUtils);
-
-  // Returns true if str starts with test
-  function startsWith(str, test) {
-    if (str === test) return true;
-    return str.substring(0, test.length + 1) === test + ".";
-  }
-
-
-  // Called after callstack is exausted to call all of this computed property's
-  // dependants that need to be recomputed
-  function recomputeCallback() {
-    var i = 0,
-        len = this._toCall.length;
-    delete this._recomputeTimeout;
-    for (i = 0; i < len; i++) {
-      this._toCall.shift().call();
-    }
-    this._toCall.added = {};
-  }
-
-  var ComputedProperty = function (prop, options) {
-    if (!_.isFunction(prop)) return console.error("ComputedProperty constructor must be passed a function!", prop, "Found instead.");
-    options = options || {};
-    this.cid = _.uniqueId("computedPropety");
-    this.name = options.name;
-    this.returnType = null;
-    this.__observers = {};
-    this.helpers = {};
-    this.waiting = {};
-    this.isChanging = false;
-    this.isDirty = true;
-    this.func = prop;
-    _.bindAll(this, "onModify", "markDirty");
-    this.deps = propertyCompiler.compile(prop, this.name);
-
-    // Create lineage to pass to our cache objects
-    var lineage = {
-      parent: this.setParent(options.parent || this),
-      root: this.setRoot(options.root || options.parent || this),
-      path: this.__path = options.path || this.__path
-    };
-
-    // Results Cache Objects
-    // These models will never be re-created for the lifetime of the Computed Proeprty
-    // On Recompute they are updated with new values.
-    // On Change their new values are pushed to the object it is tracking
-    this.cache = {
-      model: new Rebound.Model({}, lineage),
-      collection: new Rebound.Collection([], lineage),
-      value: undefined
-    };
-
-    this.wire();
-  };
-
-  _.extend(ComputedProperty.prototype, Backbone.Events, {
-
-    isComputedProperty: true,
-    isData: true,
-    __path: function () {
-      return "";
-    },
-
-
-    markDirty: function () {
-      if (this.isDirty) return;
-      this.isDirty = true;
-      this.trigger("dirty", this);
-    },
-
-    // Attached to listen to all events where this Computed Property's dependancies
-    // are stored. See wire(). Will re-evaluate any computed properties that
-    // depend on the changed data value which triggered this callback.
-    onRecompute: function (type, model, collection, options) {
-      var shortcircuit = { change: 1, sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1, dirty: 1 };
-      if (shortcircuit[type] || !model.isData) return;
-      model || (model = {});
-      collection || (collection = {});
-      options || (options = {});
-      this._toCall || (this._toCall = []);
-      this._toCall.added || (this._toCall.added = {});
-      !collection.isData && (options = collection) && (collection = model);
-      var push = function (arr) {
-        var i,
-            len = arr.length;
-        this.added || (this.added = {});
-        for (i = 0; i < len; i++) {
-          if (this.added[arr[i].cid]) continue;
-          this.added[arr[i].cid] = 1;
-          this.push(arr[i]);
-        }
-      },
-          path,
-          vector;
-      vector = path = collection.__path().replace(/\.?\[.*\]/ig, ".@each");
-
-      // If a reset event on a Model, check for computed properties that depend
-      // on each changed attribute's full path.
-      if (type === "reset" && options.previousAttributes) {
-        _.each(options.previousAttributes, function (value, key) {
-          vector = path + (path && ".") + key;
-          _.each(this.__computedDeps, function (dependants, dependancy) {
-            startsWith(vector, dependancy) && push.call(this._toCall, dependants);
-          }, this);
-        }, this);
-      }
-
-      // If a reset event on a Collction, check for computed properties that depend
-      // on anything inside that collection.
-      else if (type === "reset" && options.previousModels) {
-        _.each(this.__computedDeps, function (dependants, dependancy) {
-          startsWith(dependancy, vector) && push.call(this._toCall, dependants);
-        }, this);
-      }
-
-      // If an add or remove event, check for computed properties that depend on
-      // anything inside that collection or that contains that collection.
-      else if (type === "add" || type === "remove") {
-        _.each(this.__computedDeps, function (dependants, dependancy) {
-          if (startsWith(dependancy, vector) || startsWith(vector, dependancy)) push.call(this._toCall, dependants);;
-        }, this);
-      }
-
-      // If a change event, trigger anything that depends on that changed path.
-      else if (type.indexOf("change:") === 0) {
-        vector = type.replace("change:", "").replace(/\.?\[.*\]/ig, ".@each");
-        _.each(this.__computedDeps, function (dependants, dependancy) {
-          startsWith(vector, dependancy) && push.call(this._toCall, dependants);
-        }, this);
-      }
-
-      var i,
-          len = this._toCall.length;
-      for (i = 0; i < len; i++) {
-        this._toCall[i].markDirty();
-      }
-
-      // Notifies all computed properties in the dependants array to recompute.
-      // Marks everyone as dirty and then calls them.
-      if (!this._recomputeTimeout) this._recomputeTimeout = setTimeout(_.bind(recomputeCallback, this), 0);
-      return;
-    },
-
-
-    // Called when a Computed Property's active cache object changes.
-    // Pushes any changes to Computed Property that returns a data object back to
-    // the original object.
-    onModify: function (type, model, collection, options) {
-      var shortcircuit = { sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1 };
-      if (!this.tracking || shortcircuit[type] || ~type.indexOf("change:")) return;
-      model || (model = {});
-      collection || (collection = {});
-      options || (options = {});
-      !collection.isData && _.isObject(collection) && (options = collection) && (collection = model);
-      var src = this;
-      var path = collection.__path().replace(src.__path(), "").replace(/^\./, "");
-      var dest = this.tracking.get(path);
-
-      if (_.isUndefined(dest)) return;
-      if (type === "change") dest.set && dest.set(model.changedAttributes());else if (type === "reset") dest.reset && dest.reset(model);else if (type === "add") dest.add && dest.add(model);else if (type === "remove") dest.remove && dest.remove(model);
-      // TODO: Add sort
-    },
-
-    // Adds a litener to the root object and tells it what properties this
-    // Computed Property depend on.
-    // The listener will re-compute this Computed Property when any are changed.
-    wire: function () {
-      var root = this.__root__;
-      var context = this.__parent__;
-      root.__computedDeps || (root.__computedDeps = {});
-
-      _.each(this.deps, function (path) {
-        var dep = root.get(path, { raw: true });
-        if (!dep || !dep.isComputedProperty) return;
-        dep.on("dirty", this.markDirty);
-      }, this);
-
-      _.each(this.deps, function (path) {
-        // Find actual path from relative paths
-        var split = $.splitPath(path);
-        while (split[0] === "@parent") {
-          context = context.__parent__;
-          split.shift();
-        }
-
-        path = context.__path().replace(/\.?\[.*\]/ig, ".@each");
-        path = path + (path && ".") + split.join(".");
-
-        // Add ourselves as dependants
-        root.__computedDeps[path] || (root.__computedDeps[path] = []);
-        root.__computedDeps[path].push(this);
-      }, this);
-
-      // Ensure we only have one listener per Model at a time.
-      context.off("all", this.onRecompute).on("all", this.onRecompute);
-    },
-
-    unwire: function () {
-      var root = this.__root__;
-      var context = this.__parent__;
-
-      _.each(this.deps, function (path) {
-        var dep = root.get(path, { raw: true });
-        if (!dep || !dep.isComputedProperty) return;
-        dep.off("dirty", this.markDirty);
-      }, this);
-
-      context.off("all", this.onRecompute);
-    },
-
-    // Call this computed property like you would with Function.call()
-    call: function () {
-      var args = Array.prototype.slice.call(arguments),
-          context = args.shift();
-      return this.apply(context, args);
-    },
-
-    // Call this computed property like you would with Function.apply()
-    // Only properties that are marked as dirty and are not already computing
-    // themselves are evaluated to prevent cyclic callbacks. If any dependants
-    // aren't finished computeding, we add ourselved to their waiting list.
-    // Vanilla objects returned from the function are promoted to Rebound Objects.
-    // Then, set the proper return type for future fetches from the cache and set
-    // the new computed value. Track changes to the cache to push it back up to
-    // the original object and return the value.
-    apply: function (context, params) {
-      context || (context = this.__parent__);
-
-      if (!this.isDirty || this.isChanging || !context) return;
-      this.isChanging = true;
-
-      var value = this.cache[this.returnType],
-          result;
-
-      // Check all of our dependancies to see if they are evaluating.
-      // If we have a dependancy that is dirty and this isnt its first run,
-      // Let this dependancy know that we are waiting for it.
-      // It will re-run this Computed Property after it finishes.
-      _.each(this.deps, function (dep) {
-        var dependancy = context.get(dep, { raw: true });
-        if (!dependancy || !dependancy.isComputedProperty) return;
-        if (dependancy.isDirty && dependancy.returnType !== null) {
-          dependancy.waiting[this.cid] = this;
-          dependancy.apply(); // Try to re-evaluate this dependancy if it is dirty
-          if (dependancy.isDirty) return this.isChanging = false;
-        }
-        delete dependancy.waiting[this.cid];
-        // TODO: There can be a check here looking for cyclic dependancies.
-      }, this);
-
-      if (!this.isChanging) return;
-
-      if (this.returnType !== "value") this.stopListening(value, "all", this.onModify);
-
-      result = this.func.apply(context, params);
-
-      // Promote vanilla objects to Rebound Data keeping the same original objects
-      if (_.isArray(result)) result = new Rebound.Collection(result, { clone: false });else if (_.isObject(result) && !result.isData) result = new Rebound.Model(result, { clone: false });
-
-      // If result is undefined, reset our cache item
-      if (_.isUndefined(result) || _.isNull(result)) {
-        this.returnType = "value";
-        this.isCollection = this.isModel = false;
-        this.set(undefined);
-      }
-      // Set result and return types, bind events
-      else if (result.isCollection) {
-        this.returnType = "collection";
-        this.isCollection = true;
-        this.isModel = false;
-        this.set(result);
-        this.track(result);
-      } else if (result.isModel) {
-        this.returnType = "model";
-        this.isCollection = false;
-        this.isModel = true;
-        this.reset(result);
-        this.track(result);
-      } else {
-        this.returnType = "value";
-        this.isCollection = this.isModel = false;
-        this.reset(result);
-      }
-
-      return this.value();
-    },
-
-    // When we receive a new model to set in our cache, unbind the tracker from
-    // the previous cache object, sync the objects' cids so helpers think they
-    // are the same object, save a referance to the object we are tracking,
-    // and re-bind our onModify hook.
-    track: function (object) {
-      var target = this.value();
-      if (!object || !target || !target.isData || !object.isData) return;
-      target._cid || (target._cid = target.cid);
-      object._cid || (object._cid = object.cid);
-      target.cid = object.cid;
-      this.tracking = object;
-      this.listenTo(target, "all", this.onModify);
-    },
-
-    // Get from the Computed Property's cache
-    get: function (key, options) {
-      var value = this.value();
-      options || (options = {});
-      if (this.returnType === "value") return console.error("Called get on the `" + this.name + "` computed property which returns a primitive value.");
-      return value.get(key, options);
-    },
-
-    // Set the Computed Property's cache to a new value and trigger appropreate events.
-    // Changes will propagate back to the original object if a Rebound Data Object and re-compute.
-    // If Computed Property returns a value, all downstream dependancies will re-compute.
-    set: function (key, val, options) {
-      if (this.returnType === null) return undefined;
-      options || (options = {});
-      var attrs = key;
-      var value = this.value();
-      if (this.returnType === "model") {
-        if (typeof key === "object") {
-          attrs = key.isModel ? key.attributes : key;
-          options = val;
-        } else {
-          (attrs = {})[key] = val;
-        }
-      }
-      if (this.returnType !== "model") options = val || {};
-      attrs = attrs && attrs.isComputedProperty ? attrs.value() : attrs;
-
-      // If a new value, set it and trigger events
-      if (this.returnType === "value" && this.cache.value !== attrs) {
-        this.cache.value = attrs;
-        if (!options.quiet) {
-          // If set was called not through computedProperty.call(), this is a fresh new event burst.
-          if (!this.isDirty && !this.isChanging) this.__parent__.changed = {};
-          this.__parent__.changed[this.name] = attrs;
-          this.trigger("change", this.__parent__);
-          this.trigger("change:" + this.name, this.__parent__, attrs);
-          delete this.__parent__.changed[this.name];
-        }
-      } else if (this.returnType !== "value" && options.reset) key = value.reset(attrs, options);else if (this.returnType !== "value") key = value.set(attrs, options);
-      this.isDirty = this.isChanging = false;
-
-      // Call all reamining computed properties waiting for this value to resolve.
-      _.each(this.waiting, function (prop) {
-        prop && prop.call();
-      });
-
-      return key;
-    },
-
-    // Return the current value from the cache, running if dirty.
-    value: function () {
-      if (this.isDirty) this.apply();
-      return this.cache[this.returnType];
-    },
-
-    // Reset the current value in the cache, running if first run.
-    reset: function (obj, options) {
-      if (_.isNull(this.returnType)) return; // First run
-      options || (options = {});
-      options.reset = true;
-      return this.set(obj, options);
-    },
-
-    // Cyclic dependancy safe toJSON method.
-    toJSON: function () {
-      if (this._isSerializing) return this.cid;
-      var val = this.value();
-      this._isSerializing = true;
-      var json = val && _.isFunction(val.toJSON) ? val.toJSON() : val;
-      this._isSerializing = false;
-      return json;
-    }
-
-  });
-
-  module.exports = ComputedProperty;
-});
 define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-value", "rebound-component/utils", "rebound-component/helpers"], function (exports, module, _reboundComponentLazyValue, _reboundComponentUtils, _reboundComponentHelpers) {
   "use strict";
 
@@ -13382,147 +13413,6 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
 
   module.exports = Model;
 });
-define("rebound-data/rebound-data", ["exports", "rebound-data/model", "rebound-data/collection", "rebound-data/computed-property", "rebound-component/utils"], function (exports, _reboundDataModel, _reboundDataCollection, _reboundDataComputedProperty, _reboundComponentUtils) {
-  "use strict";
-
-  // Rebound Data
-  // ----------------
-  // These are methods inherited by all Rebound data types – **Models**,
-  // **Collections** and **Computed Properties** – and control tree ancestry
-  // tracking, deep event propagation and tree destruction.
-
-  var Model = to5Runtime.interopRequire(_reboundDataModel);
-
-  var Collection = to5Runtime.interopRequire(_reboundDataCollection);
-
-  var ComputedProperty = to5Runtime.interopRequire(_reboundDataComputedProperty);
-
-  var $ = to5Runtime.interopRequire(_reboundComponentUtils);
-
-  var sharedMethods = {
-    // When a change event propagates up the tree it modifies the path part of
-    // `change:<path>` to reflect the fully qualified path relative to that object.
-    // Ex: Would trigger `change:val`, `change:[0].val`, `change:arr[0].val` and `obj.arr[0].val`
-    // on each parent as it is propagated up the tree.
-    propagateEvent: function (type, model) {
-      if (this.__parent__ === this || type === "dirty") return;
-      if (type.indexOf("change:") === 0 && model.isModel) {
-        if (this.isCollection && ~type.indexOf("change:[")) return;
-        var key,
-            path = model.__path().replace(this.__parent__.__path(), "").replace(/^\./, ""),
-            changed = model.changedAttributes();
-
-        for (key in changed) {
-          // TODO: Modifying arguments array is bad. change this
-          arguments[0] = "change:" + path + (path && ".") + key; // jshint ignore:line
-          this.__parent__.trigger.apply(this.__parent__, arguments);
-        }
-        return;
-      }
-      return this.__parent__.trigger.apply(this.__parent__, arguments);
-    },
-
-    // Set this data object's parent to `parent` and, as long as a data object is
-    // not its own parent, propagate every event triggered on `this` up the tree.
-    setParent: function (parent) {
-      if (this.__parent__) this.off("all", this.propagateEvent);
-      this.__parent__ = parent;
-      this._hasAncestry = true;
-      if (parent !== this) this.on("all", this.__parent__.propagateEvent);
-      return parent;
-    },
-
-    // Recursively set a data tree's root element starting with `this` to the deepest child.
-    // TODO: I dont like this recursively setting elements root when one element's root changes. Fix this.
-    setRoot: function (root) {
-      var obj = this;
-      obj.__root__ = root;
-      var val = obj.models || obj.attributes || obj.cache;
-      _.each(val, function (value, key) {
-        if (value && value.isData) {
-          value.setRoot(root);
-        }
-      });
-      return root;
-    },
-
-    // Tests to see if `this` has a parent `obj`.
-    hasParent: function (obj) {
-      var tmp = this;
-      while (tmp !== obj) {
-        tmp = tmp.__parent__;
-        if (_.isUndefined(tmp)) return false;
-        if (tmp === obj) return true;
-        if (tmp.__parent__ === tmp) return false;
-      }
-      return true;
-    },
-
-    // De-initializes a data tree starting with `this` and recursively calling `deinitialize()` on each child.
-    deinitialize: function () {
-      var _this = this;
-
-
-      // Undelegate Backbone Events from this data object
-      if (this.undelegateEvents) this.undelegateEvents();
-      if (this.stopListening) this.stopListening();
-      if (this.off) this.off();
-      if (this.unwire) this.unwire();
-
-      // Destroy this data object's lineage
-      delete this.__parent__;
-      delete this.__root__;
-      delete this.__path;
-
-      // If there is a dom element associated with this data object, destroy all listeners associated with it.
-      // Remove all event listeners from this dom element, recursively remove element lazyvalues,
-      // and then remove the element referance itself.
-      if (this.el) {
-        _.each(this.el.__listeners, function (handler, eventType) {
-          if (this.el.removeEventListener) this.el.removeEventListener(eventType, handler, false);
-          if (this.el.detachEvent) this.el.detachEvent("on" + eventType, handler);
-        }, this);
-        $(this.el).walkTheDOM(function (el) {
-          if (el.__lazyValue && el.__lazyValue.destroy()) n.__lazyValue.destroy();
-        });
-        delete this.el.__listeners;
-        delete this.el.__events;
-        delete this.$el;
-        delete this.el;
-      }
-
-      // Clean up Hook callback references
-      delete this.__observers;
-
-      // Mark as deinitialized so we don't loop on cyclic dependancies.
-      this.deinitialized = true;
-
-      // Destroy all children of this data object.
-      // If a Collection, de-init all of its Models, if a Model, de-init all of its
-      // Attributes, if a Computed Property, de-init its Cache objects.
-      _.each(this.models, function (val) {
-        val && val.deinitialize && val.deinitialize();
-      });
-      this.models && (this.models.length = 0);
-      _.each(this.attributes, function (val, key) {
-        delete _this.attributes[key];val && val.deinitialize && val.deinitialize();
-      });
-      if (this.cache) {
-        this.cache.collection.deinitialize();
-        this.cache.model.deinitialize();
-      }
-    }
-  };
-
-  // Extend all of the **Rebound Data** prototypes with these shared methods
-  _.extend(Model.prototype, sharedMethods);
-  _.extend(Collection.prototype, sharedMethods);
-  _.extend(ComputedProperty.prototype, sharedMethods);
-
-  exports.Model = Model;
-  exports.Collection = Collection;
-  exports.ComputedProperty = ComputedProperty;
-});
 define("rebound-component/lazy-value", ["exports", "module"], function (exports, module) {
   "use strict";
 
@@ -13677,6 +13567,147 @@ define("rebound-component/lazy-value", ["exports", "module"], function (exports,
   };
 
   module.exports = LazyValue;
+});
+define("rebound-data/rebound-data", ["exports", "rebound-data/model", "rebound-data/collection", "rebound-data/computed-property", "rebound-component/utils"], function (exports, _reboundDataModel, _reboundDataCollection, _reboundDataComputedProperty, _reboundComponentUtils) {
+  "use strict";
+
+  // Rebound Data
+  // ----------------
+  // These are methods inherited by all Rebound data types – **Models**,
+  // **Collections** and **Computed Properties** – and control tree ancestry
+  // tracking, deep event propagation and tree destruction.
+
+  var Model = to5Runtime.interopRequire(_reboundDataModel);
+
+  var Collection = to5Runtime.interopRequire(_reboundDataCollection);
+
+  var ComputedProperty = to5Runtime.interopRequire(_reboundDataComputedProperty);
+
+  var $ = to5Runtime.interopRequire(_reboundComponentUtils);
+
+  var sharedMethods = {
+    // When a change event propagates up the tree it modifies the path part of
+    // `change:<path>` to reflect the fully qualified path relative to that object.
+    // Ex: Would trigger `change:val`, `change:[0].val`, `change:arr[0].val` and `obj.arr[0].val`
+    // on each parent as it is propagated up the tree.
+    propagateEvent: function (type, model) {
+      if (this.__parent__ === this || type === "dirty") return;
+      if (type.indexOf("change:") === 0 && model.isModel) {
+        if (this.isCollection && ~type.indexOf("change:[")) return;
+        var key,
+            path = model.__path().replace(this.__parent__.__path(), "").replace(/^\./, ""),
+            changed = model.changedAttributes();
+
+        for (key in changed) {
+          // TODO: Modifying arguments array is bad. change this
+          arguments[0] = "change:" + path + (path && ".") + key; // jshint ignore:line
+          this.__parent__.trigger.apply(this.__parent__, arguments);
+        }
+        return;
+      }
+      return this.__parent__.trigger.apply(this.__parent__, arguments);
+    },
+
+    // Set this data object's parent to `parent` and, as long as a data object is
+    // not its own parent, propagate every event triggered on `this` up the tree.
+    setParent: function (parent) {
+      if (this.__parent__) this.off("all", this.propagateEvent);
+      this.__parent__ = parent;
+      this._hasAncestry = true;
+      if (parent !== this) this.on("all", this.__parent__.propagateEvent);
+      return parent;
+    },
+
+    // Recursively set a data tree's root element starting with `this` to the deepest child.
+    // TODO: I dont like this recursively setting elements root when one element's root changes. Fix this.
+    setRoot: function (root) {
+      var obj = this;
+      obj.__root__ = root;
+      var val = obj.models || obj.attributes || obj.cache;
+      _.each(val, function (value, key) {
+        if (value && value.isData) {
+          value.setRoot(root);
+        }
+      });
+      return root;
+    },
+
+    // Tests to see if `this` has a parent `obj`.
+    hasParent: function (obj) {
+      var tmp = this;
+      while (tmp !== obj) {
+        tmp = tmp.__parent__;
+        if (_.isUndefined(tmp)) return false;
+        if (tmp === obj) return true;
+        if (tmp.__parent__ === tmp) return false;
+      }
+      return true;
+    },
+
+    // De-initializes a data tree starting with `this` and recursively calling `deinitialize()` on each child.
+    deinitialize: function () {
+      var _this = this;
+
+
+      // Undelegate Backbone Events from this data object
+      if (this.undelegateEvents) this.undelegateEvents();
+      if (this.stopListening) this.stopListening();
+      if (this.off) this.off();
+      if (this.unwire) this.unwire();
+
+      // Destroy this data object's lineage
+      delete this.__parent__;
+      delete this.__root__;
+      delete this.__path;
+
+      // If there is a dom element associated with this data object, destroy all listeners associated with it.
+      // Remove all event listeners from this dom element, recursively remove element lazyvalues,
+      // and then remove the element referance itself.
+      if (this.el) {
+        _.each(this.el.__listeners, function (handler, eventType) {
+          if (this.el.removeEventListener) this.el.removeEventListener(eventType, handler, false);
+          if (this.el.detachEvent) this.el.detachEvent("on" + eventType, handler);
+        }, this);
+        $(this.el).walkTheDOM(function (el) {
+          if (el.__lazyValue && el.__lazyValue.destroy()) n.__lazyValue.destroy();
+        });
+        delete this.el.__listeners;
+        delete this.el.__events;
+        delete this.$el;
+        delete this.el;
+      }
+
+      // Clean up Hook callback references
+      delete this.__observers;
+
+      // Mark as deinitialized so we don't loop on cyclic dependancies.
+      this.deinitialized = true;
+
+      // Destroy all children of this data object.
+      // If a Collection, de-init all of its Models, if a Model, de-init all of its
+      // Attributes, if a Computed Property, de-init its Cache objects.
+      _.each(this.models, function (val) {
+        val && val.deinitialize && val.deinitialize();
+      });
+      this.models && (this.models.length = 0);
+      _.each(this.attributes, function (val, key) {
+        delete _this.attributes[key];val && val.deinitialize && val.deinitialize();
+      });
+      if (this.cache) {
+        this.cache.collection.deinitialize();
+        this.cache.model.deinitialize();
+      }
+    }
+  };
+
+  // Extend all of the **Rebound Data** prototypes with these shared methods
+  _.extend(Model.prototype, sharedMethods);
+  _.extend(Collection.prototype, sharedMethods);
+  _.extend(ComputedProperty.prototype, sharedMethods);
+
+  exports.Model = Model;
+  exports.Collection = Collection;
+  exports.ComputedProperty = ComputedProperty;
 });
 define("rebound-component/utils", ["exports", "module"], function (exports, module) {
   "use strict";

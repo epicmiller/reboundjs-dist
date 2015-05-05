@@ -15,10 +15,6 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "rebou
   var Model = _reboundDataReboundData.Model;
 
 
-
-  // If Backbone hasn't been started yet, throw error
-  if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";
-
   // Returns true if `str` starts with `test`
   function startsWith(str, test) {
     if (str === test) return true;
