@@ -115,13 +115,16 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
     },
 
     // Applies function `func` depth first to every node in the subtree starting from `root`
+    // If the callback returns `false`, short circuit that tree.
     walkTheDOM: function (func) {
       var el,
           root,
-          len = this.length;
+          len = this.length,
+          result;
       while (len--) {
         root = this[len];
-        func(root);
+        result = func(root);
+        if (result === false) return;
         root = root.firstChild;
         while (root) {
           $(root).walkTheDOM(func);

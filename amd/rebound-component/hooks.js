@@ -524,8 +524,17 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       });
 
 
-      // If an outlet marker is present in component's template, and a template is provided, render it into <content>
-      outlet = element.getElementsByTagName("content")[0];
+      // Walk the dom, without traversing into other custom elements, and search for
+      // `<content>` outlets to render templates into.
+      $(element).walkTheDOM(function (el) {
+        if (element === el) return true;
+        if (el.tagName === "CONTENT") outlet = el;
+        if (el.tagName.indexOf("-") > -1) return false;
+        return true;
+      });
+
+      // If a `<content>` outlet is present in component's template, and a template
+      // is provided, render it into the outlet
       if (template && _.isElement(outlet)) {
         outlet.innerHTML = "";
         outlet.appendChild(template.render(context, env, outlet));

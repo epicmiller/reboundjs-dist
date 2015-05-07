@@ -10307,70 +10307,41 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
 });
 
 // model.deinitialize();
-define("runtime", ["exports", "module", "rebound-component/utils", "rebound-component/helpers", "rebound-data/rebound-data", "rebound-component/component", "rebound-router/rebound-router"], function (exports, module, _reboundComponentUtils, _reboundComponentHelpers, _reboundDataReboundData, _reboundComponentComponent, _reboundRouterReboundRouter) {
+define("rebound-router/lazy-component", ["exports", "module"], function (exports, module) {
   "use strict";
 
-  //     Rebound.js 0.0.60
-
-  //     (c) 2015 Adam Miller
-  //     Rebound may be freely distributed under the MIT license.
-  //     For all details and documentation:
-  //     http://reboundjs.com
-
-  // Rebound Runtime
-  // ----------------
-
-  // If Backbone isn't preset on the page yet, or if `window.Rebound` is already
-  // in use, throw an error
-  if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";
-
-  // Load our **Utils**, helper environment, **Rebound Data**,
-  // **Rebound Components** and the **Rebound Router**
-  var utils = to5Runtime.interopRequire(_reboundComponentUtils);
-
-  var helpers = to5Runtime.interopRequire(_reboundComponentHelpers);
-
-  var Model = _reboundDataReboundData.Model;
-  var Collection = _reboundDataReboundData.Collection;
-  var ComputedProperty = _reboundDataReboundData.ComputedProperty;
-  var Component = to5Runtime.interopRequire(_reboundComponentComponent);
-
-  var Router = to5Runtime.interopRequire(_reboundRouterReboundRouter);
-
-  // If Backbone doesn't have an ajax method from an external DOM library, use ours
-  window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || utils.ajax;
-
-  // Create Global Rebound Object
-  var Rebound = {
-    services: {},
-    registerHelper: helpers.registerHelper,
-    registerPartial: helpers.registerPartial,
-    registerComponent: Component.register,
-    Model: Model,
-    Collection: Collection,
-    ComputedProperty: ComputedProperty,
-    Component: Component,
-    start: function (options) {
-      return new Promise(function (resolve, reject) {
-        var run = function () {
-          if (document.readyState !== "complete") return;
-          Rebound.router = new Router(options, resolve);
-        };
-
-        if (document.readyState === "complete") return run();
-        document.addEventListener("readystatechange", run);
+  // Services keep track of their consumers. LazyComponent are placeholders
+  // for services that haven't loaded yet. A LazyComponent mimics the api of a
+  // real service/component (they are the same), and when the service finally
+  // loads, its ```hydrate``` method is called. All consumers of the service will
+  // have the now fully loaded service set, the LazyService will transfer all of
+  // its consumers over to the fully loaded service, and then destroy itself.
+  function LazyComponent() {
+    this.isService = true;
+    this.isComponent = true;
+    this.isModel = true;
+    this.attributes = {};
+    this.consumers = [];
+    this.set = this.on = this.off = function () {
+      return 1;
+    };
+    this.get = function (path) {
+      return path ? undefined : this;
+    };
+    this.hydrate = function (service) {
+      _.each(this.consumers, function (consumer) {
+        var component = consumer.component,
+            key = consumer.key;
+        if (component.attributes && component.set) component.set(key, service);
+        if (component.services) component.services[key] = service;
+        if (component.defaults) component.defaults[key] = service;
       });
-    }
-  };
+      service.consumers = this.consumers;
+      delete this.consumers;
+    };
+  }
 
-  // Fetch Rebound's Config Object from Rebound's `script` tag
-  var Config = document.getElementById("Rebound");
-  Config = Config ? Config.innerHTML : false;
-
-  // Start the router if a config object is preset
-  if (Config) Rebound.start(JSON.parse(Config));
-
-  module.exports = Rebound;
+  module.exports = LazyComponent;
 });
 define("rebound-precompiler/rebound-precompiler", ["exports", "htmlbars"], function (exports, _htmlbars) {
   "use strict";
@@ -10517,41 +10488,70 @@ define("rebound-precompiler/rebound-precompiler", ["exports", "htmlbars"], funct
 
   exports.precompile = precompile;
 });
-define("rebound-router/lazy-component", ["exports", "module"], function (exports, module) {
+define("runtime", ["exports", "module", "rebound-component/utils", "rebound-component/helpers", "rebound-data/rebound-data", "rebound-component/component", "rebound-router/rebound-router"], function (exports, module, _reboundComponentUtils, _reboundComponentHelpers, _reboundDataReboundData, _reboundComponentComponent, _reboundRouterReboundRouter) {
   "use strict";
 
-  // Services keep track of their consumers. LazyComponent are placeholders
-  // for services that haven't loaded yet. A LazyComponent mimics the api of a
-  // real service/component (they are the same), and when the service finally
-  // loads, its ```hydrate``` method is called. All consumers of the service will
-  // have the now fully loaded service set, the LazyService will transfer all of
-  // its consumers over to the fully loaded service, and then destroy itself.
-  function LazyComponent() {
-    this.isService = true;
-    this.isComponent = true;
-    this.isModel = true;
-    this.attributes = {};
-    this.consumers = [];
-    this.set = this.on = this.off = function () {
-      return 1;
-    };
-    this.get = function (path) {
-      return path ? undefined : this;
-    };
-    this.hydrate = function (service) {
-      _.each(this.consumers, function (consumer) {
-        var component = consumer.component,
-            key = consumer.key;
-        if (component.attributes && component.set) component.set(key, service);
-        if (component.services) component.services[key] = service;
-        if (component.defaults) component.defaults[key] = service;
-      });
-      service.consumers = this.consumers;
-      delete this.consumers;
-    };
-  }
+  //     Rebound.js 0.0.60
 
-  module.exports = LazyComponent;
+  //     (c) 2015 Adam Miller
+  //     Rebound may be freely distributed under the MIT license.
+  //     For all details and documentation:
+  //     http://reboundjs.com
+
+  // Rebound Runtime
+  // ----------------
+
+  // If Backbone isn't preset on the page yet, or if `window.Rebound` is already
+  // in use, throw an error
+  if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";
+
+  // Load our **Utils**, helper environment, **Rebound Data**,
+  // **Rebound Components** and the **Rebound Router**
+  var utils = to5Runtime.interopRequire(_reboundComponentUtils);
+
+  var helpers = to5Runtime.interopRequire(_reboundComponentHelpers);
+
+  var Model = _reboundDataReboundData.Model;
+  var Collection = _reboundDataReboundData.Collection;
+  var ComputedProperty = _reboundDataReboundData.ComputedProperty;
+  var Component = to5Runtime.interopRequire(_reboundComponentComponent);
+
+  var Router = to5Runtime.interopRequire(_reboundRouterReboundRouter);
+
+  // If Backbone doesn't have an ajax method from an external DOM library, use ours
+  window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || utils.ajax;
+
+  // Create Global Rebound Object
+  var Rebound = {
+    services: {},
+    registerHelper: helpers.registerHelper,
+    registerPartial: helpers.registerPartial,
+    registerComponent: Component.register,
+    Model: Model,
+    Collection: Collection,
+    ComputedProperty: ComputedProperty,
+    Component: Component,
+    start: function (options) {
+      return new Promise(function (resolve, reject) {
+        var run = function () {
+          if (document.readyState !== "complete") return;
+          Rebound.router = new Router(options, resolve);
+        };
+
+        if (document.readyState === "complete") return run();
+        document.addEventListener("readystatechange", run);
+      });
+    }
+  };
+
+  // Fetch Rebound's Config Object from Rebound's `script` tag
+  var Config = document.getElementById("Rebound");
+  Config = Config ? Config.innerHTML : false;
+
+  // Start the router if a config object is preset
+  if (Config) Rebound.start(JSON.parse(Config));
+
+  module.exports = Rebound;
 });
 define("rebound-component/helpers", ["exports", "module", "rebound-component/lazy-value", "rebound-component/utils"], function (exports, module, _reboundComponentLazyValue, _reboundComponentUtils) {
   "use strict";
@@ -13133,8 +13133,17 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       });
 
 
-      // If an outlet marker is present in component's template, and a template is provided, render it into <content>
-      outlet = element.getElementsByTagName("content")[0];
+      // Walk the dom, without traversing into other custom elements, and search for
+      // `<content>` outlets to render templates into.
+      $(element).walkTheDOM(function (el) {
+        if (element === el) return true;
+        if (el.tagName === "CONTENT") outlet = el;
+        if (el.tagName.indexOf("-") > -1) return false;
+        return true;
+      });
+
+      // If a `<content>` outlet is present in component's template, and a template
+      // is provided, render it into the outlet
       if (template && _.isElement(outlet)) {
         outlet.innerHTML = "";
         outlet.appendChild(template.render(context, env, outlet));
@@ -13179,6 +13188,9 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
   var ComputedProperty = to5Runtime.interopRequire(_reboundDataComputedProperty);
 
   var $ = to5Runtime.interopRequire(_reboundComponentUtils);
+
+
+
 
   // Returns a function that, when called, generates a path constructed from its
   // parent's path and the key it is assigned to. Keeps us from re-naming children
@@ -13826,13 +13838,16 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
     },
 
     // Applies function `func` depth first to every node in the subtree starting from `root`
+    // If the callback returns `false`, short circuit that tree.
     walkTheDOM: function (func) {
       var el,
           root,
-          len = this.length;
+          len = this.length,
+          result;
       while (len--) {
         root = this[len];
-        func(root);
+        result = func(root);
+        if (result === false) return;
         root = root.firstChild;
         while (root) {
           $(root).walkTheDOM(func);
