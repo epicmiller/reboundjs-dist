@@ -8,6 +8,10 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
 
   var LazyComponent = to5Runtime.interopRequire(_reboundRouterLazyComponent);
 
+  var DEFAULT_404_PAGE = "<div style=\"display: block;text-align: center;font-size: 22px;\">\n  <h1 style=\"margin-top: 60px;\">\n    Oops! We couldn't find this page.\n  </h1>\n  <a href=\"#\" onclick=\"window.history.back();return false;\" style=\"display: block;text-decoration: none;margin-top: 30px;\">\n    Take me back\n  </a>\n</div>";
+
+  var ERROR_ROUTE_NAME = "error";
+
   // Overload Backbone's loadUrl so it returns the value of the routed callback
   // instead of undefined
   Backbone.history.loadUrl = function (fragment) {
@@ -24,6 +28,8 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
 
   // ReboundRouter Constructor
   var ReboundRouter = Backbone.Router.extend({
+
+    loadedError: true,
 
     // By default there is one route. The wildcard route fetches the required
     // page assets based on user-defined naming convention.
@@ -58,7 +64,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
 
       // Always return a promise
       return new Promise(function (resolve, reject) {
-        if (resp && resp.constructor === Promise) resp.then(resolve);
+        if (resp && resp.constructor === Promise) resp.then(resolve, reject);
         resolve(resp);
       });
     },
@@ -102,6 +108,11 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       // Save our config referance
       this.config = options;
       this.config.handlers = [];
+
+      // Allow user to override error route
+      ERROR_ROUTE_NAME = this.config.errorRoute || ERROR_ROUTE_NAME;
+
+      // Use the user provided container, or default to the closest `<content>` tag
       var container = this.config.container = $(this.config.container || "content")[0];
 
       // Convert our routeMappings to regexps and push to our handlers
@@ -178,6 +189,9 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       // Un-hook Event Bindings, Delete Objects
       this.current.data.deinitialize();
 
+      // Now we no longer have a page installed.
+      this.current = undefined;
+
       // Disable old css if it exists
       setTimeout(function () {
         document.getElementById(oldPageName + "-css").setAttribute("disabled", true);
@@ -234,7 +248,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       return pageInstance;
     },
 
-    // Fetches Pare HTML and CSS
+    // Fetches HTML and CSS
     _fetchResource: function (route, container) {
       var _this5 = this;
       var jsUrl,
@@ -250,11 +264,6 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
 
       // Get the root of this route
       appName = primaryRoute = route ? route.split("/")[0] : "index";
-
-      // If Page Is Already Loaded Then The Route Does Not Exist. 404 and Exit.
-      if (this.current && this.current.name === primaryRoute) {
-        return this._fetchResource("error", container);
-      }
 
       // Find Any Custom Route Mappings
       _.any(this.config.handlers, function (handler) {
@@ -273,16 +282,28 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       // This promise resolves when both css and js resources are loaded
       // It rejects if either of the css or js resources fails to load.
       return new Promise(function (resolve, reject) {
+        var thrown = false;
+
         var defaultError = function (err) {
-          console.error("Could not " + (isService ? "load the " + route + " service:" : "find the " + route + " page:") + "\n  - CSS Url: " + cssUrl + "\n  - JavaScript Url: " + jsUrl);
-
-          if (isService) return reject(err);
-
-          _this5._uninstallResource();
-
-          container.innerHTML = "\n          <div style=\"\n            display: block;\n            text-align: center;\n            font-size: 22px;\n            color: rgba(0,0,0,.75);\n            margin-top: 60px;\n            text-shadow: 0 1px 0 rgba(255,255,255,.75);\"\n          >\n          Oops! We couldn't find this page.\n          <a href=\"#\" onclick=\"window.history.back();return false;\"\n            style=\"\n              display: block;\n              text-align: center;\n              text-decoration: none;\n              margin-top: 30px;\n          \">Take me back</a>\n          </div>";
+          if (!isService) {
+            _this5._uninstallResource();
+            container.innerHTML = DEFAULT_404_PAGE;
+          }
           reject(err);
         };
+
+        var throwError = function (err) {
+          if (route === ERROR_ROUTE_NAME) return defaultError();
+          if (thrown) return;
+          thrown = true;
+          console.error("Could not " + (isService ? "load the " + route + " service:" : "find the " + route + " page:") + "\n  - CSS Url: " + cssUrl + "\n  - JavaScript Url: " + jsUrl);
+          _this5._fetchResource(ERROR_ROUTE_NAME, container).then(reject, reject);
+        };
+
+        // If Page Is Already Loaded Then The Route Does Not Exist. 404 and Exit.
+        if (_this5.current && _this5.current.name === primaryRoute && window.Rebound.router.loadedError) {
+          return throwError();
+        }
 
         // If this css element is not on the page already, it hasn't been loaded before -
         // create the element and load the css resource.
@@ -300,36 +321,37 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
             }
           });
           $(cssElement).on("error", function (err) {
-            if (!container.classList.contains("error")) {
-              container.classList.add("error");
-              _this5._fetchResource("error/" + (isService ? appName : "page"), container).then(reject, defaultError);
-            } else {
-              reject(err);
-            }
+            cssElement.dataset.error = "";
+            throwError();
           });
           document.head.appendChild(cssElement);
         } else {
-          cssElement && cssElement.removeAttribute("disabled");
-          cssLoaded = true;
+          if (cssElement.hasAttribute("data-error")) {
+            return throwError();
+          }
+          if ((cssLoaded = true) && jsLoaded) {
+            cssElement && cssElement.removeAttribute("disabled");
+            cssLoaded = true;
+          }
         }
 
         // AMD will manage dependancies for us. Load the JavaScript.
         window.require([jsUrl], function (c) {
+          jsElement = $("script[src=\"" + jsUrl + "\"]")[0];
+          jsElement.setAttribute("id", appName + "-js");
           if ((jsLoaded = true) && (PageClass = c) && cssLoaded) {
+            cssElement && cssElement.removeAttribute("disabled");
             _this5._installResource(PageClass, appName, container);
             resolve(_this5);
           }
-        }, function (err) {
-          if (!container.classList.contains("error")) {
-            container.classList.add("error");
-            _this5._fetchResource("error", container).then(reject, defaultError);
-          } else {
-            reject(err);
-          }
+        }, function () {
+          jsElement = $("script[src=\"" + jsUrl + "\"]")[0];
+          jsElement.setAttribute("id", appName + "-js");
+          jsElement.dataset.error = "";
+          throwError();
         });
       });
     }
-
   });
 
   module.exports = ReboundRouter;
