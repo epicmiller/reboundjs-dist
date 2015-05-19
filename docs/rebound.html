@@ -2932,7 +2932,9 @@ Component.extend= <span class="hljs-function"><span class="hljs-keyword">functio
             
             <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">var</span> Surrogate = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{ <span class="hljs-keyword">this</span>.constructor = child; };
   Surrogate.prototype = parent.prototype;
-  child.prototype = <span class="hljs-keyword">new</span> Surrogate();</pre></div></div>
+  child.prototype = <span class="hljs-keyword">new</span> Surrogate();
+
+  $.extractComputedProps(protoProps);</pre></div></div>
             
         </li>
         
@@ -2964,8 +2966,6 @@ Component.extend= <span class="hljs-function"><span class="hljs-keyword">functio
             </div>
             
             <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">if</span>(!protoProps.hasOwnProperty(key) || configProperties[key]) <span class="hljs-keyword">continue</span>;
-
-    $.extractComputedProps(protoProps)
 
     <span class="hljs-keyword">let</span> value = protoProps[key];</pre></div></div>
             
@@ -5159,7 +5159,10 @@ Right now, DOM that contains morphs throw an error if it is removed by another l
   &lt;/a&gt;
 &lt;/div&gt;`</span>;
 
-<span class="hljs-keyword">var</span> ERROR_ROUTE_NAME = <span class="hljs-string">'error'</span>;</pre></div></div>
+<span class="hljs-keyword">var</span> ERROR_ROUTE_NAME = <span class="hljs-string">'error'</span>;
+<span class="hljs-keyword">var</span> SUCCESS = <span class="hljs-string">'success'</span>;
+<span class="hljs-keyword">var</span> ERROR = <span class="hljs-string">'error'</span>;
+<span class="hljs-keyword">var</span> LOADING = <span class="hljs-string">'loading'</span>;</pre></div></div>
             
         </li>
         
@@ -5202,7 +5205,7 @@ instead of undefined</p>
             
             <div class="content"><div class='highlight'><pre><span class="hljs-keyword">var</span> ReboundRouter = Backbone.Router.extend({
 
-  loadedError: <span class="hljs-literal">true</span>,</pre></div></div>
+  status: SUCCESS, <span class="hljs-comment">// loading, success or error</span></pre></div></div>
             
         </li>
         
@@ -5684,7 +5687,8 @@ This is crucial for scalability of a single page app.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    setTimeout(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{
+            <div class="content"><div class='highlight'><pre>    setTimeout(() =&gt; {
+      <span class="hljs-keyword">if</span>(<span class="hljs-keyword">this</span>.status = ERROR) <span class="hljs-keyword">return</span>;
       <span class="hljs-built_in">document</span>.getElementById(oldPageName + <span class="hljs-string">'-css'</span>).setAttribute(<span class="hljs-string">'disabled'</span>, <span class="hljs-literal">true</span>);
     }, <span class="hljs-number">500</span>);
 
@@ -5925,7 +5929,7 @@ It rejects if either of the css or js resources fails to load.</p>
             
             <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Promise</span>((resolve, reject) =&gt; {
 
-      <span class="hljs-keyword">var</span> thrown = <span class="hljs-literal">false</span>;
+      <span class="hljs-keyword">this</span>.status = LOADING;
 
       <span class="hljs-keyword">var</span> defaultError = (err) =&gt; {
         <span class="hljs-keyword">if</span>(!isService){
@@ -5937,8 +5941,8 @@ It rejects if either of the css or js resources fails to load.</p>
 
       <span class="hljs-keyword">var</span> throwError = (err) =&gt; {
         <span class="hljs-keyword">if</span>(route === ERROR_ROUTE_NAME) <span class="hljs-keyword">return</span> defaultError()
-        <span class="hljs-keyword">if</span>(thrown) <span class="hljs-keyword">return</span>;
-        thrown = <span class="hljs-literal">true</span>;
+        <span class="hljs-keyword">if</span>(<span class="hljs-keyword">this</span>.status === ERROR) <span class="hljs-keyword">return</span>;
+        <span class="hljs-keyword">this</span>.status = ERROR;
         <span class="hljs-built_in">console</span>.error(<span class="hljs-string">'Could not '</span> + ((isService) ? <span class="hljs-string">'load the '</span> + route + <span class="hljs-string">' service:'</span> : <span class="hljs-string">'find the '</span> + route + <span class="hljs-string">' page:'</span>) +
                       <span class="hljs-string">'\n  - CSS Url: '</span>+ cssUrl +
                       <span class="hljs-string">'\n  - JavaScript Url: '</span> + jsUrl);
@@ -5958,7 +5962,7 @@ It rejects if either of the css or js resources fails to load.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.current &amp;&amp; <span class="hljs-keyword">this</span>.current.name === primaryRoute &amp;&amp; <span class="hljs-built_in">window</span>.Rebound.router.loadedError) {
+            <div class="content"><div class='highlight'><pre>      <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.current &amp;&amp; <span class="hljs-keyword">this</span>.current.name === primaryRoute) {
         <span class="hljs-keyword">return</span> throwError();
       }</pre></div></div>
             
@@ -5985,6 +5989,7 @@ Else if the css resource has been loaded before, enable it</p>
         cssElement.setAttribute(<span class="hljs-string">'id'</span>, appName + <span class="hljs-string">'-css'</span>);
         $(cssElement).on(<span class="hljs-string">'load'</span>, (event) =&gt; {
             <span class="hljs-keyword">if</span>((cssLoaded = <span class="hljs-literal">true</span>) &amp;&amp; jsLoaded){
+              <span class="hljs-keyword">this</span>.status = SUCCESS;
               <span class="hljs-keyword">this</span>._installResource(PageClass, appName, container);
               resolve(<span class="hljs-keyword">this</span>);
             }
@@ -6019,6 +6024,7 @@ Else if the css resource has been loaded before, enable it</p>
         jsElement = $(<span class="hljs-string">'script[src="'</span>+jsUrl+<span class="hljs-string">'"]'</span>)[<span class="hljs-number">0</span>]
         jsElement.setAttribute(<span class="hljs-string">'id'</span>, appName + <span class="hljs-string">'-js'</span>);
         <span class="hljs-keyword">if</span>((jsLoaded = <span class="hljs-literal">true</span>) &amp;&amp; (PageClass = c) &amp;&amp; cssLoaded){
+          <span class="hljs-keyword">this</span>.status = SUCCESS;
           cssElement &amp;&amp; cssElement.removeAttribute(<span class="hljs-string">'disabled'</span>);
           <span class="hljs-keyword">this</span>._installResource(PageClass, appName, container);
           resolve(<span class="hljs-keyword">this</span>);

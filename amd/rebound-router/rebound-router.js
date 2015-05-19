@@ -11,6 +11,9 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
   var DEFAULT_404_PAGE = "<div style=\"display: block;text-align: center;font-size: 22px;\">\n  <h1 style=\"margin-top: 60px;\">\n    Oops! We couldn't find this page.\n  </h1>\n  <a href=\"#\" onclick=\"window.history.back();return false;\" style=\"display: block;text-decoration: none;margin-top: 30px;\">\n    Take me back\n  </a>\n</div>";
 
   var ERROR_ROUTE_NAME = "error";
+  var SUCCESS = "success";
+  var ERROR = "error";
+  var LOADING = "loading";
 
   // Overload Backbone's loadUrl so it returns the value of the routed callback
   // instead of undefined
@@ -29,7 +32,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
   // ReboundRouter Constructor
   var ReboundRouter = Backbone.Router.extend({
 
-    loadedError: true,
+    status: SUCCESS, // loading, success or error
 
     // By default there is one route. The wildcard route fetches the required
     // page assets based on user-defined naming convention.
@@ -194,6 +197,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
 
       // Disable old css if it exists
       setTimeout(function () {
+        if (_this3.status = ERROR) return;
         document.getElementById(oldPageName + "-css").setAttribute("disabled", true);
       }, 500);
     },
@@ -282,7 +286,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       // This promise resolves when both css and js resources are loaded
       // It rejects if either of the css or js resources fails to load.
       return new Promise(function (resolve, reject) {
-        var thrown = false;
+        _this5.status = LOADING;
 
         var defaultError = function (err) {
           if (!isService) {
@@ -294,14 +298,14 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
 
         var throwError = function (err) {
           if (route === ERROR_ROUTE_NAME) return defaultError();
-          if (thrown) return;
-          thrown = true;
+          if (_this5.status === ERROR) return;
+          _this5.status = ERROR;
           console.error("Could not " + (isService ? "load the " + route + " service:" : "find the " + route + " page:") + "\n  - CSS Url: " + cssUrl + "\n  - JavaScript Url: " + jsUrl);
           _this5._fetchResource(ERROR_ROUTE_NAME, container).then(reject, reject);
         };
 
         // If Page Is Already Loaded Then The Route Does Not Exist. 404 and Exit.
-        if (_this5.current && _this5.current.name === primaryRoute && window.Rebound.router.loadedError) {
+        if (_this5.current && _this5.current.name === primaryRoute) {
           return throwError();
         }
 
@@ -316,6 +320,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
           cssElement.setAttribute("id", appName + "-css");
           $(cssElement).on("load", function (event) {
             if ((cssLoaded = true) && jsLoaded) {
+              _this5.status = SUCCESS;
               _this5._installResource(PageClass, appName, container);
               resolve(_this5);
             }
@@ -340,6 +345,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
           jsElement = $("script[src=\"" + jsUrl + "\"]")[0];
           jsElement.setAttribute("id", appName + "-js");
           if ((jsLoaded = true) && (PageClass = c) && cssLoaded) {
+            _this5.status = SUCCESS;
             cssElement && cssElement.removeAttribute("disabled");
             _this5._installResource(PageClass, appName, container);
             resolve(_this5);

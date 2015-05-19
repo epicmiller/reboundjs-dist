@@ -328,6 +328,8 @@ Component.extend = function (protoProps, staticProps) {
   Surrogate.prototype = parent.prototype;
   child.prototype = new Surrogate();
 
+  $.extractComputedProps(protoProps);
+
   // For each property passed into our component base class
   for (var key in protoProps) {
     var get = undefined,
@@ -335,8 +337,6 @@ Component.extend = function (protoProps, staticProps) {
 
     // If a configuration property, or not actually on the obj, ignore it
     if (!protoProps.hasOwnProperty(key) || configProperties[key]) continue;
-
-    $.extractComputedProps(protoProps);
 
     var value = protoProps[key];
 

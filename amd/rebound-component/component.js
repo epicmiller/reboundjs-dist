@@ -325,6 +325,8 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "rebou
     Surrogate.prototype = parent.prototype;
     child.prototype = new Surrogate();
 
+    $.extractComputedProps(protoProps);
+
     // For each property passed into our component base class
     for (var key in protoProps) {
       var get = undefined,
@@ -332,8 +334,6 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "rebou
 
       // If a configuration property, or not actually on the obj, ignore it
       if (!protoProps.hasOwnProperty(key) || configProperties[key]) continue;
-
-      $.extractComputedProps(protoProps);
 
       var value = protoProps[key];
 
