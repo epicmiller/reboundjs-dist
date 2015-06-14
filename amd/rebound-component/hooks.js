@@ -544,9 +544,9 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
     // If a `<content>` outlet is present in component's template, and a template
     // is provided, render it into the outlet
-    if (templates.template && _.isElement(outlet)) {
+    if (templates["default"] && _.isElement(outlet)) {
       outlet.innerHTML = "";
-      outlet.appendChild(_render2["default"]["default"](templates.template, env, scope, {}).fragment);
+      outlet.appendChild(_render2["default"]["default"](templates["default"], env, scope, {}).fragment);
     }
 
     morph.setNode(element);

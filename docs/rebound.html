@@ -4491,9 +4491,9 @@ is provided, render it into the outlet</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span>(templates.template &amp;&amp; _.isElement(outlet)){
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span>(templates.default &amp;&amp; _.isElement(outlet)){
     outlet.innerHTML = <span class="hljs-string">''</span>;
-    outlet.appendChild(render.default(templates.template, env, scope, {}).fragment);
+    outlet.appendChild(render.default(templates.default, env, scope, {}).fragment);
   }
 
   morph.setNode(element);
