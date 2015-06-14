@@ -1,16 +1,19 @@
-"use strict";
-
 /*jshint -W054 */
 // jshint ignore: start
 
 // A second optional argument can be given to further configure
 // the parser process. These options are recognized:
 
-var exports = {};
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+var _exports = {};
 
 var options, input, inputLen, sourceFile;
 
-var defaultOptions = exports.defaultOptions = {
+var defaultOptions = _exports.defaultOptions = {
   // `ecmaVersion` indicates the ECMAScript version to parse. Must
   // be either 3, or 5, or 6. This influences support for strict
   // mode, the set of reserved words, support for getters and
@@ -83,7 +86,7 @@ function setOptions(opts) {
 // offset. `input` should be the code string that the offset refers
 // into.
 
-var getLineInfo = exports.getLineInfo = function (input, offset) {
+var getLineInfo = _exports.getLineInfo = function (input, offset) {
   for (var line = 1, cur = 0;;) {
     lineBreak.lastIndex = cur;
     var match = lineBreak.exec(input);
@@ -102,21 +105,20 @@ var getLineInfo = exports.getLineInfo = function (input, offset) {
 // very modular. Performing another parse or call to `tokenize` will
 // reset the internal state, and invalidate existing tokenizers.
 
-exports.tokenize = function (inpt, opts) {
-  var getToken = function (forceRegexp) {
+_exports.tokenize = function (inpt, opts) {
+  input = String(inpt);inputLen = input.length;
+  setOptions(opts);
+  initTokenState();
+
+  var t = {};
+  function getToken(forceRegexp) {
     lastEnd = tokEnd;
     readToken(forceRegexp);
     t.start = tokStart;t.end = tokEnd;
     t.startLoc = tokStartLoc;t.endLoc = tokEndLoc;
     t.type = tokType;t.value = tokVal;
     return t;
-  };
-
-  input = String(inpt);inputLen = input.length;
-  setOptions(opts);
-  initTokenState();
-
-  var t = {};
+  }
   getToken.jumpTo = function (pos, reAllowed) {
     tokPos = pos;
     if (options.locations) {
@@ -336,11 +338,11 @@ var _multiplyModulo = { binop: 10, beforeExpr: true };
 // Provide access to the token types for external users of the
 // tokenizer.
 
-exports.tokTypes = { bracketL: _bracketL, bracketR: _bracketR, braceL: _braceL, braceR: _braceR,
+_exports.tokTypes = { bracketL: _bracketL, bracketR: _bracketR, braceL: _braceL, braceR: _braceR,
   parenL: _parenL, parenR: _parenR, comma: _comma, semi: _semi, colon: _colon,
   dot: _dot, ellipsis: _ellipsis, question: _question, slash: _slash, eq: _eq,
   name: _name, eof: _eof, num: _num, regexp: _regexp, string: _string };
-for (var kw in keywordTypes) exports.tokTypes["_" + kw] = keywordTypes[kw];
+for (var kw in keywordTypes) _exports.tokTypes["_" + kw] = keywordTypes[kw];
 
 // This is a trick taken from Esprima. It turns out that, on
 // non-Chrome browsers, to check whether a string is in a set, a
@@ -352,13 +354,6 @@ for (var kw in keywordTypes) exports.tokTypes["_" + kw] = keywordTypes[kw];
 // It starts by sorting the words by length.
 
 function makePredicate(words) {
-  var compareTo = function (arr) {
-    if (arr.length == 1) return f += "return str === " + JSON.stringify(arr[0]) + ";";
-    f += "switch(str){";
-    for (var i = 0; i < arr.length; ++i) f += "case " + JSON.stringify(arr[i]) + ":";
-    f += "return true}return false;";
-  };
-
   words = words.split(" ");
   var f = "",
       cats = [];
@@ -369,7 +364,12 @@ function makePredicate(words) {
     }
     cats.push([words[i]]);
   }
-
+  function compareTo(arr) {
+    if (arr.length == 1) return f += "return str === " + JSON.stringify(arr[0]) + ";";
+    f += "switch(str){";
+    for (var i = 0; i < arr.length; ++i) f += "case " + JSON.stringify(arr[i]) + ":";
+    f += "return true}return false;";
+  }
 
   // When there are more than three length categories, an outer
   // switch first dispatches on the lengths, to save on comparisons.
@@ -443,7 +443,7 @@ var lineBreak = /\r\n|[\n\r\u2028\u2029]/g;
 
 // Test whether a given character code starts an identifier.
 
-var isIdentifierStart = exports.isIdentifierStart = function (code) {
+var isIdentifierStart = _exports.isIdentifierStart = function (code) {
   if (code < 65) return code === 36;
   if (code < 91) return true;
   if (code < 97) return code === 95;
@@ -453,7 +453,7 @@ var isIdentifierStart = exports.isIdentifierStart = function (code) {
 
 // Test whether a given character is part of an identifier.
 
-var isIdentifierChar = exports.isIdentifierChar = function (code) {
+var isIdentifierChar = _exports.isIdentifierChar = function (code) {
   if (code < 48) return code === 36;
   if (code < 58) return true;
   if (code < 65) return false;
@@ -711,21 +711,12 @@ function getTokenFromCode(code) {
     // Anything else beginning with a digit is an integer, octal
     // number, or float.
     /* falls through */
-    case 49:
-    case 50:
-    case 51:
-    case 52:
-    case 53:
-    case 54:
-    case 55:
-    case 56:
-    case 57:
+    case 49:case 50:case 51:case 52:case 53:case 54:case 55:case 56:case 57:
       // 1-9
       return readNumber(false);
 
     // Quotes produce strings.
-    case 34:
-    case 39:
+    case 34:case 39:
       // '"', "'"
       return readString(code);
 
@@ -738,13 +729,11 @@ function getTokenFromCode(code) {
       // '/'
       return readToken_slash();
 
-    case 37:
-    case 42:
+    case 37:case 42:
       // '%*'
       return readToken_mult_modulo();
 
-    case 124:
-    case 38:
+    case 124:case 38:
       // '|&'
       return readToken_pipe_amp(code);
 
@@ -752,18 +741,15 @@ function getTokenFromCode(code) {
       // '^'
       return readToken_caret();
 
-    case 43:
-    case 45:
+    case 43:case 45:
       // '+-'
       return readToken_plus_min(code);
 
-    case 60:
-    case 62:
+    case 60:case 62:
       // '<>'
       return readToken_lt_gt(code);
 
-    case 61:
-    case 33:
+    case 61:case 33:
       // '=!'
       return readToken_eq_excl(code);
 
@@ -1023,5 +1009,5 @@ function readWord() {
   return finishToken(type, word);
 }
 
-
-module.exports = { tokenize: exports.tokenize };
+exports["default"] = { tokenize: _exports.tokenize };
+module.exports = exports["default"];

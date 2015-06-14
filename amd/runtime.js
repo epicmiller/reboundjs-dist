@@ -1,6 +1,4 @@
 define("runtime", ["exports", "module", "rebound-component/utils", "rebound-component/helpers", "rebound-data/rebound-data", "rebound-component/component", "rebound-router/rebound-router"], function (exports, module, _reboundComponentUtils, _reboundComponentHelpers, _reboundDataReboundData, _reboundComponentComponent, _reboundRouterReboundRouter) {
-  "use strict";
-
   //     Rebound.js 0.0.60
 
   //     (c) 2015 Adam Miller
@@ -13,41 +11,42 @@ define("runtime", ["exports", "module", "rebound-component/utils", "rebound-comp
 
   // If Backbone isn't preset on the page yet, or if `window.Rebound` is already
   // in use, throw an error
-  if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";
+  "use strict";
+
+  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
 
   // Load our **Utils**, helper environment, **Rebound Data**,
   // **Rebound Components** and the **Rebound Router**
-  var utils = to5Runtime.interopRequire(_reboundComponentUtils);
 
-  var helpers = to5Runtime.interopRequire(_reboundComponentHelpers);
+  var _utils = _interopRequireDefault(_reboundComponentUtils);
 
-  var Model = _reboundDataReboundData.Model;
-  var Collection = _reboundDataReboundData.Collection;
-  var ComputedProperty = _reboundDataReboundData.ComputedProperty;
-  var Component = to5Runtime.interopRequire(_reboundComponentComponent);
+  var _helpers = _interopRequireDefault(_reboundComponentHelpers);
 
-  var Router = to5Runtime.interopRequire(_reboundRouterReboundRouter);
+  var _Component = _interopRequireDefault(_reboundComponentComponent);
+
+  var _Router = _interopRequireDefault(_reboundRouterReboundRouter);
+
+  if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";
 
   // If Backbone doesn't have an ajax method from an external DOM library, use ours
-  window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || utils.ajax;
+  window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || _utils["default"].ajax;
 
   // Create Global Rebound Object
   var Rebound = {
     services: {},
-    registerHelper: helpers.registerHelper,
-    registerPartial: helpers.registerPartial,
-    registerComponent: Component.register,
-    Model: Model,
-    Collection: Collection,
-    ComputedProperty: ComputedProperty,
-    Component: Component,
-    start: function (options) {
+    registerHelper: _helpers["default"].registerHelper,
+    registerPartial: _helpers["default"].registerPartial,
+    registerComponent: _Component["default"].registerComponent,
+    Model: _reboundDataReboundData.Model,
+    Collection: _reboundDataReboundData.Collection,
+    ComputedProperty: _reboundDataReboundData.ComputedProperty,
+    Component: _Component["default"],
+    start: function start(options) {
       return new Promise(function (resolve, reject) {
-        var run = function () {
+        function run() {
           if (document.readyState !== "complete") return;
-          Rebound.router = new Router(options, resolve);
-        };
-
+          Rebound.router = new _Router["default"](options, resolve);
+        }
         if (document.readyState === "complete") return run();
         document.addEventListener("readystatechange", run);
       });

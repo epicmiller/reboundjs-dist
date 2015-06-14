@@ -1,12 +1,14 @@
 define("rebound-data/collection", ["exports", "module", "rebound-data/model", "rebound-component/utils"], function (exports, module, _reboundDataModel, _reboundComponentUtils) {
-  "use strict";
-
   // Rebound Collection
   // ----------------
 
-  var Model = to5Runtime.interopRequire(_reboundDataModel);
+  "use strict";
 
-  var $ = to5Runtime.interopRequire(_reboundComponentUtils);
+  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
+  var _Model = _interopRequireDefault(_reboundDataModel);
+
+  var _$ = _interopRequireDefault(_reboundComponentUtils);
 
   function pathGenerator(collection) {
     return function () {
@@ -19,13 +21,13 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
     isCollection: true,
     isData: true,
 
-    model: this.model || Model,
+    model: _Model["default"],
 
-    __path: function () {
+    __path: function __path() {
       return "";
     },
 
-    constructor: function (models, options) {
+    constructor: function constructor(models, options) {
       models || (models = []);
       options || (options = {});
       this.__observers = {};
@@ -45,7 +47,8 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
       this.on("remove", function (model, collection, options) {});
     },
 
-    get: function (key, options) {
+    get: function get(key, options) {
+
       // If the key is a number or object, default to backbone's collection get
       if (typeof key == "number" || typeof key == "object") {
         return Backbone.Collection.prototype.get.call(this, key);
@@ -55,7 +58,7 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
       if (!_.isString(key)) return void 0;
 
       // Split the path at all '.', '[' and ']' and find the value referanced.
-      var parts = $.splitPath(key),
+      var parts = _$["default"].splitPath(key),
           result = this,
           l = parts.length,
           i = 0;
@@ -79,7 +82,7 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
       return result;
     },
 
-    set: function (models, options) {
+    set: function set(models, options) {
       var newModels = [],
           lineage = {
         parent: this,
@@ -93,7 +96,7 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
       models || (models = []);
 
       // If models is a string, call set at that path
-      if (_.isString(models)) return this.get($.splitPath(models)[0]).set($.splitPath(models).splice(1, models.length).join("."), options);
+      if (_.isString(models)) return this.get(_$["default"].splitPath(models)[0]).set(_$["default"].splitPath(models).splice(1, models.length).join("."), options);
       if (!_.isObject(models)) return console.error("Collection.set must be passed a Model, Object, array or Models and Objects, or another Collection");
 
       // If another collection, treat like an array

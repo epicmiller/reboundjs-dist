@@ -1,14 +1,14 @@
 define("rebound-component/utils", ["exports", "module"], function (exports, module) {
-  "use strict";
-
   // Rebound Utils
   // ----------------
 
-  var $ = function (query) {
+  "use strict";
+
+  var $ = function $(query) {
     return new utils(query);
   };
 
-  var utils = function (query) {
+  var utils = function utils(query) {
     var i,
         selector = _.isElement(query) && [query] || query === document && [document] || _.isString(query) && document.querySelectorAll(query) || [];
     this.length = selector.length;
@@ -26,6 +26,17 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
   }
   function returnTrue() {
     return true;
+  }
+
+  // Shim console for IE9
+  if (!(window.console && console.log)) {
+    console = {
+      log: function log() {},
+      debug: function debug() {},
+      info: function info() {},
+      warn: function warn() {},
+      error: function error() {}
+    };
   }
 
   $.Event = function (src, props) {
@@ -71,7 +82,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
     isPropagationStopped: returnFalse,
     isImmediatePropagationStopped: returnFalse,
 
-    preventDefault: function () {
+    preventDefault: function preventDefault() {
       var e = this.originalEvent;
 
       this.isDefaultPrevented = returnTrue;
@@ -80,7 +91,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
         e.preventDefault();
       }
     },
-    stopPropagation: function () {
+    stopPropagation: function stopPropagation() {
       var e = this.originalEvent;
 
       this.isPropagationStopped = returnTrue;
@@ -89,7 +100,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
         e.stopPropagation();
       }
     },
-    stopImmediatePropagation: function () {
+    stopImmediatePropagation: function stopImmediatePropagation() {
       var e = this.originalEvent;
 
       this.isImmediatePropagationStopped = returnTrue;
@@ -102,12 +113,11 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
     }
   };
 
-
   utils.prototype = {
 
     // Given a valid data path, split it into an array of its parts.
     // ex: foo.bar[0].baz --> ['foo', 'var', '0', 'baz']
-    splitPath: function (path) {
+    splitPath: function splitPath(path) {
       path = ("." + path + ".").split(/(?:\.|\[|\])+/);
       path.pop();
       path.shift();
@@ -116,7 +126,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
 
     // Applies function `func` depth first to every node in the subtree starting from `root`
     // If the callback returns `false`, short circuit that tree.
-    walkTheDOM: function (func) {
+    walkTheDOM: function walkTheDOM(func) {
       var el,
           root,
           len = this.length,
@@ -135,7 +145,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
 
     // Searches each key in an object and tests if the property has a lookupGetter or
     // lookupSetter. If either are preset convert the property into a computed property.
-    extractComputedProps: function (obj) {
+    extractComputedProps: function extractComputedProps(obj) {
       for (var key in obj) {
         var get = undefined,
             set = undefined;
@@ -154,7 +164,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
     _events: {},
 
     // Takes the targed the event fired on and returns all callbacks for the delegated element
-    _hasDelegate: function (target, delegate, eventType) {
+    _hasDelegate: function _hasDelegate(target, delegate, eventType) {
       var callbacks = [];
 
       // Get our callbacks
@@ -170,7 +180,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
     },
 
     // Triggers an event on a given dom node
-    trigger: function (eventName, options) {
+    trigger: function trigger(eventName, options) {
       var el,
           len = this.length;
       while (len--) {
@@ -185,12 +195,13 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
       }
     },
 
-    off: function (eventType, handler) {
+    off: function off(eventType, handler) {
       var el,
           len = this.length,
           eventCount;
 
       while (len--) {
+
         el = this[len];
         eventCount = 0;
 
@@ -218,7 +229,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
       }
     },
 
-    on: function (eventName, delegate, data, handler) {
+    on: function on(eventName, delegate, data, handler) {
       var el,
           events = this._events,
           len = this.length,
@@ -248,19 +259,20 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
         delegateGroup = el.delegateGroup = el.delegateGroup || _.uniqueId("delegateGroup");
 
         _.each(eventNames, function (eventName) {
+
           // Ensure event obj existance
           events[delegateGroup] = events[delegateGroup] || {};
 
           // TODO: take out of loop
-          var callback = function (event) {
+          var callback = function callback(event) {
             var target, i, len, eventList, callbacks, callback, falsy;
             event = new $.Event(event || window.event); // Convert to mutable event
             target = event.target || event.srcElement;
-
-            // Travel from target up to parent firing event on delegate when it exizts
+            // Travel from target up to parent firing event on delegate when it exists
             while (target) {
+
               // Get all specified callbacks (element specific and selector specified)
-              callbacks = $._hasDelegate(el, target, event.type);
+              callbacks = $._hasDelegate(this, target, event.type);
 
               len = callbacks.length;
               for (i = 0; i < len; i++) {
@@ -284,10 +296,12 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
           // If this is the first event of its type, add the event handler
           // AddEventListener supports IE9+
           if (!events[delegateGroup][eventName]) {
+            // Because we're only attaching one callback per event type, this is okay.
+            // This also allows jquery's trigger method to actually fire delegated events
+            // el['on' + eventName] = callback;
             // If event is focus or blur, use capture to allow for event delegation.
             el.addEventListener(eventName, callback, eventName === "focus" || eventName === "blur");
           }
-
 
           // Add our listener
           events[delegateGroup][eventName] = events[delegateGroup][eventName] || {};
@@ -297,8 +311,9 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
       }
     },
 
-    flatten: function (data) {
-      var recurse = function (cur, prop) {
+    flatten: function flatten(data) {
+      var result = {};
+      function recurse(cur, prop) {
         if (Object(cur) !== cur) {
           result[prop] = cur;
         } else if (Array.isArray(cur)) {
@@ -312,21 +327,19 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
           }
           if (isEmpty && prop) result[prop] = {};
         }
-      };
-
-      var result = {};
+      }
       recurse(data, "");
       return result;
     },
 
-    unMarkLinks: function () {
+    unMarkLinks: function unMarkLinks() {
       var links = this[0].querySelectorAll("a[href=\"/" + Backbone.history.fragment + "\"]");
       for (var i = 0; i < links.length; i++) {
         links.item(i).classList.remove("active");
         links.item(i).active = false;
       }
     },
-    markLinks: function () {
+    markLinks: function markLinks() {
       var links = this[0].querySelectorAll("a[href=\"/" + Backbone.history.fragment + "\"]");
       for (var i = 0; i < links.length; i++) {
         links.item(i).classList.add("active");
@@ -335,13 +348,13 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
     },
 
     // http://krasimirtsonev.com/blog/article/Cross-browser-handling-of-Ajax-requests-in-absurdjs
-    ajax: function (ops) {
+    ajax: function ajax(ops) {
       if (typeof ops == "string") ops = { url: ops };
       ops.url = ops.url || "";
       ops.json = ops.json || true;
       ops.method = ops.method || "get";
       ops.data = ops.data || {};
-      var getParams = function (data, url) {
+      var getParams = function getParams(data, url) {
         var arr = [],
             str;
         for (var name in data) {
@@ -355,7 +368,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
       };
       var api = {
         host: {},
-        process: function (ops) {
+        process: function process(ops) {
           var self = this;
           this.xhr = null;
           if (window.ActiveXObject) {
@@ -400,19 +413,19 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
           }, 20);
           return this.xhr;
         },
-        done: function (callback) {
+        done: function done(callback) {
           this.doneCallback = callback;
           return this;
         },
-        fail: function (callback) {
+        fail: function fail(callback) {
           this.failCallback = callback;
           return this;
         },
-        always: function (callback) {
+        always: function always(callback) {
           this.alwaysCallback = callback;
           return this;
         },
-        setHeaders: function (headers) {
+        setHeaders: function setHeaders(headers) {
           for (var name in headers) {
             this.xhr && this.xhr.setRequestHeader(name, headers[name]);
           }
@@ -423,8 +436,6 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
   };
 
   _.extend($, utils.prototype);
-
-
 
   module.exports = $;
 });

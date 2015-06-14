@@ -1,12 +1,12 @@
 define("rebound-router/lazy-component", ["exports", "module"], function (exports, module) {
-  "use strict";
-
   // Services keep track of their consumers. LazyComponent are placeholders
   // for services that haven't loaded yet. A LazyComponent mimics the api of a
   // real service/component (they are the same), and when the service finally
   // loads, its ```hydrate``` method is called. All consumers of the service will
   // have the now fully loaded service set, the LazyService will transfer all of
   // its consumers over to the fully loaded service, and then destroy itself.
+  "use strict";
+
   function LazyComponent() {
     this.isService = true;
     this.isComponent = true;

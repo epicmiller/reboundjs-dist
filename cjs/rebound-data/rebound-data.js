@@ -1,29 +1,39 @@
-"use strict";
-
-var _interopRequire = function (obj) {
-  return obj && (obj["default"] || obj);
-};
-
 // Rebound Data
 // ----------------
 // These are methods inherited by all Rebound data types – **Models**,
 // **Collections** and **Computed Properties** – and control tree ancestry
 // tracking, deep event propagation and tree destruction.
 
-var Model = _interopRequire(require("rebound-data/model"));
+"use strict";
 
-var Collection = _interopRequire(require("rebound-data/collection"));
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
 
-var ComputedProperty = _interopRequire(require("rebound-data/computed-property"));
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
 
-var $ = _interopRequire(require("rebound-component/utils"));
+var _reboundDataModel = require("rebound-data/model");
+
+var _reboundDataModel2 = _interopRequireDefault(_reboundDataModel);
+
+var _reboundDataCollection = require("rebound-data/collection");
+
+var _reboundDataCollection2 = _interopRequireDefault(_reboundDataCollection);
+
+var _reboundDataComputedProperty = require("rebound-data/computed-property");
+
+var _reboundDataComputedProperty2 = _interopRequireDefault(_reboundDataComputedProperty);
+
+var _reboundComponentUtils = require("rebound-component/utils");
+
+var _reboundComponentUtils2 = _interopRequireDefault(_reboundComponentUtils);
 
 var sharedMethods = {
   // When a change event propagates up the tree it modifies the path part of
   // `change:<path>` to reflect the fully qualified path relative to that object.
   // Ex: Would trigger `change:val`, `change:[0].val`, `change:arr[0].val` and `obj.arr[0].val`
   // on each parent as it is propagated up the tree.
-  propagateEvent: function (type, model) {
+  propagateEvent: function propagateEvent(type, model) {
     if (this.__parent__ === this || type === "dirty") return;
     if (type.indexOf("change:") === 0 && model.isModel) {
       if (this.isCollection && ~type.indexOf("change:[")) return;
@@ -43,7 +53,7 @@ var sharedMethods = {
 
   // Set this data object's parent to `parent` and, as long as a data object is
   // not its own parent, propagate every event triggered on `this` up the tree.
-  setParent: function (parent) {
+  setParent: function setParent(parent) {
     if (this.__parent__) this.off("all", this.propagateEvent);
     this.__parent__ = parent;
     this._hasAncestry = true;
@@ -53,7 +63,7 @@ var sharedMethods = {
 
   // Recursively set a data tree's root element starting with `this` to the deepest child.
   // TODO: I dont like this recursively setting elements root when one element's root changes. Fix this.
-  setRoot: function (root) {
+  setRoot: function setRoot(root) {
     var obj = this;
     obj.__root__ = root;
     var val = obj.models || obj.attributes || obj.cache;
@@ -66,7 +76,7 @@ var sharedMethods = {
   },
 
   // Tests to see if `this` has a parent `obj`.
-  hasParent: function (obj) {
+  hasParent: function hasParent(obj) {
     var tmp = this;
     while (tmp !== obj) {
       tmp = tmp.__parent__;
@@ -78,9 +88,8 @@ var sharedMethods = {
   },
 
   // De-initializes a data tree starting with `this` and recursively calling `deinitialize()` on each child.
-  deinitialize: function () {
+  deinitialize: function deinitialize() {
     var _this = this;
-
 
     // Undelegate Backbone Events from this data object
     if (this.undelegateEvents) this.undelegateEvents();
@@ -101,7 +110,7 @@ var sharedMethods = {
         if (this.el.removeEventListener) this.el.removeEventListener(eventType, handler, false);
         if (this.el.detachEvent) this.el.detachEvent("on" + eventType, handler);
       }, this);
-      $(this.el).walkTheDOM(function (el) {
+      (0, _reboundComponentUtils2["default"])(this.el).walkTheDOM(function (el) {
         if (el.__lazyValue && el.__lazyValue.destroy()) n.__lazyValue.destroy();
       });
       delete this.el.__listeners;
@@ -134,10 +143,9 @@ var sharedMethods = {
 };
 
 // Extend all of the **Rebound Data** prototypes with these shared methods
-_.extend(Model.prototype, sharedMethods);
-_.extend(Collection.prototype, sharedMethods);
-_.extend(ComputedProperty.prototype, sharedMethods);
+_.extend(_reboundDataModel2["default"].prototype, sharedMethods);
+_.extend(_reboundDataCollection2["default"].prototype, sharedMethods);
+_.extend(_reboundDataComputedProperty2["default"].prototype, sharedMethods);
 
-exports.Model = Model;
-exports.Collection = Collection;
-exports.ComputedProperty = ComputedProperty;
+exports["default"] = { Model: _reboundDataModel2["default"], Collection: _reboundDataCollection2["default"], ComputedProperty: _reboundDataComputedProperty2["default"] };
+module.exports = exports["default"];

@@ -1,13 +1,16 @@
-"use strict";
-
 // Rebound Utils
 // ----------------
 
-var $ = function (query) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+var $ = function $(query) {
   return new utils(query);
 };
 
-var utils = function (query) {
+var utils = function utils(query) {
   var i,
       selector = _.isElement(query) && [query] || query === document && [document] || _.isString(query) && document.querySelectorAll(query) || [];
   this.length = selector.length;
@@ -25,6 +28,17 @@ function returnFalse() {
 }
 function returnTrue() {
   return true;
+}
+
+// Shim console for IE9
+if (!(window.console && console.log)) {
+  console = {
+    log: function log() {},
+    debug: function debug() {},
+    info: function info() {},
+    warn: function warn() {},
+    error: function error() {}
+  };
 }
 
 $.Event = function (src, props) {
@@ -70,7 +84,7 @@ $.Event.prototype = {
   isPropagationStopped: returnFalse,
   isImmediatePropagationStopped: returnFalse,
 
-  preventDefault: function () {
+  preventDefault: function preventDefault() {
     var e = this.originalEvent;
 
     this.isDefaultPrevented = returnTrue;
@@ -79,7 +93,7 @@ $.Event.prototype = {
       e.preventDefault();
     }
   },
-  stopPropagation: function () {
+  stopPropagation: function stopPropagation() {
     var e = this.originalEvent;
 
     this.isPropagationStopped = returnTrue;
@@ -88,7 +102,7 @@ $.Event.prototype = {
       e.stopPropagation();
     }
   },
-  stopImmediatePropagation: function () {
+  stopImmediatePropagation: function stopImmediatePropagation() {
     var e = this.originalEvent;
 
     this.isImmediatePropagationStopped = returnTrue;
@@ -101,12 +115,11 @@ $.Event.prototype = {
   }
 };
 
-
 utils.prototype = {
 
   // Given a valid data path, split it into an array of its parts.
   // ex: foo.bar[0].baz --> ['foo', 'var', '0', 'baz']
-  splitPath: function (path) {
+  splitPath: function splitPath(path) {
     path = ("." + path + ".").split(/(?:\.|\[|\])+/);
     path.pop();
     path.shift();
@@ -115,7 +128,7 @@ utils.prototype = {
 
   // Applies function `func` depth first to every node in the subtree starting from `root`
   // If the callback returns `false`, short circuit that tree.
-  walkTheDOM: function (func) {
+  walkTheDOM: function walkTheDOM(func) {
     var el,
         root,
         len = this.length,
@@ -134,7 +147,7 @@ utils.prototype = {
 
   // Searches each key in an object and tests if the property has a lookupGetter or
   // lookupSetter. If either are preset convert the property into a computed property.
-  extractComputedProps: function (obj) {
+  extractComputedProps: function extractComputedProps(obj) {
     for (var key in obj) {
       var get = undefined,
           set = undefined;
@@ -153,7 +166,7 @@ utils.prototype = {
   _events: {},
 
   // Takes the targed the event fired on and returns all callbacks for the delegated element
-  _hasDelegate: function (target, delegate, eventType) {
+  _hasDelegate: function _hasDelegate(target, delegate, eventType) {
     var callbacks = [];
 
     // Get our callbacks
@@ -169,7 +182,7 @@ utils.prototype = {
   },
 
   // Triggers an event on a given dom node
-  trigger: function (eventName, options) {
+  trigger: function trigger(eventName, options) {
     var el,
         len = this.length;
     while (len--) {
@@ -184,12 +197,13 @@ utils.prototype = {
     }
   },
 
-  off: function (eventType, handler) {
+  off: function off(eventType, handler) {
     var el,
         len = this.length,
         eventCount;
 
     while (len--) {
+
       el = this[len];
       eventCount = 0;
 
@@ -217,7 +231,7 @@ utils.prototype = {
     }
   },
 
-  on: function (eventName, delegate, data, handler) {
+  on: function on(eventName, delegate, data, handler) {
     var el,
         events = this._events,
         len = this.length,
@@ -247,19 +261,20 @@ utils.prototype = {
       delegateGroup = el.delegateGroup = el.delegateGroup || _.uniqueId("delegateGroup");
 
       _.each(eventNames, function (eventName) {
+
         // Ensure event obj existance
         events[delegateGroup] = events[delegateGroup] || {};
 
         // TODO: take out of loop
-        var callback = function (event) {
+        var callback = function callback(event) {
           var target, i, len, eventList, callbacks, callback, falsy;
           event = new $.Event(event || window.event); // Convert to mutable event
           target = event.target || event.srcElement;
-
-          // Travel from target up to parent firing event on delegate when it exizts
+          // Travel from target up to parent firing event on delegate when it exists
           while (target) {
+
             // Get all specified callbacks (element specific and selector specified)
-            callbacks = $._hasDelegate(el, target, event.type);
+            callbacks = $._hasDelegate(this, target, event.type);
 
             len = callbacks.length;
             for (i = 0; i < len; i++) {
@@ -283,10 +298,12 @@ utils.prototype = {
         // If this is the first event of its type, add the event handler
         // AddEventListener supports IE9+
         if (!events[delegateGroup][eventName]) {
+          // Because we're only attaching one callback per event type, this is okay.
+          // This also allows jquery's trigger method to actually fire delegated events
+          // el['on' + eventName] = callback;
           // If event is focus or blur, use capture to allow for event delegation.
           el.addEventListener(eventName, callback, eventName === "focus" || eventName === "blur");
         }
-
 
         // Add our listener
         events[delegateGroup][eventName] = events[delegateGroup][eventName] || {};
@@ -296,8 +313,9 @@ utils.prototype = {
     }
   },
 
-  flatten: function (data) {
-    var recurse = function (cur, prop) {
+  flatten: function flatten(data) {
+    var result = {};
+    function recurse(cur, prop) {
       if (Object(cur) !== cur) {
         result[prop] = cur;
       } else if (Array.isArray(cur)) {
@@ -311,21 +329,19 @@ utils.prototype = {
         }
         if (isEmpty && prop) result[prop] = {};
       }
-    };
-
-    var result = {};
+    }
     recurse(data, "");
     return result;
   },
 
-  unMarkLinks: function () {
+  unMarkLinks: function unMarkLinks() {
     var links = this[0].querySelectorAll("a[href=\"/" + Backbone.history.fragment + "\"]");
     for (var i = 0; i < links.length; i++) {
       links.item(i).classList.remove("active");
       links.item(i).active = false;
     }
   },
-  markLinks: function () {
+  markLinks: function markLinks() {
     var links = this[0].querySelectorAll("a[href=\"/" + Backbone.history.fragment + "\"]");
     for (var i = 0; i < links.length; i++) {
       links.item(i).classList.add("active");
@@ -334,13 +350,13 @@ utils.prototype = {
   },
 
   // http://krasimirtsonev.com/blog/article/Cross-browser-handling-of-Ajax-requests-in-absurdjs
-  ajax: function (ops) {
+  ajax: function ajax(ops) {
     if (typeof ops == "string") ops = { url: ops };
     ops.url = ops.url || "";
     ops.json = ops.json || true;
     ops.method = ops.method || "get";
     ops.data = ops.data || {};
-    var getParams = function (data, url) {
+    var getParams = function getParams(data, url) {
       var arr = [],
           str;
       for (var name in data) {
@@ -354,7 +370,7 @@ utils.prototype = {
     };
     var api = {
       host: {},
-      process: function (ops) {
+      process: function process(ops) {
         var self = this;
         this.xhr = null;
         if (window.ActiveXObject) {
@@ -399,19 +415,19 @@ utils.prototype = {
         }, 20);
         return this.xhr;
       },
-      done: function (callback) {
+      done: function done(callback) {
         this.doneCallback = callback;
         return this;
       },
-      fail: function (callback) {
+      fail: function fail(callback) {
         this.failCallback = callback;
         return this;
       },
-      always: function (callback) {
+      always: function always(callback) {
         this.alwaysCallback = callback;
         return this;
       },
-      setHeaders: function (headers) {
+      setHeaders: function setHeaders(headers) {
         for (var name in headers) {
           this.xhr && this.xhr.setRequestHeader(name, headers[name]);
         }
@@ -423,6 +439,5 @@ utils.prototype = {
 
 _.extend($, utils.prototype);
 
-
-
-module.exports = $;
+exports["default"] = $;
+module.exports = exports["default"];

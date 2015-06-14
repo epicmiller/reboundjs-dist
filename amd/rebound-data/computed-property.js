@@ -1,19 +1,20 @@
 define("rebound-data/computed-property", ["exports", "module", "property-compiler/property-compiler", "rebound-component/utils"], function (exports, module, _propertyCompilerPropertyCompiler, _reboundComponentUtils) {
-  "use strict";
-
   // Rebound Computed Property
   // ----------------
 
-  var propertyCompiler = to5Runtime.interopRequire(_propertyCompilerPropertyCompiler);
+  "use strict";
 
-  var $ = to5Runtime.interopRequire(_reboundComponentUtils);
+  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
+  var _propertyCompiler = _interopRequireDefault(_propertyCompilerPropertyCompiler);
+
+  var _$ = _interopRequireDefault(_reboundComponentUtils);
 
   // Returns true if str starts with test
   function startsWith(str, test) {
     if (str === test) return true;
     return str.substring(0, test.length + 1) === test + ".";
   }
-
 
   // Called after callstack is exausted to call all of this computed property's
   // dependants that need to be recomputed
@@ -27,7 +28,8 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
     this._toCall.added = {};
   }
 
-  var ComputedProperty = function (getter, setter, options) {
+  var ComputedProperty = function ComputedProperty(getter, setter, options) {
+
     if (!_.isFunction(getter) && !_.isFunction(setter)) return console.error("ComputedProperty constructor must be passed a functions!", prop, "Found instead.");
     options = options || {};
     this.cid = _.uniqueId("computedPropety");
@@ -42,8 +44,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
 
     if (getter) this.getter = getter;
     if (setter) this.setter = setter;
-    this.deps = propertyCompiler.compile(this.getter, this.name);
-
+    this.deps = _propertyCompiler["default"].compile(this.getter, this.name);
 
     // Create lineage to pass to our cache objects
     var lineage = {
@@ -69,18 +70,18 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
 
     isComputedProperty: true,
     isData: true,
-    __path: function () {
+    __path: function __path() {
       return "";
     },
 
-    getter: function () {
+    getter: function getter() {
       return undefined;
     },
-    setter: function () {
+    setter: function setter() {
       return undefined;
     },
 
-    markDirty: function () {
+    markDirty: function markDirty() {
       if (this.isDirty) return;
       this.isDirty = true;
       this.trigger("dirty", this);
@@ -89,7 +90,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
     // Attached to listen to all events where this Computed Property's dependancies
     // are stored. See wire(). Will re-evaluate any computed properties that
     // depend on the changed data value which triggered this callback.
-    onRecompute: function (type, model, collection, options) {
+    onRecompute: function onRecompute(type, model, collection, options) {
       var shortcircuit = { change: 1, sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1, dirty: 1 };
       if (shortcircuit[type] || !model.isData) return;
       model || (model = {});
@@ -98,7 +99,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
       this._toCall || (this._toCall = []);
       this._toCall.added || (this._toCall.added = {});
       !collection.isData && (options = collection) && (collection = model);
-      var push = function (arr) {
+      var push = function push(arr) {
         var i,
             len = arr.length;
         this.added || (this.added = {});
@@ -159,11 +160,10 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
       return;
     },
 
-
     // Called when a Computed Property's active cache object changes.
     // Pushes any changes to Computed Property that returns a data object back to
     // the original object.
-    onModify: function (type, model, collection, options) {
+    onModify: function onModify(type, model, collection, options) {
       var shortcircuit = { sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1 };
       if (!this.tracking || shortcircuit[type] || ~type.indexOf("change:")) return;
       model || (model = {});
@@ -182,7 +182,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
     // Adds a litener to the root object and tells it what properties this
     // Computed Property depend on.
     // The listener will re-compute this Computed Property when any are changed.
-    wire: function () {
+    wire: function wire() {
       var root = this.__root__;
       var context = this.__parent__;
       root.__computedDeps || (root.__computedDeps = {});
@@ -195,7 +195,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
 
       _.each(this.deps, function (path) {
         // Find actual path from relative paths
-        var split = $.splitPath(path);
+        var split = _$["default"].splitPath(path);
         while (split[0] === "@parent") {
           context = context.__parent__;
           split.shift();
@@ -213,7 +213,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
       context.off("all", this.onRecompute).on("all", this.onRecompute);
     },
 
-    unwire: function () {
+    unwire: function unwire() {
       var root = this.__root__;
       var context = this.__parent__;
 
@@ -227,7 +227,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
     },
 
     // Call this computed property like you would with Function.call()
-    call: function () {
+    call: function call() {
       var args = Array.prototype.slice.call(arguments),
           context = args.shift();
       return this.apply(context, args);
@@ -241,7 +241,8 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
     // Then, set the proper return type for future fetches from the cache and set
     // the new computed value. Track changes to the cache to push it back up to
     // the original object and return the value.
-    apply: function (context, params) {
+    apply: function apply(context, params) {
+
       context || (context = this.__parent__);
 
       if (!this.isDirty || this.isChanging || !context) return;
@@ -307,7 +308,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
     // the previous cache object, sync the objects' cids so helpers think they
     // are the same object, save a referance to the object we are tracking,
     // and re-bind our onModify hook.
-    track: function (object) {
+    track: function track(object) {
       var target = this.value();
       if (!object || !target || !target.isData || !object.isData) return;
       target._cid || (target._cid = target.cid);
@@ -318,7 +319,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
     },
 
     // Get from the Computed Property's cache
-    get: function (key, options) {
+    get: function get(key, options) {
       var value = this.value();
       options || (options = {});
       if (this.returnType === "value") return console.error("Called get on the `" + this.name + "` computed property which returns a primitive value.");
@@ -328,7 +329,8 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
     // Set the Computed Property's cache to a new value and trigger appropreate events.
     // Changes will propagate back to the original object if a Rebound Data Object and re-compute.
     // If Computed Property returns a value, all downstream dependancies will re-compute.
-    set: function (key, val, options) {
+    set: function set(key, val, options) {
+
       if (this.returnType === null) return undefined;
       options || (options = {});
       var attrs = key;
@@ -370,13 +372,13 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
     },
 
     // Return the current value from the cache, running if dirty.
-    value: function () {
+    value: function value() {
       if (this.isDirty) this.apply();
       return this.cache[this.returnType];
     },
 
     // Reset the current value in the cache, running if first run.
-    reset: function (obj, options) {
+    reset: function reset(obj, options) {
       if (_.isNull(this.returnType)) return; // First run
       options || (options = {});
       options.reset = true;
@@ -384,7 +386,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
     },
 
     // Cyclic dependancy safe toJSON method.
-    toJSON: function () {
+    toJSON: function toJSON() {
       if (this._isSerializing) return this.cid;
       var val = this.value();
       this._isSerializing = true;

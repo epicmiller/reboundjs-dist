@@ -1,26 +1,28 @@
-define("rebound-data/rebound-data", ["exports", "rebound-data/model", "rebound-data/collection", "rebound-data/computed-property", "rebound-component/utils"], function (exports, _reboundDataModel, _reboundDataCollection, _reboundDataComputedProperty, _reboundComponentUtils) {
-  "use strict";
-
+define("rebound-data/rebound-data", ["exports", "module", "rebound-data/model", "rebound-data/collection", "rebound-data/computed-property", "rebound-component/utils"], function (exports, module, _reboundDataModel, _reboundDataCollection, _reboundDataComputedProperty, _reboundComponentUtils) {
   // Rebound Data
   // ----------------
   // These are methods inherited by all Rebound data types – **Models**,
   // **Collections** and **Computed Properties** – and control tree ancestry
   // tracking, deep event propagation and tree destruction.
 
-  var Model = to5Runtime.interopRequire(_reboundDataModel);
+  "use strict";
 
-  var Collection = to5Runtime.interopRequire(_reboundDataCollection);
+  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
 
-  var ComputedProperty = to5Runtime.interopRequire(_reboundDataComputedProperty);
+  var _Model = _interopRequireDefault(_reboundDataModel);
 
-  var $ = to5Runtime.interopRequire(_reboundComponentUtils);
+  var _Collection = _interopRequireDefault(_reboundDataCollection);
+
+  var _ComputedProperty = _interopRequireDefault(_reboundDataComputedProperty);
+
+  var _$ = _interopRequireDefault(_reboundComponentUtils);
 
   var sharedMethods = {
     // When a change event propagates up the tree it modifies the path part of
     // `change:<path>` to reflect the fully qualified path relative to that object.
     // Ex: Would trigger `change:val`, `change:[0].val`, `change:arr[0].val` and `obj.arr[0].val`
     // on each parent as it is propagated up the tree.
-    propagateEvent: function (type, model) {
+    propagateEvent: function propagateEvent(type, model) {
       if (this.__parent__ === this || type === "dirty") return;
       if (type.indexOf("change:") === 0 && model.isModel) {
         if (this.isCollection && ~type.indexOf("change:[")) return;
@@ -40,7 +42,7 @@ define("rebound-data/rebound-data", ["exports", "rebound-data/model", "rebound-d
 
     // Set this data object's parent to `parent` and, as long as a data object is
     // not its own parent, propagate every event triggered on `this` up the tree.
-    setParent: function (parent) {
+    setParent: function setParent(parent) {
       if (this.__parent__) this.off("all", this.propagateEvent);
       this.__parent__ = parent;
       this._hasAncestry = true;
@@ -50,7 +52,7 @@ define("rebound-data/rebound-data", ["exports", "rebound-data/model", "rebound-d
 
     // Recursively set a data tree's root element starting with `this` to the deepest child.
     // TODO: I dont like this recursively setting elements root when one element's root changes. Fix this.
-    setRoot: function (root) {
+    setRoot: function setRoot(root) {
       var obj = this;
       obj.__root__ = root;
       var val = obj.models || obj.attributes || obj.cache;
@@ -63,7 +65,7 @@ define("rebound-data/rebound-data", ["exports", "rebound-data/model", "rebound-d
     },
 
     // Tests to see if `this` has a parent `obj`.
-    hasParent: function (obj) {
+    hasParent: function hasParent(obj) {
       var tmp = this;
       while (tmp !== obj) {
         tmp = tmp.__parent__;
@@ -75,9 +77,8 @@ define("rebound-data/rebound-data", ["exports", "rebound-data/model", "rebound-d
     },
 
     // De-initializes a data tree starting with `this` and recursively calling `deinitialize()` on each child.
-    deinitialize: function () {
+    deinitialize: function deinitialize() {
       var _this = this;
-
 
       // Undelegate Backbone Events from this data object
       if (this.undelegateEvents) this.undelegateEvents();
@@ -98,7 +99,7 @@ define("rebound-data/rebound-data", ["exports", "rebound-data/model", "rebound-d
           if (this.el.removeEventListener) this.el.removeEventListener(eventType, handler, false);
           if (this.el.detachEvent) this.el.detachEvent("on" + eventType, handler);
         }, this);
-        $(this.el).walkTheDOM(function (el) {
+        (0, _$["default"])(this.el).walkTheDOM(function (el) {
           if (el.__lazyValue && el.__lazyValue.destroy()) n.__lazyValue.destroy();
         });
         delete this.el.__listeners;
@@ -131,11 +132,9 @@ define("rebound-data/rebound-data", ["exports", "rebound-data/model", "rebound-d
   };
 
   // Extend all of the **Rebound Data** prototypes with these shared methods
-  _.extend(Model.prototype, sharedMethods);
-  _.extend(Collection.prototype, sharedMethods);
-  _.extend(ComputedProperty.prototype, sharedMethods);
+  _.extend(_Model["default"].prototype, sharedMethods);
+  _.extend(_Collection["default"].prototype, sharedMethods);
+  _.extend(_ComputedProperty["default"].prototype, sharedMethods);
 
-  exports.Model = Model;
-  exports.Collection = Collection;
-  exports.ComputedProperty = ComputedProperty;
+  module.exports = { Model: _Model["default"], Collection: _Collection["default"], ComputedProperty: _ComputedProperty["default"] };
 });

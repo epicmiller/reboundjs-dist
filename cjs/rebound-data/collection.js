@@ -1,15 +1,21 @@
-"use strict";
-
-var _interopRequire = function (obj) {
-  return obj && (obj["default"] || obj);
-};
-
 // Rebound Collection
 // ----------------
 
-var Model = _interopRequire(require("rebound-data/model"));
+"use strict";
 
-var $ = _interopRequire(require("rebound-component/utils"));
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
+var _reboundDataModel = require("rebound-data/model");
+
+var _reboundDataModel2 = _interopRequireDefault(_reboundDataModel);
+
+var _reboundComponentUtils = require("rebound-component/utils");
+
+var _reboundComponentUtils2 = _interopRequireDefault(_reboundComponentUtils);
 
 function pathGenerator(collection) {
   return function () {
@@ -22,13 +28,13 @@ var Collection = Backbone.Collection.extend({
   isCollection: true,
   isData: true,
 
-  model: this.model || Model,
+  model: _reboundDataModel2["default"],
 
-  __path: function () {
+  __path: function __path() {
     return "";
   },
 
-  constructor: function (models, options) {
+  constructor: function constructor(models, options) {
     models || (models = []);
     options || (options = {});
     this.__observers = {};
@@ -48,7 +54,8 @@ var Collection = Backbone.Collection.extend({
     this.on("remove", function (model, collection, options) {});
   },
 
-  get: function (key, options) {
+  get: function get(key, options) {
+
     // If the key is a number or object, default to backbone's collection get
     if (typeof key == "number" || typeof key == "object") {
       return Backbone.Collection.prototype.get.call(this, key);
@@ -58,7 +65,7 @@ var Collection = Backbone.Collection.extend({
     if (!_.isString(key)) return void 0;
 
     // Split the path at all '.', '[' and ']' and find the value referanced.
-    var parts = $.splitPath(key),
+    var parts = _reboundComponentUtils2["default"].splitPath(key),
         result = this,
         l = parts.length,
         i = 0;
@@ -82,7 +89,7 @@ var Collection = Backbone.Collection.extend({
     return result;
   },
 
-  set: function (models, options) {
+  set: function set(models, options) {
     var newModels = [],
         lineage = {
       parent: this,
@@ -96,7 +103,7 @@ var Collection = Backbone.Collection.extend({
     models || (models = []);
 
     // If models is a string, call set at that path
-    if (_.isString(models)) return this.get($.splitPath(models)[0]).set($.splitPath(models).splice(1, models.length).join("."), options);
+    if (_.isString(models)) return this.get(_reboundComponentUtils2["default"].splitPath(models)[0]).set(_reboundComponentUtils2["default"].splitPath(models).splice(1, models.length).join("."), options);
     if (!_.isObject(models)) return console.error("Collection.set must be passed a Model, Object, array or Models and Objects, or another Collection");
 
     // If another collection, treat like an array
@@ -121,5 +128,7 @@ var Collection = Backbone.Collection.extend({
 
 });
 
-module.exports = Collection;
+exports["default"] = Collection;
+module.exports = exports["default"];
+
 // model.deinitialize();

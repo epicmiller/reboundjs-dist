@@ -1,10 +1,12 @@
-define("property-compiler/property-compiler", ["exports", "module", "property-compiler/tokenizer"], function (exports, module, _propertyCompilerTokenizer) {
-  "use strict";
-
+define('property-compiler/property-compiler', ['exports', 'module', 'property-compiler/tokenizer'], function (exports, module, _propertyCompilerTokenizer) {
   // Property Compiler
   // ----------------
 
-  var tokenizer = to5Runtime.interopRequire(_propertyCompilerTokenizer);
+  'use strict';
+
+  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
+
+  var _tokenizer = _interopRequireDefault(_propertyCompilerTokenizer);
 
   var computedProperties = [];
 
@@ -17,7 +19,7 @@ define("property-compiler/property-compiler", ["exports", "module", "property-co
 
     var str = prop.toString(),
         //.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s;])+\/\/(?:.*)$)/gm, '$1'), // String representation of function sans comments
-    nextToken = tokenizer.tokenize(str),
+    nextToken = _tokenizer['default'].tokenize(str),
         tokens = [],
         token,
         finishedPaths = [],
@@ -33,56 +35,58 @@ define("property-compiler/property-compiler", ["exports", "module", "property-co
         tmpPath,
         attrs = [],
         workingpath = [],
-        terminators = [";", ",", "==", ">", "<", ">=", "<=", ">==", "<==", "!=", "!==", "===", "&&", "||", "+", "-", "/", "*", "{", "}"];
+        terminators = [';', ',', '==', '>', '<', '>=', '<=', '>==', '<==', '!=', '!==', '===', '&&', '||', '+', '-', '/', '*', '{', '}'];
     do {
+
       token = nextToken();
 
-      if (token.value === "this") {
+      if (token.value === 'this') {
         listening++;
         workingpath = [];
       }
 
       // TODO: handle gets on collections
-      if (token.value === "get") {
+      if (token.value === 'get') {
         path = nextToken();
         while (_.isUndefined(path.value)) {
           path = nextToken();
         }
 
         // Replace any access to a collection with the generic @each placeholder and push dependancy
-        workingpath.push(path.value.replace(/\[.+\]/g, ".@each").replace(/^\./, ""));
+        workingpath.push(path.value.replace(/\[.+\]/g, '.@each').replace(/^\./, ''));
       }
 
-      if (token.value === "pluck") {
+      if (token.value === 'pluck') {
         path = nextToken();
         while (_.isUndefined(path.value)) {
           path = nextToken();
         }
 
-        workingpath.push("@each." + path.value);
+        workingpath.push('@each.' + path.value);
       }
 
-      if (token.value === "slice" || token.value === "clone" || token.value === "filter") {
+      if (token.value === 'slice' || token.value === 'clone' || token.value === 'filter') {
         path = nextToken();
-        if (path.type.type === "(") workingpath.push("@each");
+        if (path.type.type === '(') workingpath.push('@each');
       }
 
-      if (token.value === "at") {
+      if (token.value === 'at') {
+
         path = nextToken();
         while (_.isUndefined(path.value)) {
           path = nextToken();
         }
         // workingpath[workingpath.length -1] = workingpath[workingpath.length -1] + '[' + path.value + ']';
         // workingpath.push('[' + path.value + ']');
-        workingpath.push("@each");
+        workingpath.push('@each');
       }
 
-      if (token.value === "where" || token.value === "findWhere") {
-        workingpath.push("@each");
+      if (token.value === 'where' || token.value === 'findWhere') {
+        workingpath.push('@each');
         path = nextToken();
         attrs = [];
         var itr = 0;
-        while (path.type.type !== ")") {
+        while (path.type.type !== ')') {
           if (path.value) {
             if (itr % 2 === 0) {
               attrs.push(path.value);
@@ -100,18 +104,18 @@ define("property-compiler/property-compiler", ["exports", "module", "property-co
           paths = !_.isArray(paths) ? [paths] : paths;
           _.each(paths, function (path) {
             _.each(memo, function (mem) {
-              newMemo.push(_.compact([mem, path]).join(".").replace(".[", "["));
+              newMemo.push(_.compact([mem, path]).join('.').replace('.[', '['));
             });
           });
           return newMemo;
-        }, [""]);
+        }, ['']);
         finishedPaths = _.compact(_.union(finishedPaths, workingpath));
         workingpath = [];
         listening--;
       }
     } while (token.start !== token.end);
 
-    console.log("COMPUTED PROPERTY", name, "registered with these dependancy paths:", finishedPaths);
+    console.log('COMPUTED PROPERTY', name, 'registered with these dependancy paths:', finishedPaths);
 
     // Return the dependancies list
     return prop.__params = finishedPaths;
