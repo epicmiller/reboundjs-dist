@@ -10241,453 +10241,6 @@ define("runtime", ["exports", "module", "rebound-component/utils", "rebound-comp
 
   module.exports = Rebound;
 });
-define('rebound-compiler/parser', ['exports', 'module'], function (exports, module) {
-  // Rebound Template Parser
-  // -----------------------
-
-  // Remove the contents of the component's `script` tag.
-  'use strict';
-
-  function getScript(str) {
-    var start = str.lastIndexOf('</template>'),
-        str = str.slice(start > -1 ? start : 0, str.length);
-    start = str.indexOf('<script>');
-    var end = str.lastIndexOf('</script>');
-
-    if (start > -1 && end > -1) return '(function(){' + str.substring(start + 8, end) + '})()';
-    return '{}';
-  }
-
-  // Remove the contents of the component's `style` tag.
-  function getStyle(str) {
-    return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
-  }
-
-  function stripLinkTags(str) {
-    // Remove link tags from template, these are fetched in getDependancies
-    return str.replace(/<link .*href=(['"]?)(.*).html\1[^>]*>/gi, '');
-  }
-
-  // Remove the contents of the component's `template` tag.
-  function getTemplate(str) {
-    var start = str.indexOf('<template>');
-    var end = str.lastIndexOf('</template>');
-
-    // Get only the content between the template tags, or set to an empty string.
-    str = start > -1 && end > -1 ? str.substring(start + 10, end) : '';
-
-    return stripLinkTags(str);
-  }
-
-  // Get the component's name from its `name` attribute.
-  function getName(str) {
-    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
-  }
-
-  // Minify the string passed in by replacing all whitespace.
-  function minify(str) {
-    return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
-  }
-
-  // Strip javascript comments
-  function removeComments(str) {
-    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
-  }
-
-  // TODO: This is messy, clean it up!
-  function getDependancies(template) {
-    var base = arguments[1] === undefined ? '' : arguments[1];
-
-    var imports = [],
-        partials = [],
-        deps = [],
-        match,
-        importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
-        partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
-        start = template.indexOf('<template>'),
-        end = template.lastIndexOf('</template>');
-    if (start > -1 && end > -1) template = template.substring(start + 10, end);
-
-    // Assemple our component dependancies by finding link tags and parsing their src
-    while ((match = importsre.exec(template)) != null) {
-      imports.push(match[2]);
-    }
-    imports.forEach(function (importString, index) {
-      deps.push('"' + base + importString + '"');
-    });
-
-    // Assemble our partial dependancies
-    partials = template.match(partialsre);
-
-    if (partials) {
-      partials.forEach(function (partial, index) {
-        deps.push('"' + base + partial.replace(/\{\{>[\s*]?['"]?([^'"]*)['"]?[\s*]?\}\}/gi, '$1') + '"');
-      });
-    }
-
-    return deps;
-  }
-
-  function parse(str) {
-    var options = arguments[1] === undefined ? {} : arguments[1];
-
-    // If the element tag is present
-    if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {
-      return {
-        isPartial: false,
-        name: getName(str),
-        style: getStyle(str),
-        template: getTemplate(str),
-        script: getScript(str),
-        deps: getDependancies(str, options.baseDest)
-      };
-    }
-
-    return {
-      isPartial: true,
-      name: options.name,
-      template: stripLinkTags(str),
-      deps: getDependancies(str, options.baseDest)
-    };
-  }
-
-  module.exports = parse;
-});
-define('rebound-compiler/parser', ['exports', 'module'], function (exports, module) {
-  // Rebound Template Parser
-  // -----------------------
-
-  // Remove the contents of the component's `script` tag.
-  'use strict';
-
-  function getScript(str) {
-    var start = str.lastIndexOf('</template>'),
-        str = str.slice(start > -1 ? start : 0, str.length);
-    start = str.indexOf('<script>');
-    var end = str.lastIndexOf('</script>');
-
-    if (start > -1 && end > -1) return '(function(){' + str.substring(start + 8, end) + '})()';
-    return '{}';
-  }
-
-  // Remove the contents of the component's `style` tag.
-  function getStyle(str) {
-    return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
-  }
-
-  function stripLinkTags(str) {
-    // Remove link tags from template, these are fetched in getDependancies
-    return str.replace(/<link .*href=(['"]?)(.*).html\1[^>]*>/gi, '');
-  }
-
-  // Remove the contents of the component's `template` tag.
-  function getTemplate(str) {
-    var start = str.indexOf('<template>');
-    var end = str.lastIndexOf('</template>');
-
-    // Get only the content between the template tags, or set to an empty string.
-    str = start > -1 && end > -1 ? str.substring(start + 10, end) : '';
-
-    return stripLinkTags(str);
-  }
-
-  // Get the component's name from its `name` attribute.
-  function getName(str) {
-    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
-  }
-
-  // Minify the string passed in by replacing all whitespace.
-  function minify(str) {
-    return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
-  }
-
-  // Strip javascript comments
-  function removeComments(str) {
-    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
-  }
-
-  // TODO: This is messy, clean it up!
-  function getDependancies(template) {
-    var base = arguments[1] === undefined ? '' : arguments[1];
-
-    var imports = [],
-        partials = [],
-        deps = [],
-        match,
-        importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
-        partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
-        start = template.indexOf('<template>'),
-        end = template.lastIndexOf('</template>');
-    if (start > -1 && end > -1) template = template.substring(start + 10, end);
-
-    // Assemple our component dependancies by finding link tags and parsing their src
-    while ((match = importsre.exec(template)) != null) {
-      imports.push(match[2]);
-    }
-    imports.forEach(function (importString, index) {
-      deps.push('"' + base + importString + '"');
-    });
-
-    // Assemble our partial dependancies
-    partials = template.match(partialsre);
-
-    if (partials) {
-      partials.forEach(function (partial, index) {
-        deps.push('"' + base + partial.replace(/\{\{>[\s*]?['"]?([^'"]*)['"]?[\s*]?\}\}/gi, '$1') + '"');
-      });
-    }
-
-    return deps;
-  }
-
-  function parse(str) {
-    var options = arguments[1] === undefined ? {} : arguments[1];
-
-    // If the element tag is present
-    if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {
-      return {
-        isPartial: false,
-        name: getName(str),
-        style: getStyle(str),
-        template: getTemplate(str),
-        script: getScript(str),
-        deps: getDependancies(str, options.baseDest)
-      };
-    }
-
-    return {
-      isPartial: true,
-      name: options.name,
-      template: stripLinkTags(str),
-      deps: getDependancies(str, options.baseDest)
-    };
-  }
-
-  module.exports = parse;
-});
-define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", "rebound-component/utils"], function (exports, _reboundComponentLazyValue, _reboundComponentUtils) {
-  // Rebound Helpers
-  // ----------------
-
-  "use strict";
-
-  Object.defineProperty(exports, "__esModule", {
-    value: true
-  });
-
-  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-  var _LazyValue = _interopRequireDefault(_reboundComponentLazyValue);
-
-  var _$ = _interopRequireDefault(_reboundComponentUtils);
-
-  var helpers = {},
-      partials = {};
-
-  helpers.registerPartial = function (name, func) {
-    if (func && typeof name === "string") {
-      return partials[name] = func;
-    }
-  };
-
-  helpers.hasHelper = function (env, scope, name) {
-    return env.helpers[name] !== undefined;
-  };
-
-  // lookupHelper returns the given function from the helpers object. Manual checks prevent user from overriding reserved words.
-  helpers.lookupHelper = function (env, scope, name) {
-    if (_.isString(env)) name = env;
-    env && env.helpers || (env = { helpers: helpers });
-    // If a reserved helper, return it
-    if (name === "attribute") {
-      return env.helpers.attribute;
-    }
-    if (name === "if") {
-      return env.helpers["if"];
-    }
-    if (name === "unless") {
-      return env.helpers.unless;
-    }
-    if (name === "each") {
-      return env.helpers.each;
-    }
-    if (name === "partial") {
-      return env.helpers.partial;
-    }
-    if (name === "on") {
-      return env.helpers.on;
-    }
-    if (name === "debugger") {
-      return env.helpers["debugger"];
-    }
-    if (name === "log") {
-      return env.helpers.log;
-    }
-
-    // If not a reserved helper, check env, then global helpers, else return false
-    return helpers[name] || env.helpers[name];
-  };
-
-  helpers.registerHelper = function (name, callback) {
-    if (!_.isString(name)) {
-      console.error("Name provided to registerHelper must be a string!");
-      return;
-    }
-    if (!_.isFunction(callback)) {
-      console.error("Callback provided to regierHelper must be a function!");
-      return;
-    }
-    if (helpers.lookupHelper(null, null, name)) {
-      console.error("A helper called \"" + name + "\" is already registered!");
-      return;
-    }
-
-    helpers[name] = callback;
-  };
-
-  /*******************************
-          Default helpers
-  ********************************/
-
-  helpers["debugger"] = function (params, hash, options, env) {
-    debugger;
-    return "";
-  };
-
-  helpers.log = function (params, hash, options, env) {
-    console.log.apply(console, params);
-    return "";
-  };
-
-  helpers.on = function (params, hash, options, env) {
-    var i,
-        callback,
-        delegate,
-        element,
-        eventName = params[0],
-        len = params.length;
-
-    // By default everything is delegated on the parent component
-    if (len === 2) {
-      callback = params[1];
-      delegate = options.element;
-      element = options.element;
-    }
-    // If a selector is provided, delegate on the helper's element
-    else if (len === 3) {
-      callback = params[2];
-      delegate = params[1];
-      element = options.element;
-    }
-
-    // Attach event
-    (0, _$["default"])(element).on(eventName, delegate, hash, function (event) {
-      return env.helpers._callOnComponent(callback, event);
-    });
-  };
-
-  helpers.length = function (params, hash, options, env) {
-    return params[0] && params[0].length || 0;
-  };
-
-  function isTruthy(condition) {
-
-    if (condition === true || condition === false) return condition;
-
-    if (condition === undefined || condition === null) {
-      condition = false;
-    }
-
-    condition.isModel && (condition = true);
-
-    // If our condition is an array, handle properly
-    if (_.isArray(condition) || condition.isCollection) {
-      condition = condition.length ? true : false;
-    }
-
-    // Handle string values
-    condition === "true" && (condition = true);
-    condition === "false" && (condition = false);
-
-    return condition;
-  }
-
-  helpers["if"] = function (params, hash, templates) {
-
-    var condition = isTruthy(params[0]);
-
-    // If yield does not exist, this is not a block helper.
-    if (!this["yield"]) {
-      return condition ? params[1] : params[2] || "";
-    }
-
-    // Render the apropreate block statement
-    if (condition && this["yield"]) {
-      this["yield"]();
-    } else if (!condition && templates.inverse && templates.inverse["yield"]) {
-      templates.inverse["yield"]();
-    } else {
-      return "";
-    }
-  };
-
-  // Unless proxies to the if helper with an inverted conditional value.
-  helpers.unless = function (params, hash, templates) {
-    params[0] = !isTruthy(params[0]);
-    return helpers["if"].apply(templates.template || {}, [params, hash, templates]);
-  };
-
-  // Given an array, predicate and optional extra variable, finds the index in the array where predicate is true
-  function findIndex(arr, predicate, cid) {
-    if (arr == null) {
-      throw new TypeError("findIndex called on null or undefined");
-    }
-    if (typeof predicate !== "function") {
-      throw new TypeError("predicate must be a function");
-    }
-    var list = Object(arr);
-    var length = list.length >>> 0;
-    var thisArg = arguments[1];
-    var value;
-
-    for (var i = 0; i < length; i++) {
-      value = list[i];
-      if (predicate.call(thisArg, value, i, list, cid)) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
-  helpers.each = function (params, hash, templates) {
-
-    if (_.isNull(params[0]) || _.isUndefined(params[0])) {
-      console.warn("Undefined value passed to each helper! Maybe try providing a default value?", params, hash);return null;
-    }
-
-    var key,
-        value = params[0].isCollection ? params[0].models : params[0]; // Accepts collections or arrays
-
-    if (!_.isArray(value) || value.length === 0) {
-      if (templates.inverse && templates.inverse["yield"]) templates.inverse["yield"]();
-    } else {
-      for (key in value) {
-        if (value.hasOwnProperty(key)) this.yieldItem(value[key].cid, [value[key]], value);
-      }
-    }
-    return _.uniqueId("rand");
-  };
-
-  helpers.partial = function (params, hash, options, env) {
-    var partial = partials[params[0]];
-    if (partial && partial.isHTMLBars) {
-      return partial.render(options.context, env);
-    }
-  };
-
-  exports["default"] = helpers;
-  exports.partials = partials;
-});
 define("property-compiler/tokenizer", ["exports", "module"], function (exports, module) {
   /*jshint -W054 */
   // jshint ignore: start
@@ -11699,6 +11252,453 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
 
   module.exports = { tokenize: _exports.tokenize };
 });
+define('rebound-compiler/parser', ['exports', 'module'], function (exports, module) {
+  // Rebound Template Parser
+  // -----------------------
+
+  // Remove the contents of the component's `script` tag.
+  'use strict';
+
+  function getScript(str) {
+    var start = str.lastIndexOf('</template>'),
+        str = str.slice(start > -1 ? start : 0, str.length);
+    start = str.indexOf('<script>');
+    var end = str.lastIndexOf('</script>');
+
+    if (start > -1 && end > -1) return '(function(){' + str.substring(start + 8, end) + '})()';
+    return '{}';
+  }
+
+  // Remove the contents of the component's `style` tag.
+  function getStyle(str) {
+    return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
+  }
+
+  function stripLinkTags(str) {
+    // Remove link tags from template, these are fetched in getDependancies
+    return str.replace(/<link .*href=(['"]?)(.*).html\1[^>]*>/gi, '');
+  }
+
+  // Remove the contents of the component's `template` tag.
+  function getTemplate(str) {
+    var start = str.indexOf('<template>');
+    var end = str.lastIndexOf('</template>');
+
+    // Get only the content between the template tags, or set to an empty string.
+    str = start > -1 && end > -1 ? str.substring(start + 10, end) : '';
+
+    return stripLinkTags(str);
+  }
+
+  // Get the component's name from its `name` attribute.
+  function getName(str) {
+    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
+  }
+
+  // Minify the string passed in by replacing all whitespace.
+  function minify(str) {
+    return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
+  }
+
+  // Strip javascript comments
+  function removeComments(str) {
+    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
+  }
+
+  // TODO: This is messy, clean it up!
+  function getDependancies(template) {
+    var base = arguments[1] === undefined ? '' : arguments[1];
+
+    var imports = [],
+        partials = [],
+        deps = [],
+        match,
+        importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
+        partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
+        start = template.indexOf('<template>'),
+        end = template.lastIndexOf('</template>');
+    if (start > -1 && end > -1) template = template.substring(start + 10, end);
+
+    // Assemple our component dependancies by finding link tags and parsing their src
+    while ((match = importsre.exec(template)) != null) {
+      imports.push(match[2]);
+    }
+    imports.forEach(function (importString, index) {
+      deps.push('"' + base + importString + '"');
+    });
+
+    // Assemble our partial dependancies
+    partials = template.match(partialsre);
+
+    if (partials) {
+      partials.forEach(function (partial, index) {
+        deps.push('"' + base + partial.replace(/\{\{>[\s*]?['"]?([^'"]*)['"]?[\s*]?\}\}/gi, '$1') + '"');
+      });
+    }
+
+    return deps;
+  }
+
+  function parse(str) {
+    var options = arguments[1] === undefined ? {} : arguments[1];
+
+    // If the element tag is present
+    if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {
+      return {
+        isPartial: false,
+        name: getName(str),
+        style: getStyle(str),
+        template: getTemplate(str),
+        script: getScript(str),
+        deps: getDependancies(str, options.baseDest)
+      };
+    }
+
+    return {
+      isPartial: true,
+      name: options.name,
+      template: stripLinkTags(str),
+      deps: getDependancies(str, options.baseDest)
+    };
+  }
+
+  module.exports = parse;
+});
+define('rebound-compiler/parser', ['exports', 'module'], function (exports, module) {
+  // Rebound Template Parser
+  // -----------------------
+
+  // Remove the contents of the component's `script` tag.
+  'use strict';
+
+  function getScript(str) {
+    var start = str.lastIndexOf('</template>'),
+        str = str.slice(start > -1 ? start : 0, str.length);
+    start = str.indexOf('<script>');
+    var end = str.lastIndexOf('</script>');
+
+    if (start > -1 && end > -1) return '(function(){' + str.substring(start + 8, end) + '})()';
+    return '{}';
+  }
+
+  // Remove the contents of the component's `style` tag.
+  function getStyle(str) {
+    return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
+  }
+
+  function stripLinkTags(str) {
+    // Remove link tags from template, these are fetched in getDependancies
+    return str.replace(/<link .*href=(['"]?)(.*).html\1[^>]*>/gi, '');
+  }
+
+  // Remove the contents of the component's `template` tag.
+  function getTemplate(str) {
+    var start = str.indexOf('<template>');
+    var end = str.lastIndexOf('</template>');
+
+    // Get only the content between the template tags, or set to an empty string.
+    str = start > -1 && end > -1 ? str.substring(start + 10, end) : '';
+
+    return stripLinkTags(str);
+  }
+
+  // Get the component's name from its `name` attribute.
+  function getName(str) {
+    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
+  }
+
+  // Minify the string passed in by replacing all whitespace.
+  function minify(str) {
+    return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
+  }
+
+  // Strip javascript comments
+  function removeComments(str) {
+    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
+  }
+
+  // TODO: This is messy, clean it up!
+  function getDependancies(template) {
+    var base = arguments[1] === undefined ? '' : arguments[1];
+
+    var imports = [],
+        partials = [],
+        deps = [],
+        match,
+        importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
+        partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
+        start = template.indexOf('<template>'),
+        end = template.lastIndexOf('</template>');
+    if (start > -1 && end > -1) template = template.substring(start + 10, end);
+
+    // Assemple our component dependancies by finding link tags and parsing their src
+    while ((match = importsre.exec(template)) != null) {
+      imports.push(match[2]);
+    }
+    imports.forEach(function (importString, index) {
+      deps.push('"' + base + importString + '"');
+    });
+
+    // Assemble our partial dependancies
+    partials = template.match(partialsre);
+
+    if (partials) {
+      partials.forEach(function (partial, index) {
+        deps.push('"' + base + partial.replace(/\{\{>[\s*]?['"]?([^'"]*)['"]?[\s*]?\}\}/gi, '$1') + '"');
+      });
+    }
+
+    return deps;
+  }
+
+  function parse(str) {
+    var options = arguments[1] === undefined ? {} : arguments[1];
+
+    // If the element tag is present
+    if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {
+      return {
+        isPartial: false,
+        name: getName(str),
+        style: getStyle(str),
+        template: getTemplate(str),
+        script: getScript(str),
+        deps: getDependancies(str, options.baseDest)
+      };
+    }
+
+    return {
+      isPartial: true,
+      name: options.name,
+      template: stripLinkTags(str),
+      deps: getDependancies(str, options.baseDest)
+    };
+  }
+
+  module.exports = parse;
+});
+define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", "rebound-component/utils"], function (exports, _reboundComponentLazyValue, _reboundComponentUtils) {
+  // Rebound Helpers
+  // ----------------
+
+  "use strict";
+
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+
+  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
+  var _LazyValue = _interopRequireDefault(_reboundComponentLazyValue);
+
+  var _$ = _interopRequireDefault(_reboundComponentUtils);
+
+  var helpers = {},
+      partials = {};
+
+  helpers.registerPartial = function (name, func) {
+    if (func && typeof name === "string") {
+      return partials[name] = func;
+    }
+  };
+
+  helpers.hasHelper = function (env, scope, name) {
+    return env.helpers[name] !== undefined;
+  };
+
+  // lookupHelper returns the given function from the helpers object. Manual checks prevent user from overriding reserved words.
+  helpers.lookupHelper = function (env, scope, name) {
+    if (_.isString(env)) name = env;
+    env && env.helpers || (env = { helpers: helpers });
+    // If a reserved helper, return it
+    if (name === "attribute") {
+      return env.helpers.attribute;
+    }
+    if (name === "if") {
+      return env.helpers["if"];
+    }
+    if (name === "unless") {
+      return env.helpers.unless;
+    }
+    if (name === "each") {
+      return env.helpers.each;
+    }
+    if (name === "partial") {
+      return env.helpers.partial;
+    }
+    if (name === "on") {
+      return env.helpers.on;
+    }
+    if (name === "debugger") {
+      return env.helpers["debugger"];
+    }
+    if (name === "log") {
+      return env.helpers.log;
+    }
+
+    // If not a reserved helper, check env, then global helpers, else return false
+    return helpers[name] || env.helpers[name];
+  };
+
+  helpers.registerHelper = function (name, callback) {
+    if (!_.isString(name)) {
+      console.error("Name provided to registerHelper must be a string!");
+      return;
+    }
+    if (!_.isFunction(callback)) {
+      console.error("Callback provided to regierHelper must be a function!");
+      return;
+    }
+    if (helpers.lookupHelper(null, null, name)) {
+      console.error("A helper called \"" + name + "\" is already registered!");
+      return;
+    }
+
+    helpers[name] = callback;
+  };
+
+  /*******************************
+          Default helpers
+  ********************************/
+
+  helpers["debugger"] = function (params, hash, options, env) {
+    debugger;
+    return "";
+  };
+
+  helpers.log = function (params, hash, options, env) {
+    console.log.apply(console, params);
+    return "";
+  };
+
+  helpers.on = function (params, hash, options, env) {
+    var i,
+        callback,
+        delegate,
+        element,
+        eventName = params[0],
+        len = params.length;
+
+    // By default everything is delegated on the parent component
+    if (len === 2) {
+      callback = params[1];
+      delegate = options.element;
+      element = options.element;
+    }
+    // If a selector is provided, delegate on the helper's element
+    else if (len === 3) {
+      callback = params[2];
+      delegate = params[1];
+      element = options.element;
+    }
+
+    // Attach event
+    (0, _$["default"])(element).on(eventName, delegate, hash, function (event) {
+      return env.helpers._callOnComponent(callback, event);
+    });
+  };
+
+  helpers.length = function (params, hash, options, env) {
+    return params[0] && params[0].length || 0;
+  };
+
+  function isTruthy(condition) {
+
+    if (condition === true || condition === false) return condition;
+
+    if (condition === undefined || condition === null) {
+      condition = false;
+    }
+
+    condition.isModel && (condition = true);
+
+    // If our condition is an array, handle properly
+    if (_.isArray(condition) || condition.isCollection) {
+      condition = condition.length ? true : false;
+    }
+
+    // Handle string values
+    condition === "true" && (condition = true);
+    condition === "false" && (condition = false);
+
+    return condition;
+  }
+
+  helpers["if"] = function (params, hash, templates) {
+
+    var condition = isTruthy(params[0]);
+
+    // If yield does not exist, this is not a block helper.
+    if (!this["yield"]) {
+      return condition ? params[1] : params[2] || "";
+    }
+
+    // Render the apropreate block statement
+    if (condition && this["yield"]) {
+      this["yield"]();
+    } else if (!condition && templates.inverse && templates.inverse["yield"]) {
+      templates.inverse["yield"]();
+    } else {
+      return "";
+    }
+  };
+
+  // Unless proxies to the if helper with an inverted conditional value.
+  helpers.unless = function (params, hash, templates) {
+    params[0] = !isTruthy(params[0]);
+    return helpers["if"].apply(templates.template || {}, [params, hash, templates]);
+  };
+
+  // Given an array, predicate and optional extra variable, finds the index in the array where predicate is true
+  function findIndex(arr, predicate, cid) {
+    if (arr == null) {
+      throw new TypeError("findIndex called on null or undefined");
+    }
+    if (typeof predicate !== "function") {
+      throw new TypeError("predicate must be a function");
+    }
+    var list = Object(arr);
+    var length = list.length >>> 0;
+    var thisArg = arguments[1];
+    var value;
+
+    for (var i = 0; i < length; i++) {
+      value = list[i];
+      if (predicate.call(thisArg, value, i, list, cid)) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  helpers.each = function (params, hash, templates) {
+
+    if (_.isNull(params[0]) || _.isUndefined(params[0])) {
+      console.warn("Undefined value passed to each helper! Maybe try providing a default value?", params, hash);return null;
+    }
+
+    var key,
+        value = params[0].isCollection ? params[0].models : params[0]; // Accepts collections or arrays
+
+    if (!_.isArray(value) || value.length === 0) {
+      if (templates.inverse && templates.inverse["yield"]) templates.inverse["yield"]();
+    } else {
+      for (key in value) {
+        if (value.hasOwnProperty(key)) this.yieldItem(value[key].cid, [value[key]], value);
+      }
+    }
+    return _.uniqueId("rand");
+  };
+
+  helpers.partial = function (params, hash, options, env) {
+    var partial = partials[params[0]];
+    if (partial && partial.isHTMLBars) {
+      return partial.render(options.context, env);
+    }
+  };
+
+  exports["default"] = helpers;
+  exports.partials = partials;
+});
 define("rebound-data/computed-property", ["exports", "module", "property-compiler/property-compiler", "rebound-component/utils"], function (exports, module, _propertyCompilerPropertyCompiler, _reboundComponentUtils) {
   // Rebound Computed Property
   // ----------------
@@ -12544,269 +12544,6 @@ define("rebound-compiler/precompile", ["exports", "module", "./parser", "htmlbar
 
   module.exports = precompile;
 });
-define("rebound-data/model", ["exports", "module", "rebound-data/computed-property", "rebound-component/utils"], function (exports, module, _reboundDataComputedProperty, _reboundComponentUtils) {
-  // Rebound Model
-  // ----------------
-
-  // Rebound **Models** are the basic data object in the framework — frequently
-  // representing a row in a table in a database on your server. The inherit from
-  // Backbone Models and have all of the same useful methods you are used to for
-  // performing computations and transformations on that data. Rebound augments
-  // Backbone Models by enabling deep data nesting. You can now have **Rebound Collections**
-  // and **Rebound Computed Properties** as properties of the Model.
-
-  "use strict";
-
-  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-  var _ComputedProperty = _interopRequireDefault(_reboundDataComputedProperty);
-
-  var _$ = _interopRequireDefault(_reboundComponentUtils);
-
-  // Returns a function that, when called, generates a path constructed from its
-  // parent's path and the key it is assigned to. Keeps us from re-naming children
-  // when parents change.
-  function pathGenerator(parent, key) {
-    return function () {
-      var path = parent.__path();
-      return path + (path === "" ? "" : ".") + key;
-    };
-  }
-
-  var Model = Backbone.Model.extend({
-    // Set this object's data types
-    isModel: true,
-    isData: true,
-
-    // A method that returns a root path by default. Meant to be overridden on
-    // instantiation.
-    __path: function __path() {
-      return "";
-    },
-
-    // Create a new Model with the specified attributes. The Model's lineage is set
-    // up here to keep track of it's place in the data tree.
-    constructor: function constructor(attributes, options) {
-      attributes || (attributes = {});
-      attributes.isModel && (attributes = attributes.attributes);
-      options || (options = {});
-      this.helpers = {};
-      this.defaults = this.defaults || {};
-      this.setParent(options.parent || this);
-      this.setRoot(options.root || this);
-      this.__path = options.path || this.__path;
-
-      // Convert getters and setters to computed properties
-      _$["default"].extractComputedProps(attributes);
-
-      Backbone.Model.call(this, attributes, options);
-    },
-
-    // New convenience function to toggle boolean values in the Model.
-    toggle: function toggle(attr, options) {
-      options = options ? _.clone(options) : {};
-      var val = this.get(attr);
-      if (!_.isBoolean(val)) console.error("Tried to toggle non-boolean value " + attr + "!", this);
-      return this.set(attr, !val, options);
-    },
-
-    // Model Reset does a deep reset on the data tree starting at this Model.
-    // A `previousAttributes` property is set on the `options` property with the Model's
-    // old values.
-    reset: function reset(obj, options) {
-      var changed = {},
-          key,
-          value;
-      options || (options = {});
-      options.reset = true;
-      obj = obj && obj.isModel && obj.attributes || obj || {};
-      options.previousAttributes = _.clone(this.attributes);
-
-      // Iterate over the Model's attributes:
-      // - If the property is the `idAttribute`, skip.
-      // - If the property is a `Model`, `Collection`, or `ComputedProperty`, reset it.
-      // - If the passed object has the property, set it to the new value.
-      // - If the Model has a default value for this property, set it back to default.
-      // - Otherwise, unset the attribute.
-      for (key in this.attributes) {
-        value = this.attributes[key];
-        if (value === obj[key]) continue;else if (_.isUndefined(value)) obj[key] && (changed[key] = obj[key]);else if (key === this.idAttribute) continue;else if (value.isCollection || value.isModel || value.isComputedProperty) {
-          value.reset(obj[key] || [], { silent: true });
-          if (value.isCollection) changed[key] = [];else if (value.isModel && value.isComputedProperty) changed[key] = value.cache.model.changed;else if (value.isModel) changed[key] = value.changed;
-        } else if (obj.hasOwnProperty(key)) {
-          changed[key] = obj[key];
-        } else if (this.defaults.hasOwnProperty(key) && !_.isFunction(this.defaults[key])) {
-          changed[key] = obj[key] = this.defaults[key];
-        } else {
-          changed[key] = undefined;
-          this.unset(key, { silent: true });
-        }
-      };
-
-      // Any unset changed values will be set to obj[key]
-      _.each(obj, function (value, key, obj) {
-        changed[key] = changed[key] || obj[key];
-      });
-
-      // Reset our model
-      obj = this.set(obj, _.extend({}, options, { silent: true, reset: false }));
-
-      // Trigger custom reset event
-      this.changed = changed;
-      if (!options.silent) this.trigger("reset", this, options);
-
-      // Return new values
-      return obj;
-    },
-
-    // **Model.Get** is overridden to provide support for getting from a deep data tree.
-    // `key` may now be any valid json-like identifier. Ex: `obj.coll[3].value`.
-    // It needs to traverse `Models`, `Collections` and `Computed Properties` to
-    // find the correct value.
-    // - If key is undefined, return `undefined`.
-    // - If key is empty string, return `this`.
-    //
-    // For each part:
-    // - If a `Computed Property` and `options.raw` is true, return it.
-    // - If a `Computed Property` traverse to its value.
-    // - If not set, return its falsy value.
-    // - If a `Model`, `Collection`, or primitive value, traverse to it.
-    get: function get(key, options) {
-      options || (options = {});
-      var parts = _$["default"].splitPath(key),
-          result = this,
-          i,
-          l = parts.length;
-
-      if (_.isUndefined(key) || _.isNull(key)) return undefined;
-      if (key === "" || parts.length === 0) return result;
-
-      for (i = 0; i < l; i++) {
-        if (result && result.isComputedProperty && options.raw) return result;
-        if (result && result.isComputedProperty) result = result.value();
-        if (_.isUndefined(result) || _.isNull(result)) return result;
-        if (parts[i] === "@parent") result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result && result.hasOwnProperty(parts[i])) result = result[parts[i]];
-      }
-
-      if (result && result.isComputedProperty && !options.raw) result = result.value();
-      return result;
-    },
-
-    // **Model.Set** is overridden to provide support for getting from a deep data tree.
-    // `key` may now be any valid json-like identifier. Ex: `obj.coll[3].value`.
-    // It needs to traverse `Models`, `Collections` and `Computed Properties` to
-    // find the correct value to call the original `Backbone.Set` on.
-    set: function set(key, val, options) {
-
-      var attrs,
-          attr,
-          newKey,
-          target,
-          destination,
-          props = [],
-          lineage;
-
-      if (typeof key === "object") {
-        attrs = key.isModel ? key.attributes : key;
-        options = val;
-      } else (attrs = {})[key] = val;
-      options || (options = {});
-
-      // Convert getters and setters to computed properties
-      _$["default"].extractComputedProps(attrs);
-
-      // If reset option passed, do a reset. If nothing passed, return.
-      if (options.reset === true) return this.reset(attrs, options);
-      if (options.defaults === true) this.defaults = attrs;
-      if (_.isEmpty(attrs)) return;
-
-      // For each attribute passed:
-      for (key in attrs) {
-        var val = attrs[key],
-            paths = _$["default"].splitPath(key),
-            attr = paths.pop() || ""; // The key        ex: foo[0].bar --> bar
-        target = this.get(paths.join(".")), // The element    ex: foo.bar.baz --> foo.bar
-        lineage;
-
-        // If target currently doesnt exist, construct its tree
-        if (_.isUndefined(target)) {
-          target = this;
-          _.each(paths, function (value) {
-            var tmp = target.get(value);
-            if (_.isUndefined(tmp)) tmp = target.set(value, {}).get(value);
-            target = tmp;
-          }, this);
-        }
-
-        // The old value of `attr` in `target`
-        var destination = target.get(attr, { raw: true }) || {};
-
-        // Create this new object's lineage.
-        lineage = {
-          name: key,
-          parent: target,
-          root: this.__root__,
-          path: pathGenerator(target, key),
-          silent: true,
-          defaults: options.defaults
-        };
-        // - If val is `null` or `undefined`, set to default value.
-        // - If val is a `Computed Property`, get its current cache object.
-        // - If val (default value or evaluated computed property) is `null`, set to default value or (fallback `undefined`).
-        // - Else If `{raw: true}` option is passed, set the exact object that was passed. No promotion to a Rebound Data object.
-        // - Else If this function is the same as the current computed property, continue.
-        // - Else If this value is a `Function`, turn it into a `Computed Property`.
-        // - Else If this is going to be a cyclical dependancy, use the original object, don't make a copy.
-        // - Else If updating an existing object with its respective data type, let Backbone handle the merge.
-        // - Else If this value is a `Model` or `Collection`, create a new copy of it using its constructor, preserving its defaults while ensuring no shared memory between objects.
-        // - Else If this value is an `Array`, turn it into a `Collection`.
-        // - Else If this value is a `Object`, turn it into a `Model`.
-        // - Else val is a primitive value, set it accordingly.
-
-        if (_.isNull(val) || _.isUndefined(val)) val = this.defaults[key];
-        if (val && val.isComputedProperty) val = val.value();
-        if (_.isNull(val) || _.isUndefined(val)) val = undefined;else if (options.raw === true) val = val;else if (destination.isComputedProperty && destination.func === val) continue;else if (val.isComputedProto) val = new _ComputedProperty["default"](val.get, val.set, lineage);else if (val.isData && target.hasParent(val)) val = val;else if (destination.isComputedProperty || destination.isCollection && (_.isArray(val) || val.isCollection) || destination.isModel && (_.isObject(val) || val.isModel)) {
-          destination.set(val, options);
-          continue;
-        } else if (val.isData && options.clone !== false) val = new val.constructor(val.attributes || val.models, lineage);else if (_.isArray(val)) val = new Rebound.Collection(val, lineage); // TODO: Remove global referance
-        else if (_.isObject(val)) val = new Model(val, lineage);
-
-        // If val is a data object, let this object know it is now a parent
-        this._hasAncestry = val && val.isData || false;
-
-        // Set the value
-        Backbone.Model.prototype.set.call(target, attr, val, options); // TODO: Event cleanup when replacing a model or collection with another value
-      };
-
-      return this;
-    },
-
-    // Recursive `toJSON` function traverses the data tree returning a JSON object.
-    // If there are any cyclic dependancies the object's `cid` is used instead of looping infinitely.
-    toJSON: function toJSON() {
-      if (this._isSerializing) return this.id || this.cid;
-      this._isSerializing = true;
-      var json = _.clone(this.attributes);
-      _.each(json, function (value, name) {
-        if (_.isNull(value) || _.isUndefined(value)) {
-          return;
-        }
-        _.isFunction(value.toJSON) && (json[name] = value.toJSON());
-      });
-      this._isSerializing = false;
-      return json;
-    }
-
-  });
-
-  // If default properties are passed into extend, process the computed properties
-  Model.extend = function (protoProps, staticProps) {
-    _$["default"].extractComputedProps(protoProps.defaults);
-    return Backbone.Model.extend.call(this, protoProps, staticProps);
-  };
-
-  module.exports = Model;
-});
 define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-value", "rebound-component/utils", "rebound-component/helpers", "htmlbars-runtime/hooks", "dom-helper", "../htmlbars-util/object-utils", "htmlbars-runtime/render"], function (exports, module, _reboundComponentLazyValue, _reboundComponentUtils, _reboundComponentHelpers, _htmlbarsRuntimeHooks, _domHelper, _htmlbarsUtilObjectUtils, _htmlbarsRuntimeRender) {
   // Rebound Hooks
   // ----------------
@@ -13266,16 +13003,18 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     var _loop = function () {
       var key = prop;
       // For each lazy param passed to our component, have it update the original context when changed.
-      // TODO: Make this sync work with complex arguments with more than one child
-      // if(attrs[key].children === null){
-      componentData[key].onNotify(function () {
-        attrs[key].set(attrs[key].path, componentData[key].value);
-      }); // }
+      if (componentData[key].isLazyValue) {
+        componentData[key].onNotify(function () {
+          attrs[key].set(attrs[key].path, componentData[key].value);
+        });
+      }
 
       // For each lazy param passed to our component, have it update the component when changed.
-      attrs[key].onNotify(function () {
-        componentData[key].set(key, attrs[key].value);
-      });
+      if (attrs[key].isLazyValue) {
+        attrs[key].onNotify(function () {
+          componentData[key].set(key, attrs[key].value);
+        });
+      }
 
       // Seed the cache
       componentData[key].value;
@@ -13366,145 +13105,268 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 // for(let i in renderNode.lazyValues)
 //   if(renderNode.lazyValues[i].isLazyValue)
 //     renderNode.lazyValues[i].destroy();
-define("rebound-data/rebound-data", ["exports", "module", "rebound-data/model", "rebound-data/collection", "rebound-data/computed-property", "rebound-component/utils"], function (exports, module, _reboundDataModel, _reboundDataCollection, _reboundDataComputedProperty, _reboundComponentUtils) {
-  // Rebound Data
+define("rebound-data/model", ["exports", "module", "rebound-data/computed-property", "rebound-component/utils"], function (exports, module, _reboundDataComputedProperty, _reboundComponentUtils) {
+  // Rebound Model
   // ----------------
-  // These are methods inherited by all Rebound data types – **Models**,
-  // **Collections** and **Computed Properties** – and control tree ancestry
-  // tracking, deep event propagation and tree destruction.
+
+  // Rebound **Models** are the basic data object in the framework — frequently
+  // representing a row in a table in a database on your server. The inherit from
+  // Backbone Models and have all of the same useful methods you are used to for
+  // performing computations and transformations on that data. Rebound augments
+  // Backbone Models by enabling deep data nesting. You can now have **Rebound Collections**
+  // and **Rebound Computed Properties** as properties of the Model.
 
   "use strict";
 
   function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
 
-  var _Model = _interopRequireDefault(_reboundDataModel);
-
-  var _Collection = _interopRequireDefault(_reboundDataCollection);
-
   var _ComputedProperty = _interopRequireDefault(_reboundDataComputedProperty);
 
   var _$ = _interopRequireDefault(_reboundComponentUtils);
 
-  var sharedMethods = {
-    // When a change event propagates up the tree it modifies the path part of
-    // `change:<path>` to reflect the fully qualified path relative to that object.
-    // Ex: Would trigger `change:val`, `change:[0].val`, `change:arr[0].val` and `obj.arr[0].val`
-    // on each parent as it is propagated up the tree.
-    propagateEvent: function propagateEvent(type, model) {
-      if (this.__parent__ === this || type === "dirty") return;
-      if (type.indexOf("change:") === 0 && model.isModel) {
-        if (this.isCollection && ~type.indexOf("change:[")) return;
-        var key,
-            path = model.__path().replace(this.__parent__.__path(), "").replace(/^\./, ""),
-            changed = model.changedAttributes();
+  // Returns a function that, when called, generates a path constructed from its
+  // parent's path and the key it is assigned to. Keeps us from re-naming children
+  // when parents change.
+  function pathGenerator(parent, key) {
+    return function () {
+      var path = parent.__path();
+      return path + (path === "" ? "" : ".") + key;
+    };
+  }
 
-        for (key in changed) {
-          // TODO: Modifying arguments array is bad. change this
-          arguments[0] = "change:" + path + (path && ".") + key; // jshint ignore:line
-          this.__parent__.trigger.apply(this.__parent__, arguments);
+  var Model = Backbone.Model.extend({
+    // Set this object's data types
+    isModel: true,
+    isData: true,
+
+    // A method that returns a root path by default. Meant to be overridden on
+    // instantiation.
+    __path: function __path() {
+      return "";
+    },
+
+    // Create a new Model with the specified attributes. The Model's lineage is set
+    // up here to keep track of it's place in the data tree.
+    constructor: function constructor(attributes, options) {
+      attributes || (attributes = {});
+      attributes.isModel && (attributes = attributes.attributes);
+      options || (options = {});
+      this.helpers = {};
+      this.defaults = this.defaults || {};
+      this.setParent(options.parent || this);
+      this.setRoot(options.root || this);
+      this.__path = options.path || this.__path;
+
+      // Convert getters and setters to computed properties
+      _$["default"].extractComputedProps(attributes);
+
+      Backbone.Model.call(this, attributes, options);
+    },
+
+    // New convenience function to toggle boolean values in the Model.
+    toggle: function toggle(attr, options) {
+      options = options ? _.clone(options) : {};
+      var val = this.get(attr);
+      if (!_.isBoolean(val)) console.error("Tried to toggle non-boolean value " + attr + "!", this);
+      return this.set(attr, !val, options);
+    },
+
+    // Model Reset does a deep reset on the data tree starting at this Model.
+    // A `previousAttributes` property is set on the `options` property with the Model's
+    // old values.
+    reset: function reset(obj, options) {
+      var changed = {},
+          key,
+          value;
+      options || (options = {});
+      options.reset = true;
+      obj = obj && obj.isModel && obj.attributes || obj || {};
+      options.previousAttributes = _.clone(this.attributes);
+
+      // Iterate over the Model's attributes:
+      // - If the property is the `idAttribute`, skip.
+      // - If the property is a `Model`, `Collection`, or `ComputedProperty`, reset it.
+      // - If the passed object has the property, set it to the new value.
+      // - If the Model has a default value for this property, set it back to default.
+      // - Otherwise, unset the attribute.
+      for (key in this.attributes) {
+        value = this.attributes[key];
+        if (value === obj[key]) continue;else if (_.isUndefined(value)) obj[key] && (changed[key] = obj[key]);else if (key === this.idAttribute) continue;else if (value.isCollection || value.isModel || value.isComputedProperty) {
+          value.reset(obj[key] || [], { silent: true });
+          if (value.isCollection) changed[key] = [];else if (value.isModel && value.isComputedProperty) changed[key] = value.cache.model.changed;else if (value.isModel) changed[key] = value.changed;
+        } else if (obj.hasOwnProperty(key)) {
+          changed[key] = obj[key];
+        } else if (this.defaults.hasOwnProperty(key) && !_.isFunction(this.defaults[key])) {
+          changed[key] = obj[key] = this.defaults[key];
+        } else {
+          changed[key] = undefined;
+          this.unset(key, { silent: true });
         }
-        return;
+      };
+
+      // Any unset changed values will be set to obj[key]
+      _.each(obj, function (value, key, obj) {
+        changed[key] = changed[key] || obj[key];
+      });
+
+      // Reset our model
+      obj = this.set(obj, _.extend({}, options, { silent: true, reset: false }));
+
+      // Trigger custom reset event
+      this.changed = changed;
+      if (!options.silent) this.trigger("reset", this, options);
+
+      // Return new values
+      return obj;
+    },
+
+    // **Model.Get** is overridden to provide support for getting from a deep data tree.
+    // `key` may now be any valid json-like identifier. Ex: `obj.coll[3].value`.
+    // It needs to traverse `Models`, `Collections` and `Computed Properties` to
+    // find the correct value.
+    // - If key is undefined, return `undefined`.
+    // - If key is empty string, return `this`.
+    //
+    // For each part:
+    // - If a `Computed Property` and `options.raw` is true, return it.
+    // - If a `Computed Property` traverse to its value.
+    // - If not set, return its falsy value.
+    // - If a `Model`, `Collection`, or primitive value, traverse to it.
+    get: function get(key, options) {
+      options || (options = {});
+      var parts = _$["default"].splitPath(key),
+          result = this,
+          i,
+          l = parts.length;
+
+      if (_.isUndefined(key) || _.isNull(key)) return undefined;
+      if (key === "" || parts.length === 0) return result;
+
+      for (i = 0; i < l; i++) {
+        if (result && result.isComputedProperty && options.raw) return result;
+        if (result && result.isComputedProperty) result = result.value();
+        if (_.isUndefined(result) || _.isNull(result)) return result;
+        if (parts[i] === "@parent") result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result && result.hasOwnProperty(parts[i])) result = result[parts[i]];
       }
-      return this.__parent__.trigger.apply(this.__parent__, arguments);
+
+      if (result && result.isComputedProperty && !options.raw) result = result.value();
+      return result;
     },
 
-    // Set this data object's parent to `parent` and, as long as a data object is
-    // not its own parent, propagate every event triggered on `this` up the tree.
-    setParent: function setParent(parent) {
-      if (this.__parent__) this.off("all", this.propagateEvent);
-      this.__parent__ = parent;
-      this._hasAncestry = true;
-      if (parent !== this) this.on("all", this.__parent__.propagateEvent);
-      return parent;
-    },
+    // **Model.Set** is overridden to provide support for getting from a deep data tree.
+    // `key` may now be any valid json-like identifier. Ex: `obj.coll[3].value`.
+    // It needs to traverse `Models`, `Collections` and `Computed Properties` to
+    // find the correct value to call the original `Backbone.Set` on.
+    set: function set(key, val, options) {
 
-    // Recursively set a data tree's root element starting with `this` to the deepest child.
-    // TODO: I dont like this recursively setting elements root when one element's root changes. Fix this.
-    setRoot: function setRoot(root) {
-      var obj = this;
-      obj.__root__ = root;
-      var val = obj.models || obj.attributes || obj.cache;
-      _.each(val, function (value, key) {
-        if (value && value.isData) {
-          value.setRoot(root);
+      var attrs,
+          attr,
+          newKey,
+          target,
+          destination,
+          props = [],
+          lineage;
+
+      if (typeof key === "object") {
+        attrs = key.isModel ? key.attributes : key;
+        options = val;
+      } else (attrs = {})[key] = val;
+      options || (options = {});
+
+      // Convert getters and setters to computed properties
+      _$["default"].extractComputedProps(attrs);
+
+      // If reset option passed, do a reset. If nothing passed, return.
+      if (options.reset === true) return this.reset(attrs, options);
+      if (options.defaults === true) this.defaults = attrs;
+      if (_.isEmpty(attrs)) return;
+
+      // For each attribute passed:
+      for (key in attrs) {
+        var val = attrs[key],
+            paths = _$["default"].splitPath(key),
+            attr = paths.pop() || ""; // The key        ex: foo[0].bar --> bar
+        target = this.get(paths.join(".")), // The element    ex: foo.bar.baz --> foo.bar
+        lineage;
+
+        // If target currently doesnt exist, construct its tree
+        if (_.isUndefined(target)) {
+          target = this;
+          _.each(paths, function (value) {
+            var tmp = target.get(value);
+            if (_.isUndefined(tmp)) tmp = target.set(value, {}).get(value);
+            target = tmp;
+          }, this);
         }
-      });
-      return root;
+
+        // The old value of `attr` in `target`
+        var destination = target.get(attr, { raw: true }) || {};
+
+        // Create this new object's lineage.
+        lineage = {
+          name: key,
+          parent: target,
+          root: this.__root__,
+          path: pathGenerator(target, key),
+          silent: true,
+          defaults: options.defaults
+        };
+        // - If val is `null` or `undefined`, set to default value.
+        // - If val is a `Computed Property`, get its current cache object.
+        // - If val (default value or evaluated computed property) is `null`, set to default value or (fallback `undefined`).
+        // - Else If `{raw: true}` option is passed, set the exact object that was passed. No promotion to a Rebound Data object.
+        // - Else If this function is the same as the current computed property, continue.
+        // - Else If this value is a `Function`, turn it into a `Computed Property`.
+        // - Else If this is going to be a cyclical dependancy, use the original object, don't make a copy.
+        // - Else If updating an existing object with its respective data type, let Backbone handle the merge.
+        // - Else If this value is a `Model` or `Collection`, create a new copy of it using its constructor, preserving its defaults while ensuring no shared memory between objects.
+        // - Else If this value is an `Array`, turn it into a `Collection`.
+        // - Else If this value is a `Object`, turn it into a `Model`.
+        // - Else val is a primitive value, set it accordingly.
+
+        if (_.isNull(val) || _.isUndefined(val)) val = this.defaults[key];
+        if (val && val.isComputedProperty) val = val.value();
+        if (_.isNull(val) || _.isUndefined(val)) val = undefined;else if (options.raw === true) val = val;else if (destination.isComputedProperty && destination.func === val) continue;else if (val.isComputedProto) val = new _ComputedProperty["default"](val.get, val.set, lineage);else if (val.isData && target.hasParent(val)) val = val;else if (destination.isComputedProperty || destination.isCollection && (_.isArray(val) || val.isCollection) || destination.isModel && (_.isObject(val) || val.isModel)) {
+          destination.set(val, options);
+          continue;
+        } else if (val.isData && options.clone !== false) val = new val.constructor(val.attributes || val.models, lineage);else if (_.isArray(val)) val = new Rebound.Collection(val, lineage); // TODO: Remove global referance
+        else if (_.isObject(val)) val = new Model(val, lineage);
+
+        // If val is a data object, let this object know it is now a parent
+        this._hasAncestry = val && val.isData || false;
+
+        // Set the value
+        Backbone.Model.prototype.set.call(target, attr, val, options); // TODO: Event cleanup when replacing a model or collection with another value
+      };
+
+      return this;
     },
 
-    // Tests to see if `this` has a parent `obj`.
-    hasParent: function hasParent(obj) {
-      var tmp = this;
-      while (tmp !== obj) {
-        tmp = tmp.__parent__;
-        if (_.isUndefined(tmp)) return false;
-        if (tmp === obj) return true;
-        if (tmp.__parent__ === tmp) return false;
-      }
-      return true;
-    },
-
-    // De-initializes a data tree starting with `this` and recursively calling `deinitialize()` on each child.
-    deinitialize: function deinitialize() {
-      var _this = this;
-
-      // Undelegate Backbone Events from this data object
-      if (this.undelegateEvents) this.undelegateEvents();
-      if (this.stopListening) this.stopListening();
-      if (this.off) this.off();
-      if (this.unwire) this.unwire();
-
-      // Destroy this data object's lineage
-      delete this.__parent__;
-      delete this.__root__;
-      delete this.__path;
-
-      // If there is a dom element associated with this data object, destroy all listeners associated with it.
-      // Remove all event listeners from this dom element, recursively remove element lazyvalues,
-      // and then remove the element referance itself.
-      if (this.el) {
-        _.each(this.el.__listeners, function (handler, eventType) {
-          if (this.el.removeEventListener) this.el.removeEventListener(eventType, handler, false);
-          if (this.el.detachEvent) this.el.detachEvent("on" + eventType, handler);
-        }, this);
-        (0, _$["default"])(this.el).walkTheDOM(function (el) {
-          if (el.__lazyValue && el.__lazyValue.destroy()) n.__lazyValue.destroy();
-        });
-        delete this.el.__listeners;
-        delete this.el.__events;
-        delete this.$el;
-        delete this.el;
-      }
-
-      // Clean up Hook callback references
-      delete this.__observers;
-
-      // Mark as deinitialized so we don't loop on cyclic dependancies.
-      this.deinitialized = true;
-
-      // Destroy all children of this data object.
-      // If a Collection, de-init all of its Models, if a Model, de-init all of its
-      // Attributes, if a Computed Property, de-init its Cache objects.
-      _.each(this.models, function (val) {
-        val && val.deinitialize && val.deinitialize();
+    // Recursive `toJSON` function traverses the data tree returning a JSON object.
+    // If there are any cyclic dependancies the object's `cid` is used instead of looping infinitely.
+    toJSON: function toJSON() {
+      if (this._isSerializing) return this.id || this.cid;
+      this._isSerializing = true;
+      var json = _.clone(this.attributes);
+      _.each(json, function (value, name) {
+        if (_.isNull(value) || _.isUndefined(value)) {
+          return;
+        }
+        _.isFunction(value.toJSON) && (json[name] = value.toJSON());
       });
-      this.models && (this.models.length = 0);
-      _.each(this.attributes, function (val, key) {
-        delete _this.attributes[key];val && val.deinitialize && val.deinitialize();
-      });
-      if (this.cache) {
-        this.cache.collection.deinitialize();
-        this.cache.model.deinitialize();
-      }
+      this._isSerializing = false;
+      return json;
     }
+
+  });
+
+  // If default properties are passed into extend, process the computed properties
+  Model.extend = function (protoProps, staticProps) {
+    _$["default"].extractComputedProps(protoProps.defaults);
+    return Backbone.Model.extend.call(this, protoProps, staticProps);
   };
 
-  // Extend all of the **Rebound Data** prototypes with these shared methods
-  _.extend(_Model["default"].prototype, sharedMethods);
-  _.extend(_Collection["default"].prototype, sharedMethods);
-  _.extend(_ComputedProperty["default"].prototype, sharedMethods);
-
-  module.exports = { Model: _Model["default"], Collection: _Collection["default"], ComputedProperty: _ComputedProperty["default"] };
+  module.exports = Model;
 });
 define('rebound-component/lazy-value', ['exports', 'module'], function (exports, module) {
   // Rebound Lazy Value
@@ -13652,6 +13514,146 @@ define('rebound-component/lazy-value', ['exports', 'module'], function (exports,
   });
 
   module.exports = LazyValue;
+});
+define("rebound-data/rebound-data", ["exports", "module", "rebound-data/model", "rebound-data/collection", "rebound-data/computed-property", "rebound-component/utils"], function (exports, module, _reboundDataModel, _reboundDataCollection, _reboundDataComputedProperty, _reboundComponentUtils) {
+  // Rebound Data
+  // ----------------
+  // These are methods inherited by all Rebound data types – **Models**,
+  // **Collections** and **Computed Properties** – and control tree ancestry
+  // tracking, deep event propagation and tree destruction.
+
+  "use strict";
+
+  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
+  var _Model = _interopRequireDefault(_reboundDataModel);
+
+  var _Collection = _interopRequireDefault(_reboundDataCollection);
+
+  var _ComputedProperty = _interopRequireDefault(_reboundDataComputedProperty);
+
+  var _$ = _interopRequireDefault(_reboundComponentUtils);
+
+  var sharedMethods = {
+    // When a change event propagates up the tree it modifies the path part of
+    // `change:<path>` to reflect the fully qualified path relative to that object.
+    // Ex: Would trigger `change:val`, `change:[0].val`, `change:arr[0].val` and `obj.arr[0].val`
+    // on each parent as it is propagated up the tree.
+    propagateEvent: function propagateEvent(type, model) {
+      if (this.__parent__ === this || type === "dirty") return;
+      if (type.indexOf("change:") === 0 && model.isModel) {
+        if (this.isCollection && ~type.indexOf("change:[")) return;
+        var key,
+            path = model.__path().replace(this.__parent__.__path(), "").replace(/^\./, ""),
+            changed = model.changedAttributes();
+
+        for (key in changed) {
+          // TODO: Modifying arguments array is bad. change this
+          arguments[0] = "change:" + path + (path && ".") + key; // jshint ignore:line
+          this.__parent__.trigger.apply(this.__parent__, arguments);
+        }
+        return;
+      }
+      return this.__parent__.trigger.apply(this.__parent__, arguments);
+    },
+
+    // Set this data object's parent to `parent` and, as long as a data object is
+    // not its own parent, propagate every event triggered on `this` up the tree.
+    setParent: function setParent(parent) {
+      if (this.__parent__) this.off("all", this.propagateEvent);
+      this.__parent__ = parent;
+      this._hasAncestry = true;
+      if (parent !== this) this.on("all", this.__parent__.propagateEvent);
+      return parent;
+    },
+
+    // Recursively set a data tree's root element starting with `this` to the deepest child.
+    // TODO: I dont like this recursively setting elements root when one element's root changes. Fix this.
+    setRoot: function setRoot(root) {
+      var obj = this;
+      obj.__root__ = root;
+      var val = obj.models || obj.attributes || obj.cache;
+      _.each(val, function (value, key) {
+        if (value && value.isData) {
+          value.setRoot(root);
+        }
+      });
+      return root;
+    },
+
+    // Tests to see if `this` has a parent `obj`.
+    hasParent: function hasParent(obj) {
+      var tmp = this;
+      while (tmp !== obj) {
+        tmp = tmp.__parent__;
+        if (_.isUndefined(tmp)) return false;
+        if (tmp === obj) return true;
+        if (tmp.__parent__ === tmp) return false;
+      }
+      return true;
+    },
+
+    // De-initializes a data tree starting with `this` and recursively calling `deinitialize()` on each child.
+    deinitialize: function deinitialize() {
+      var _this = this;
+
+      // Undelegate Backbone Events from this data object
+      if (this.undelegateEvents) this.undelegateEvents();
+      if (this.stopListening) this.stopListening();
+      if (this.off) this.off();
+      if (this.unwire) this.unwire();
+
+      // Destroy this data object's lineage
+      delete this.__parent__;
+      delete this.__root__;
+      delete this.__path;
+
+      // If there is a dom element associated with this data object, destroy all listeners associated with it.
+      // Remove all event listeners from this dom element, recursively remove element lazyvalues,
+      // and then remove the element referance itself.
+      if (this.el) {
+        _.each(this.el.__listeners, function (handler, eventType) {
+          if (this.el.removeEventListener) this.el.removeEventListener(eventType, handler, false);
+          if (this.el.detachEvent) this.el.detachEvent("on" + eventType, handler);
+        }, this);
+        (0, _$["default"])(this.el).walkTheDOM(function (el) {
+          if (el.__lazyValue && el.__lazyValue.destroy()) n.__lazyValue.destroy();
+        });
+        delete this.el.__listeners;
+        delete this.el.__events;
+        delete this.$el;
+        delete this.el;
+      }
+
+      // Clean up Hook callback references
+      delete this.__observers;
+
+      // Mark as deinitialized so we don't loop on cyclic dependancies.
+      this.deinitialized = true;
+
+      // Destroy all children of this data object.
+      // If a Collection, de-init all of its Models, if a Model, de-init all of its
+      // Attributes, if a Computed Property, de-init its Cache objects.
+      _.each(this.models, function (val) {
+        val && val.deinitialize && val.deinitialize();
+      });
+      this.models && (this.models.length = 0);
+      _.each(this.attributes, function (val, key) {
+        delete _this.attributes[key];val && val.deinitialize && val.deinitialize();
+      });
+      if (this.cache) {
+        this.cache.collection.deinitialize();
+        this.cache.model.deinitialize();
+      }
+    }
+  };
+
+  // Extend all of the **Rebound Data** prototypes with these shared methods
+  _.extend(_Model["default"].prototype, sharedMethods);
+  _.extend(_Collection["default"].prototype, sharedMethods);
+  _.extend(_ComputedProperty["default"].prototype, sharedMethods);
+
+  module.exports = { Model: _Model["default"], Collection: _Collection["default"], ComputedProperty: _ComputedProperty["default"] };
 });
 define("rebound-component/utils", ["exports", "module"], function (exports, module) {
   // Rebound Utils
