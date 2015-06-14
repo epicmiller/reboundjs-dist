@@ -13005,6 +13005,453 @@ define("runtime", ["exports", "module", "rebound-component/utils", "rebound-comp
 
   module.exports = Rebound;
 });
+define('rebound-compiler/parser', ['exports', 'module'], function (exports, module) {
+  // Rebound Template Parser
+  // -----------------------
+
+  // Remove the contents of the component's `script` tag.
+  'use strict';
+
+  function getScript(str) {
+    var start = str.lastIndexOf('</template>'),
+        str = str.slice(start > -1 ? start : 0, str.length);
+    start = str.indexOf('<script>');
+    var end = str.lastIndexOf('</script>');
+
+    if (start > -1 && end > -1) return '(function(){' + str.substring(start + 8, end) + '})()';
+    return '{}';
+  }
+
+  // Remove the contents of the component's `style` tag.
+  function getStyle(str) {
+    return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
+  }
+
+  function stripLinkTags(str) {
+    // Remove link tags from template, these are fetched in getDependancies
+    return str.replace(/<link .*href=(['"]?)(.*).html\1[^>]*>/gi, '');
+  }
+
+  // Remove the contents of the component's `template` tag.
+  function getTemplate(str) {
+    var start = str.indexOf('<template>');
+    var end = str.lastIndexOf('</template>');
+
+    // Get only the content between the template tags, or set to an empty string.
+    str = start > -1 && end > -1 ? str.substring(start + 10, end) : '';
+
+    return stripLinkTags(str);
+  }
+
+  // Get the component's name from its `name` attribute.
+  function getName(str) {
+    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
+  }
+
+  // Minify the string passed in by replacing all whitespace.
+  function minify(str) {
+    return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
+  }
+
+  // Strip javascript comments
+  function removeComments(str) {
+    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
+  }
+
+  // TODO: This is messy, clean it up!
+  function getDependancies(template) {
+    var base = arguments[1] === undefined ? '' : arguments[1];
+
+    var imports = [],
+        partials = [],
+        deps = [],
+        match,
+        importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
+        partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
+        start = template.indexOf('<template>'),
+        end = template.lastIndexOf('</template>');
+    if (start > -1 && end > -1) template = template.substring(start + 10, end);
+
+    // Assemple our component dependancies by finding link tags and parsing their src
+    while ((match = importsre.exec(template)) != null) {
+      imports.push(match[2]);
+    }
+    imports.forEach(function (importString, index) {
+      deps.push('"' + base + importString + '"');
+    });
+
+    // Assemble our partial dependancies
+    partials = template.match(partialsre);
+
+    if (partials) {
+      partials.forEach(function (partial, index) {
+        deps.push('"' + base + partial.replace(/\{\{>[\s*]?['"]?([^'"]*)['"]?[\s*]?\}\}/gi, '$1') + '"');
+      });
+    }
+
+    return deps;
+  }
+
+  function parse(str) {
+    var options = arguments[1] === undefined ? {} : arguments[1];
+
+    // If the element tag is present
+    if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {
+      return {
+        isPartial: false,
+        name: getName(str),
+        style: getStyle(str),
+        template: getTemplate(str),
+        script: getScript(str),
+        deps: getDependancies(str, options.baseDest)
+      };
+    }
+
+    return {
+      isPartial: true,
+      name: options.name,
+      template: stripLinkTags(str),
+      deps: getDependancies(str, options.baseDest)
+    };
+  }
+
+  module.exports = parse;
+});
+define('rebound-compiler/parser', ['exports', 'module'], function (exports, module) {
+  // Rebound Template Parser
+  // -----------------------
+
+  // Remove the contents of the component's `script` tag.
+  'use strict';
+
+  function getScript(str) {
+    var start = str.lastIndexOf('</template>'),
+        str = str.slice(start > -1 ? start : 0, str.length);
+    start = str.indexOf('<script>');
+    var end = str.lastIndexOf('</script>');
+
+    if (start > -1 && end > -1) return '(function(){' + str.substring(start + 8, end) + '})()';
+    return '{}';
+  }
+
+  // Remove the contents of the component's `style` tag.
+  function getStyle(str) {
+    return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
+  }
+
+  function stripLinkTags(str) {
+    // Remove link tags from template, these are fetched in getDependancies
+    return str.replace(/<link .*href=(['"]?)(.*).html\1[^>]*>/gi, '');
+  }
+
+  // Remove the contents of the component's `template` tag.
+  function getTemplate(str) {
+    var start = str.indexOf('<template>');
+    var end = str.lastIndexOf('</template>');
+
+    // Get only the content between the template tags, or set to an empty string.
+    str = start > -1 && end > -1 ? str.substring(start + 10, end) : '';
+
+    return stripLinkTags(str);
+  }
+
+  // Get the component's name from its `name` attribute.
+  function getName(str) {
+    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
+  }
+
+  // Minify the string passed in by replacing all whitespace.
+  function minify(str) {
+    return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
+  }
+
+  // Strip javascript comments
+  function removeComments(str) {
+    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
+  }
+
+  // TODO: This is messy, clean it up!
+  function getDependancies(template) {
+    var base = arguments[1] === undefined ? '' : arguments[1];
+
+    var imports = [],
+        partials = [],
+        deps = [],
+        match,
+        importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
+        partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
+        start = template.indexOf('<template>'),
+        end = template.lastIndexOf('</template>');
+    if (start > -1 && end > -1) template = template.substring(start + 10, end);
+
+    // Assemple our component dependancies by finding link tags and parsing their src
+    while ((match = importsre.exec(template)) != null) {
+      imports.push(match[2]);
+    }
+    imports.forEach(function (importString, index) {
+      deps.push('"' + base + importString + '"');
+    });
+
+    // Assemble our partial dependancies
+    partials = template.match(partialsre);
+
+    if (partials) {
+      partials.forEach(function (partial, index) {
+        deps.push('"' + base + partial.replace(/\{\{>[\s*]?['"]?([^'"]*)['"]?[\s*]?\}\}/gi, '$1') + '"');
+      });
+    }
+
+    return deps;
+  }
+
+  function parse(str) {
+    var options = arguments[1] === undefined ? {} : arguments[1];
+
+    // If the element tag is present
+    if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {
+      return {
+        isPartial: false,
+        name: getName(str),
+        style: getStyle(str),
+        template: getTemplate(str),
+        script: getScript(str),
+        deps: getDependancies(str, options.baseDest)
+      };
+    }
+
+    return {
+      isPartial: true,
+      name: options.name,
+      template: stripLinkTags(str),
+      deps: getDependancies(str, options.baseDest)
+    };
+  }
+
+  module.exports = parse;
+});
+define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", "rebound-component/utils"], function (exports, _reboundComponentLazyValue, _reboundComponentUtils) {
+  // Rebound Helpers
+  // ----------------
+
+  "use strict";
+
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+
+  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
+  var _LazyValue = _interopRequireDefault(_reboundComponentLazyValue);
+
+  var _$ = _interopRequireDefault(_reboundComponentUtils);
+
+  var helpers = {},
+      partials = {};
+
+  helpers.registerPartial = function (name, func) {
+    if (func && typeof name === "string") {
+      return partials[name] = func;
+    }
+  };
+
+  helpers.hasHelper = function (env, scope, name) {
+    return env.helpers[name] !== undefined;
+  };
+
+  // lookupHelper returns the given function from the helpers object. Manual checks prevent user from overriding reserved words.
+  helpers.lookupHelper = function (env, scope, name) {
+    if (_.isString(env)) name = env;
+    env && env.helpers || (env = { helpers: helpers });
+    // If a reserved helper, return it
+    if (name === "attribute") {
+      return env.helpers.attribute;
+    }
+    if (name === "if") {
+      return env.helpers["if"];
+    }
+    if (name === "unless") {
+      return env.helpers.unless;
+    }
+    if (name === "each") {
+      return env.helpers.each;
+    }
+    if (name === "partial") {
+      return env.helpers.partial;
+    }
+    if (name === "on") {
+      return env.helpers.on;
+    }
+    if (name === "debugger") {
+      return env.helpers["debugger"];
+    }
+    if (name === "log") {
+      return env.helpers.log;
+    }
+
+    // If not a reserved helper, check env, then global helpers, else return false
+    return helpers[name] || env.helpers[name];
+  };
+
+  helpers.registerHelper = function (name, callback) {
+    if (!_.isString(name)) {
+      console.error("Name provided to registerHelper must be a string!");
+      return;
+    }
+    if (!_.isFunction(callback)) {
+      console.error("Callback provided to regierHelper must be a function!");
+      return;
+    }
+    if (helpers.lookupHelper(null, null, name)) {
+      console.error("A helper called \"" + name + "\" is already registered!");
+      return;
+    }
+
+    helpers[name] = callback;
+  };
+
+  /*******************************
+          Default helpers
+  ********************************/
+
+  helpers["debugger"] = function (params, hash, options, env) {
+    debugger;
+    return "";
+  };
+
+  helpers.log = function (params, hash, options, env) {
+    console.log.apply(console, params);
+    return "";
+  };
+
+  helpers.on = function (params, hash, options, env) {
+    var i,
+        callback,
+        delegate,
+        element,
+        eventName = params[0],
+        len = params.length;
+
+    // By default everything is delegated on the parent component
+    if (len === 2) {
+      callback = params[1];
+      delegate = options.element;
+      element = options.element;
+    }
+    // If a selector is provided, delegate on the helper's element
+    else if (len === 3) {
+      callback = params[2];
+      delegate = params[1];
+      element = options.element;
+    }
+
+    // Attach event
+    (0, _$["default"])(element).on(eventName, delegate, hash, function (event) {
+      return env.helpers._callOnComponent(callback, event);
+    });
+  };
+
+  helpers.length = function (params, hash, options, env) {
+    return params[0] && params[0].length || 0;
+  };
+
+  function isTruthy(condition) {
+
+    if (condition === true || condition === false) return condition;
+
+    if (condition === undefined || condition === null) {
+      condition = false;
+    }
+
+    condition.isModel && (condition = true);
+
+    // If our condition is an array, handle properly
+    if (_.isArray(condition) || condition.isCollection) {
+      condition = condition.length ? true : false;
+    }
+
+    // Handle string values
+    condition === "true" && (condition = true);
+    condition === "false" && (condition = false);
+
+    return condition;
+  }
+
+  helpers["if"] = function (params, hash, templates) {
+
+    var condition = isTruthy(params[0]);
+
+    // If yield does not exist, this is not a block helper.
+    if (!this["yield"]) {
+      return condition ? params[1] : params[2] || "";
+    }
+
+    // Render the apropreate block statement
+    if (condition && this["yield"]) {
+      this["yield"]();
+    } else if (!condition && templates.inverse && templates.inverse["yield"]) {
+      templates.inverse["yield"]();
+    } else {
+      return "";
+    }
+  };
+
+  // Unless proxies to the if helper with an inverted conditional value.
+  helpers.unless = function (params, hash, templates) {
+    params[0] = !isTruthy(params[0]);
+    return helpers["if"].apply(templates.template || {}, [params, hash, templates]);
+  };
+
+  // Given an array, predicate and optional extra variable, finds the index in the array where predicate is true
+  function findIndex(arr, predicate, cid) {
+    if (arr == null) {
+      throw new TypeError("findIndex called on null or undefined");
+    }
+    if (typeof predicate !== "function") {
+      throw new TypeError("predicate must be a function");
+    }
+    var list = Object(arr);
+    var length = list.length >>> 0;
+    var thisArg = arguments[1];
+    var value;
+
+    for (var i = 0; i < length; i++) {
+      value = list[i];
+      if (predicate.call(thisArg, value, i, list, cid)) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  helpers.each = function (params, hash, templates) {
+
+    if (_.isNull(params[0]) || _.isUndefined(params[0])) {
+      console.warn("Undefined value passed to each helper! Maybe try providing a default value?", params, hash);return null;
+    }
+
+    var key,
+        value = params[0].isCollection ? params[0].models : params[0]; // Accepts collections or arrays
+
+    if (!_.isArray(value) || value.length === 0) {
+      if (templates.inverse && templates.inverse["yield"]) templates.inverse["yield"]();
+    } else {
+      for (key in value) {
+        if (value.hasOwnProperty(key)) this.yieldItem(value[key].cid, [value[key]], value);
+      }
+    }
+    return _.uniqueId("rand");
+  };
+
+  helpers.partial = function (params, hash, options, env) {
+    var partial = partials[params[0]];
+    if (partial && partial.isHTMLBars) {
+      return partial.render(options.context, env);
+    }
+  };
+
+  exports["default"] = helpers;
+  exports.partials = partials;
+});
 define("property-compiler/tokenizer", ["exports", "module"], function (exports, module) {
   /*jshint -W054 */
   // jshint ignore: start
@@ -14015,453 +14462,6 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
   }
 
   module.exports = { tokenize: _exports.tokenize };
-});
-define('rebound-compiler/parser', ['exports', 'module'], function (exports, module) {
-  // Rebound Template Parser
-  // -----------------------
-
-  // Remove the contents of the component's `script` tag.
-  'use strict';
-
-  function getScript(str) {
-    var start = str.lastIndexOf('</template>'),
-        str = str.slice(start > -1 ? start : 0, str.length);
-    start = str.indexOf('<script>');
-    var end = str.lastIndexOf('</script>');
-
-    if (start > -1 && end > -1) return '(function(){' + str.substring(start + 8, end) + '})()';
-    return '{}';
-  }
-
-  // Remove the contents of the component's `style` tag.
-  function getStyle(str) {
-    return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
-  }
-
-  function stripLinkTags(str) {
-    // Remove link tags from template, these are fetched in getDependancies
-    return str.replace(/<link .*href=(['"]?)(.*).html\1[^>]*>/gi, '');
-  }
-
-  // Remove the contents of the component's `template` tag.
-  function getTemplate(str) {
-    var start = str.indexOf('<template>');
-    var end = str.lastIndexOf('</template>');
-
-    // Get only the content between the template tags, or set to an empty string.
-    str = start > -1 && end > -1 ? str.substring(start + 10, end) : '';
-
-    return stripLinkTags(str);
-  }
-
-  // Get the component's name from its `name` attribute.
-  function getName(str) {
-    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
-  }
-
-  // Minify the string passed in by replacing all whitespace.
-  function minify(str) {
-    return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
-  }
-
-  // Strip javascript comments
-  function removeComments(str) {
-    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
-  }
-
-  // TODO: This is messy, clean it up!
-  function getDependancies(template) {
-    var base = arguments[1] === undefined ? '' : arguments[1];
-
-    var imports = [],
-        partials = [],
-        deps = [],
-        match,
-        importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
-        partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
-        start = template.indexOf('<template>'),
-        end = template.lastIndexOf('</template>');
-    if (start > -1 && end > -1) template = template.substring(start + 10, end);
-
-    // Assemple our component dependancies by finding link tags and parsing their src
-    while ((match = importsre.exec(template)) != null) {
-      imports.push(match[2]);
-    }
-    imports.forEach(function (importString, index) {
-      deps.push('"' + base + importString + '"');
-    });
-
-    // Assemble our partial dependancies
-    partials = template.match(partialsre);
-
-    if (partials) {
-      partials.forEach(function (partial, index) {
-        deps.push('"' + base + partial.replace(/\{\{>[\s*]?['"]?([^'"]*)['"]?[\s*]?\}\}/gi, '$1') + '"');
-      });
-    }
-
-    return deps;
-  }
-
-  function parse(str) {
-    var options = arguments[1] === undefined ? {} : arguments[1];
-
-    // If the element tag is present
-    if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {
-      return {
-        isPartial: false,
-        name: getName(str),
-        style: getStyle(str),
-        template: getTemplate(str),
-        script: getScript(str),
-        deps: getDependancies(str, options.baseDest)
-      };
-    }
-
-    return {
-      isPartial: true,
-      name: options.name,
-      template: stripLinkTags(str),
-      deps: getDependancies(str, options.baseDest)
-    };
-  }
-
-  module.exports = parse;
-});
-define('rebound-compiler/parser', ['exports', 'module'], function (exports, module) {
-  // Rebound Template Parser
-  // -----------------------
-
-  // Remove the contents of the component's `script` tag.
-  'use strict';
-
-  function getScript(str) {
-    var start = str.lastIndexOf('</template>'),
-        str = str.slice(start > -1 ? start : 0, str.length);
-    start = str.indexOf('<script>');
-    var end = str.lastIndexOf('</script>');
-
-    if (start > -1 && end > -1) return '(function(){' + str.substring(start + 8, end) + '})()';
-    return '{}';
-  }
-
-  // Remove the contents of the component's `style` tag.
-  function getStyle(str) {
-    return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
-  }
-
-  function stripLinkTags(str) {
-    // Remove link tags from template, these are fetched in getDependancies
-    return str.replace(/<link .*href=(['"]?)(.*).html\1[^>]*>/gi, '');
-  }
-
-  // Remove the contents of the component's `template` tag.
-  function getTemplate(str) {
-    var start = str.indexOf('<template>');
-    var end = str.lastIndexOf('</template>');
-
-    // Get only the content between the template tags, or set to an empty string.
-    str = start > -1 && end > -1 ? str.substring(start + 10, end) : '';
-
-    return stripLinkTags(str);
-  }
-
-  // Get the component's name from its `name` attribute.
-  function getName(str) {
-    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
-  }
-
-  // Minify the string passed in by replacing all whitespace.
-  function minify(str) {
-    return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
-  }
-
-  // Strip javascript comments
-  function removeComments(str) {
-    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
-  }
-
-  // TODO: This is messy, clean it up!
-  function getDependancies(template) {
-    var base = arguments[1] === undefined ? '' : arguments[1];
-
-    var imports = [],
-        partials = [],
-        deps = [],
-        match,
-        importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
-        partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
-        start = template.indexOf('<template>'),
-        end = template.lastIndexOf('</template>');
-    if (start > -1 && end > -1) template = template.substring(start + 10, end);
-
-    // Assemple our component dependancies by finding link tags and parsing their src
-    while ((match = importsre.exec(template)) != null) {
-      imports.push(match[2]);
-    }
-    imports.forEach(function (importString, index) {
-      deps.push('"' + base + importString + '"');
-    });
-
-    // Assemble our partial dependancies
-    partials = template.match(partialsre);
-
-    if (partials) {
-      partials.forEach(function (partial, index) {
-        deps.push('"' + base + partial.replace(/\{\{>[\s*]?['"]?([^'"]*)['"]?[\s*]?\}\}/gi, '$1') + '"');
-      });
-    }
-
-    return deps;
-  }
-
-  function parse(str) {
-    var options = arguments[1] === undefined ? {} : arguments[1];
-
-    // If the element tag is present
-    if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {
-      return {
-        isPartial: false,
-        name: getName(str),
-        style: getStyle(str),
-        template: getTemplate(str),
-        script: getScript(str),
-        deps: getDependancies(str, options.baseDest)
-      };
-    }
-
-    return {
-      isPartial: true,
-      name: options.name,
-      template: stripLinkTags(str),
-      deps: getDependancies(str, options.baseDest)
-    };
-  }
-
-  module.exports = parse;
-});
-define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", "rebound-component/utils"], function (exports, _reboundComponentLazyValue, _reboundComponentUtils) {
-  // Rebound Helpers
-  // ----------------
-
-  "use strict";
-
-  Object.defineProperty(exports, "__esModule", {
-    value: true
-  });
-
-  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-  var _LazyValue = _interopRequireDefault(_reboundComponentLazyValue);
-
-  var _$ = _interopRequireDefault(_reboundComponentUtils);
-
-  var helpers = {},
-      partials = {};
-
-  helpers.registerPartial = function (name, func) {
-    if (func && typeof name === "string") {
-      return partials[name] = func;
-    }
-  };
-
-  helpers.hasHelper = function (env, scope, name) {
-    return env.helpers[name] !== undefined;
-  };
-
-  // lookupHelper returns the given function from the helpers object. Manual checks prevent user from overriding reserved words.
-  helpers.lookupHelper = function (env, scope, name) {
-    if (_.isString(env)) name = env;
-    env && env.helpers || (env = { helpers: helpers });
-    // If a reserved helper, return it
-    if (name === "attribute") {
-      return env.helpers.attribute;
-    }
-    if (name === "if") {
-      return env.helpers["if"];
-    }
-    if (name === "unless") {
-      return env.helpers.unless;
-    }
-    if (name === "each") {
-      return env.helpers.each;
-    }
-    if (name === "partial") {
-      return env.helpers.partial;
-    }
-    if (name === "on") {
-      return env.helpers.on;
-    }
-    if (name === "debugger") {
-      return env.helpers["debugger"];
-    }
-    if (name === "log") {
-      return env.helpers.log;
-    }
-
-    // If not a reserved helper, check env, then global helpers, else return false
-    return helpers[name] || env.helpers[name];
-  };
-
-  helpers.registerHelper = function (name, callback) {
-    if (!_.isString(name)) {
-      console.error("Name provided to registerHelper must be a string!");
-      return;
-    }
-    if (!_.isFunction(callback)) {
-      console.error("Callback provided to regierHelper must be a function!");
-      return;
-    }
-    if (helpers.lookupHelper(null, null, name)) {
-      console.error("A helper called \"" + name + "\" is already registered!");
-      return;
-    }
-
-    helpers[name] = callback;
-  };
-
-  /*******************************
-          Default helpers
-  ********************************/
-
-  helpers["debugger"] = function (params, hash, options, env) {
-    debugger;
-    return "";
-  };
-
-  helpers.log = function (params, hash, options, env) {
-    console.log.apply(console, params);
-    return "";
-  };
-
-  helpers.on = function (params, hash, options, env) {
-    var i,
-        callback,
-        delegate,
-        element,
-        eventName = params[0],
-        len = params.length;
-
-    // By default everything is delegated on the parent component
-    if (len === 2) {
-      callback = params[1];
-      delegate = options.element;
-      element = options.element;
-    }
-    // If a selector is provided, delegate on the helper's element
-    else if (len === 3) {
-      callback = params[2];
-      delegate = params[1];
-      element = options.element;
-    }
-
-    // Attach event
-    (0, _$["default"])(element).on(eventName, delegate, hash, function (event) {
-      return env.helpers._callOnComponent(callback, event);
-    });
-  };
-
-  helpers.length = function (params, hash, options, env) {
-    return params[0] && params[0].length || 0;
-  };
-
-  function isTruthy(condition) {
-
-    if (condition === true || condition === false) return condition;
-
-    if (condition === undefined || condition === null) {
-      condition = false;
-    }
-
-    condition.isModel && (condition = true);
-
-    // If our condition is an array, handle properly
-    if (_.isArray(condition) || condition.isCollection) {
-      condition = condition.length ? true : false;
-    }
-
-    // Handle string values
-    condition === "true" && (condition = true);
-    condition === "false" && (condition = false);
-
-    return condition;
-  }
-
-  helpers["if"] = function (params, hash, templates) {
-
-    var condition = isTruthy(params[0]);
-
-    // If yield does not exist, this is not a block helper.
-    if (!this["yield"]) {
-      return condition ? params[1] : params[2] || "";
-    }
-
-    // Render the apropreate block statement
-    if (condition && this["yield"]) {
-      this["yield"]();
-    } else if (!condition && templates.inverse && templates.inverse["yield"]) {
-      templates.inverse["yield"]();
-    } else {
-      return "";
-    }
-  };
-
-  // Unless proxies to the if helper with an inverted conditional value.
-  helpers.unless = function (params, hash, templates) {
-    params[0] = !isTruthy(params[0]);
-    return helpers["if"].apply(templates.template || {}, [params, hash, templates]);
-  };
-
-  // Given an array, predicate and optional extra variable, finds the index in the array where predicate is true
-  function findIndex(arr, predicate, cid) {
-    if (arr == null) {
-      throw new TypeError("findIndex called on null or undefined");
-    }
-    if (typeof predicate !== "function") {
-      throw new TypeError("predicate must be a function");
-    }
-    var list = Object(arr);
-    var length = list.length >>> 0;
-    var thisArg = arguments[1];
-    var value;
-
-    for (var i = 0; i < length; i++) {
-      value = list[i];
-      if (predicate.call(thisArg, value, i, list, cid)) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
-  helpers.each = function (params, hash, templates) {
-
-    if (_.isNull(params[0]) || _.isUndefined(params[0])) {
-      console.warn("Undefined value passed to each helper! Maybe try providing a default value?", params, hash);return null;
-    }
-
-    var key,
-        value = params[0].isCollection ? params[0].models : params[0]; // Accepts collections or arrays
-
-    if (!_.isArray(value) || value.length === 0) {
-      if (templates.inverse && templates.inverse["yield"]) templates.inverse["yield"]();
-    } else {
-      for (key in value) {
-        if (value.hasOwnProperty(key)) this.yieldItem(value[key].cid, [value[key]], value);
-      }
-    }
-    return _.uniqueId("rand");
-  };
-
-  helpers.partial = function (params, hash, options, env) {
-    var partial = partials[params[0]];
-    if (partial && partial.isHTMLBars) {
-      return partial.render(options.context, env);
-    }
-  };
-
-  exports["default"] = helpers;
-  exports.partials = partials;
 });
 define("rebound-data/computed-property", ["exports", "module", "property-compiler/property-compiler", "rebound-component/utils"], function (exports, module, _propertyCompilerPropertyCompiler, _reboundComponentUtils) {
   // Rebound Computed Property
