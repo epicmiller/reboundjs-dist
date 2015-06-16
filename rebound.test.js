@@ -12375,133 +12375,6 @@ define("rebound-compiler/compile", ["exports", "module", "rebound-compiler/parse
 
   module.exports = { compile: compile };
 });
-define("rebound-data/collection", ["exports", "module", "rebound-data/model", "rebound-component/utils"], function (exports, module, _reboundDataModel, _reboundComponentUtils) {
-  // Rebound Collection
-  // ----------------
-
-  "use strict";
-
-  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-  var _Model = _interopRequireDefault(_reboundDataModel);
-
-  var _$ = _interopRequireDefault(_reboundComponentUtils);
-
-  function pathGenerator(collection) {
-    return function () {
-      return collection.__path() + "[" + collection.indexOf(collection._byId[this.cid]) + "]";
-    };
-  }
-
-  var Collection = Backbone.Collection.extend({
-
-    isCollection: true,
-    isData: true,
-
-    model: _Model["default"],
-
-    __path: function __path() {
-      return "";
-    },
-
-    constructor: function constructor(models, options) {
-      models || (models = []);
-      options || (options = {});
-      this.__observers = {};
-      this.helpers = {};
-      this.cid = _.uniqueId("collection");
-
-      // Set lineage
-      this.setParent(options.parent || this);
-      this.setRoot(options.root || this);
-      this.__path = options.path || this.__path;
-
-      Backbone.Collection.apply(this, arguments);
-
-      // When a model is removed from its original collection, destroy it
-      // TODO: Fix this. Computed properties now somehow allow collection to share a model. They may be removed from one but not the other. That is bad.
-      // The clone = false options is the culprit. Find a better way to copy all of the collections custom attributes over to the clone.
-      this.on("remove", function (model, collection, options) {});
-    },
-
-    get: function get(key, options) {
-
-      // If the key is a number or object, default to backbone's collection get
-      if (typeof key == "number" || typeof key == "object") {
-        return Backbone.Collection.prototype.get.call(this, key);
-      }
-
-      // If key is not a string, return undefined
-      if (!_.isString(key)) return void 0;
-
-      // Split the path at all '.', '[' and ']' and find the value referanced.
-      var parts = _$["default"].splitPath(key),
-          result = this,
-          l = parts.length,
-          i = 0;
-      options || (options = {});
-
-      if (_.isUndefined(key) || _.isNull(key)) return key;
-      if (key === "" || parts.length === 0) return result;
-
-      if (parts.length > 0) {
-        for (i = 0; i < l; i++) {
-          // If returning raw, always return the first computed property found. If undefined, you're done.
-          if (result && result.isComputedProperty && options.raw) return result;
-          if (result && result.isComputedProperty) result = result.value();
-          if (_.isUndefined(result) || _.isNull(result)) return result;
-          if (parts[i] === "@parent") result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result.hasOwnProperty(parts[i])) result = result[parts[i]];
-        }
-      }
-
-      if (result && result.isComputedProperty && !options.raw) result = result.value();
-
-      return result;
-    },
-
-    set: function set(models, options) {
-      var newModels = [],
-          lineage = {
-        parent: this,
-        root: this.__root__,
-        path: pathGenerator(this),
-        silent: true
-      };
-      options = options || {},
-
-      // If no models passed, implies an empty array
-      models || (models = []);
-
-      // If models is a string, call set at that path
-      if (_.isString(models)) return this.get(_$["default"].splitPath(models)[0]).set(_$["default"].splitPath(models).splice(1, models.length).join("."), options);
-      if (!_.isObject(models)) return console.error("Collection.set must be passed a Model, Object, array or Models and Objects, or another Collection");
-
-      // If another collection, treat like an array
-      models = models.isCollection ? models.models : models;
-      // Ensure models is an array
-      models = !_.isArray(models) ? [models] : models;
-
-      // If the model already exists in this collection, or we are told not to clone it, let Backbone handle the merge
-      // Otherwise, create our copy of this model, give them the same cid so our helpers treat them as the same object
-      _.each(models, function (data, index) {
-        if (data.isModel && options.clone === false || this._byId[data.cid]) return newModels[index] = data;
-        newModels[index] = new this.model(data, _.defaults(lineage, options));
-        data.isModel && (newModels[index].cid = data.cid);
-      }, this);
-
-      // Ensure that this element now knows that it has children now. Without this cyclic dependancies cause issues
-      this._hasAncestry || (this._hasAncestry = newModels.length > 0);
-
-      // Call original set function with model duplicates
-      return Backbone.Collection.prototype.set.call(this, newModels, options);
-    }
-
-  });
-
-  module.exports = Collection;
-});
-
-// model.deinitialize();
 define("rebound-component/component", ["exports", "module", "dom-helper", "htmlbars-runtime/render", "rebound-component/hooks", "rebound-component/helpers", "rebound-component/utils", "rebound-data/rebound-data"], function (exports, module, _domHelper, _htmlbarsRuntimeRender, _reboundComponentHooks, _reboundComponentHelpers, _reboundComponentUtils, _reboundDataReboundData) {
   // Rebound Component
   // ----------------
@@ -12898,6 +12771,133 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
 // }
 //
 // else{ this.set(attrName, newVal, {quiet: true}); }
+define("rebound-data/collection", ["exports", "module", "rebound-data/model", "rebound-component/utils"], function (exports, module, _reboundDataModel, _reboundComponentUtils) {
+  // Rebound Collection
+  // ----------------
+
+  "use strict";
+
+  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
+  var _Model = _interopRequireDefault(_reboundDataModel);
+
+  var _$ = _interopRequireDefault(_reboundComponentUtils);
+
+  function pathGenerator(collection) {
+    return function () {
+      return collection.__path() + "[" + collection.indexOf(collection._byId[this.cid]) + "]";
+    };
+  }
+
+  var Collection = Backbone.Collection.extend({
+
+    isCollection: true,
+    isData: true,
+
+    model: _Model["default"],
+
+    __path: function __path() {
+      return "";
+    },
+
+    constructor: function constructor(models, options) {
+      models || (models = []);
+      options || (options = {});
+      this.__observers = {};
+      this.helpers = {};
+      this.cid = _.uniqueId("collection");
+
+      // Set lineage
+      this.setParent(options.parent || this);
+      this.setRoot(options.root || this);
+      this.__path = options.path || this.__path;
+
+      Backbone.Collection.apply(this, arguments);
+
+      // When a model is removed from its original collection, destroy it
+      // TODO: Fix this. Computed properties now somehow allow collection to share a model. They may be removed from one but not the other. That is bad.
+      // The clone = false options is the culprit. Find a better way to copy all of the collections custom attributes over to the clone.
+      this.on("remove", function (model, collection, options) {});
+    },
+
+    get: function get(key, options) {
+
+      // If the key is a number or object, default to backbone's collection get
+      if (typeof key == "number" || typeof key == "object") {
+        return Backbone.Collection.prototype.get.call(this, key);
+      }
+
+      // If key is not a string, return undefined
+      if (!_.isString(key)) return void 0;
+
+      // Split the path at all '.', '[' and ']' and find the value referanced.
+      var parts = _$["default"].splitPath(key),
+          result = this,
+          l = parts.length,
+          i = 0;
+      options || (options = {});
+
+      if (_.isUndefined(key) || _.isNull(key)) return key;
+      if (key === "" || parts.length === 0) return result;
+
+      if (parts.length > 0) {
+        for (i = 0; i < l; i++) {
+          // If returning raw, always return the first computed property found. If undefined, you're done.
+          if (result && result.isComputedProperty && options.raw) return result;
+          if (result && result.isComputedProperty) result = result.value();
+          if (_.isUndefined(result) || _.isNull(result)) return result;
+          if (parts[i] === "@parent") result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result.hasOwnProperty(parts[i])) result = result[parts[i]];
+        }
+      }
+
+      if (result && result.isComputedProperty && !options.raw) result = result.value();
+
+      return result;
+    },
+
+    set: function set(models, options) {
+      var newModels = [],
+          lineage = {
+        parent: this,
+        root: this.__root__,
+        path: pathGenerator(this),
+        silent: true
+      };
+      options = options || {},
+
+      // If no models passed, implies an empty array
+      models || (models = []);
+
+      // If models is a string, call set at that path
+      if (_.isString(models)) return this.get(_$["default"].splitPath(models)[0]).set(_$["default"].splitPath(models).splice(1, models.length).join("."), options);
+      if (!_.isObject(models)) return console.error("Collection.set must be passed a Model, Object, array or Models and Objects, or another Collection");
+
+      // If another collection, treat like an array
+      models = models.isCollection ? models.models : models;
+      // Ensure models is an array
+      models = !_.isArray(models) ? [models] : models;
+
+      // If the model already exists in this collection, or we are told not to clone it, let Backbone handle the merge
+      // Otherwise, create our copy of this model, give them the same cid so our helpers treat them as the same object
+      _.each(models, function (data, index) {
+        if (data.isModel && options.clone === false || this._byId[data.cid]) return newModels[index] = data;
+        newModels[index] = new this.model(data, _.defaults(lineage, options));
+        data.isModel && (newModels[index].cid = data.cid);
+      }, this);
+
+      // Ensure that this element now knows that it has children now. Without this cyclic dependancies cause issues
+      this._hasAncestry || (this._hasAncestry = newModels.length > 0);
+
+      // Call original set function with model duplicates
+      return Backbone.Collection.prototype.set.call(this, newModels, options);
+    }
+
+  });
+
+  module.exports = Collection;
+});
+
+// model.deinitialize();
 define("rebound-router/lazy-component", ["exports", "module"], function (exports, module) {
   // Services keep track of their consumers. LazyComponent are placeholders
   // for services that haven't loaded yet. A LazyComponent mimics the api of a
@@ -15265,6 +15265,43 @@ define("rebound-compiler/precompile", ["exports", "module", "./parser", "htmlbar
 
   module.exports = precompile;
 });
+define("rebound-compiler/precompile", ["exports", "module", "./parser", "htmlbars"], function (exports, module, _parser, _htmlbars) {
+  // Rebound Pre-Compiler
+  // ----------------
+
+  "use strict";
+
+  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
+  var _parse = _interopRequireDefault(_parser);
+
+  function precompile(str) {
+    var options = arguments[1] === undefined ? {} : arguments[1];
+
+    if (!str || str.length === 0) {
+      return console.error("No template provided!");
+    }
+
+    var template;
+    str = (0, _parse["default"])(str, options);
+
+    // Compile
+    str.template = "" + (0, _htmlbars.compileSpec)(str.template);
+
+    // If is a partial
+    if (str.isPartial) {
+      template = "\n      define( [ " + str.deps.join(", ") + " ], function(){\n        var template = " + str.template + ";\n        window.Rebound.registerPartial(\"" + str.name + "\", template);\n      });";
+    }
+    // Else, is a component
+    else {
+      template = "\n      define( [ " + str.deps.join(", ") + " ], function(){\n        return window.Rebound.registerComponent(\"" + str.name + "\", {\n          prototype: " + str.script + ",\n          template: " + str.template + ",\n          style: \"" + str.style + "\"\n        });\n      });";
+    }
+
+    return template;
+  }
+
+  module.exports = precompile;
+});
 define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-value", "rebound-component/utils", "rebound-component/helpers", "htmlbars-runtime/hooks", "dom-helper", "../htmlbars-util/object-utils", "htmlbars-runtime/render"], function (exports, module, _reboundComponentLazyValue, _reboundComponentUtils, _reboundComponentHelpers, _htmlbarsRuntimeHooks, _domHelper, _htmlbarsUtilObjectUtils, _htmlbarsRuntimeRender) {
   // Rebound Hooks
   // ----------------
@@ -15726,22 +15763,21 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
     var _loop = function () {
       var key = prop;
-      // For each lazy param passed to our component, have it update the original context when changed.
-      if (componentData[key].isLazyValue) {
+      if (componentData[key].isLazyValue && attrs[key].isLazyValue) {
+
+        // For each lazy param passed to our component, have it update the original context when changed.
         componentData[key].onNotify(function () {
           attrs[key].set(attrs[key].path, componentData[key].value);
         });
-      }
 
-      // For each lazy param passed to our component, have it update the component when changed.
-      if (attrs[key].isLazyValue) {
+        // For each lazy param passed to our component, have it update the component when changed.
         attrs[key].onNotify(function () {
           componentData[key].set(key, attrs[key].value);
         });
-      }
 
-      // Seed the cache
-      componentData[key].value;
+        // Seed the cache
+        componentData[key].value;
+      }
     };
 
     // Set up two way binding between component and original context for non-data attributes
@@ -15829,43 +15865,6 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 // for(let i in renderNode.lazyValues)
 //   if(renderNode.lazyValues[i].isLazyValue)
 //     renderNode.lazyValues[i].destroy();
-define("rebound-compiler/precompile", ["exports", "module", "./parser", "htmlbars"], function (exports, module, _parser, _htmlbars) {
-  // Rebound Pre-Compiler
-  // ----------------
-
-  "use strict";
-
-  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-  var _parse = _interopRequireDefault(_parser);
-
-  function precompile(str) {
-    var options = arguments[1] === undefined ? {} : arguments[1];
-
-    if (!str || str.length === 0) {
-      return console.error("No template provided!");
-    }
-
-    var template;
-    str = (0, _parse["default"])(str, options);
-
-    // Compile
-    str.template = "" + (0, _htmlbars.compileSpec)(str.template);
-
-    // If is a partial
-    if (str.isPartial) {
-      template = "\n      define( [ " + str.deps.join(", ") + " ], function(){\n        var template = " + str.template + ";\n        window.Rebound.registerPartial(\"" + str.name + "\", template);\n      });";
-    }
-    // Else, is a component
-    else {
-      template = "\n      define( [ " + str.deps.join(", ") + " ], function(){\n        return window.Rebound.registerComponent(\"" + str.name + "\", {\n          prototype: " + str.script + ",\n          template: " + str.template + ",\n          style: \"" + str.style + "\"\n        });\n      });";
-    }
-
-    return template;
-  }
-
-  module.exports = precompile;
-});
 define("rebound-data/model", ["exports", "module", "rebound-data/computed-property", "rebound-component/utils"], function (exports, module, _reboundDataComputedProperty, _reboundComponentUtils) {
   // Rebound Model
   // ----------------
@@ -16129,146 +16128,6 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
 
   module.exports = Model;
 });
-define("rebound-data/rebound-data", ["exports", "module", "rebound-data/model", "rebound-data/collection", "rebound-data/computed-property", "rebound-component/utils"], function (exports, module, _reboundDataModel, _reboundDataCollection, _reboundDataComputedProperty, _reboundComponentUtils) {
-  // Rebound Data
-  // ----------------
-  // These are methods inherited by all Rebound data types: **Models**,
-  // **Collections** and **Computed Properties**. Controls tree ancestry
-  // tracking, deep event propagation and tree destruction.
-
-  "use strict";
-
-  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-  var _Model = _interopRequireDefault(_reboundDataModel);
-
-  var _Collection = _interopRequireDefault(_reboundDataCollection);
-
-  var _ComputedProperty = _interopRequireDefault(_reboundDataComputedProperty);
-
-  var _$ = _interopRequireDefault(_reboundComponentUtils);
-
-  var sharedMethods = {
-    // When a change event propagates up the tree it modifies the path part of
-    // `change:<path>` to reflect the fully qualified path relative to that object.
-    // Ex: Would trigger `change:val`, `change:[0].val`, `change:arr[0].val` and `obj.arr[0].val`
-    // on each parent as it is propagated up the tree.
-    propagateEvent: function propagateEvent(type, model) {
-      if (this.__parent__ === this || type === "dirty") return;
-      if (type.indexOf("change:") === 0 && model.isModel) {
-        if (this.isCollection && ~type.indexOf("change:[")) return;
-        var key,
-            path = model.__path().replace(this.__parent__.__path(), "").replace(/^\./, ""),
-            changed = model.changedAttributes();
-
-        for (key in changed) {
-          // TODO: Modifying arguments array is bad. change this
-          arguments[0] = "change:" + path + (path && ".") + key; // jshint ignore:line
-          this.__parent__.trigger.apply(this.__parent__, arguments);
-        }
-        return;
-      }
-      return this.__parent__.trigger.apply(this.__parent__, arguments);
-    },
-
-    // Set this data object's parent to `parent` and, as long as a data object is
-    // not its own parent, propagate every event triggered on `this` up the tree.
-    setParent: function setParent(parent) {
-      if (this.__parent__) this.off("all", this.propagateEvent);
-      this.__parent__ = parent;
-      this._hasAncestry = true;
-      if (parent !== this) this.on("all", this.__parent__.propagateEvent);
-      return parent;
-    },
-
-    // Recursively set a data tree's root element starting with `this` to the deepest child.
-    // TODO: I dont like this recursively setting elements root when one element's root changes. Fix this.
-    setRoot: function setRoot(root) {
-      var obj = this;
-      obj.__root__ = root;
-      var val = obj.models || obj.attributes || obj.cache;
-      _.each(val, function (value, key) {
-        if (value && value.isData) {
-          value.setRoot(root);
-        }
-      });
-      return root;
-    },
-
-    // Tests to see if `this` has a parent `obj`.
-    hasParent: function hasParent(obj) {
-      var tmp = this;
-      while (tmp !== obj) {
-        tmp = tmp.__parent__;
-        if (_.isUndefined(tmp)) return false;
-        if (tmp === obj) return true;
-        if (tmp.__parent__ === tmp) return false;
-      }
-      return true;
-    },
-
-    // De-initializes a data tree starting with `this` and recursively calling `deinitialize()` on each child.
-    deinitialize: function deinitialize() {
-      var _this = this;
-
-      // Undelegate Backbone Events from this data object
-      if (this.undelegateEvents) this.undelegateEvents();
-      if (this.stopListening) this.stopListening();
-      if (this.off) this.off();
-      if (this.unwire) this.unwire();
-
-      // Destroy this data object's lineage
-      delete this.__parent__;
-      delete this.__root__;
-      delete this.__path;
-
-      // If there is a dom element associated with this data object, destroy all listeners associated with it.
-      // Remove all event listeners from this dom element, recursively remove element lazyvalues,
-      // and then remove the element referance itself.
-      if (this.el) {
-        _.each(this.el.__listeners, function (handler, eventType) {
-          if (this.el.removeEventListener) this.el.removeEventListener(eventType, handler, false);
-          if (this.el.detachEvent) this.el.detachEvent("on" + eventType, handler);
-        }, this);
-        (0, _$["default"])(this.el).walkTheDOM(function (el) {
-          if (el.__lazyValue && el.__lazyValue.destroy()) n.__lazyValue.destroy();
-        });
-        delete this.el.__listeners;
-        delete this.el.__events;
-        delete this.$el;
-        delete this.el;
-      }
-
-      // Clean up Hook callback references
-      delete this.__observers;
-
-      // Mark as deinitialized so we don't loop on cyclic dependancies.
-      this.deinitialized = true;
-
-      // Destroy all children of this data object.
-      // If a Collection, de-init all of its Models, if a Model, de-init all of its
-      // Attributes, if a Computed Property, de-init its Cache objects.
-      _.each(this.models, function (val) {
-        val && val.deinitialize && val.deinitialize();
-      });
-      this.models && (this.models.length = 0);
-      _.each(this.attributes, function (val, key) {
-        delete _this.attributes[key];val && val.deinitialize && val.deinitialize();
-      });
-      if (this.cache) {
-        this.cache.collection.deinitialize();
-        this.cache.model.deinitialize();
-      }
-    }
-  };
-
-  // Extend all of the **Rebound Data** prototypes with these shared methods
-  _.extend(_Model["default"].prototype, sharedMethods);
-  _.extend(_Collection["default"].prototype, sharedMethods);
-  _.extend(_ComputedProperty["default"].prototype, sharedMethods);
-
-  module.exports = { Model: _Model["default"], Collection: _Collection["default"], ComputedProperty: _ComputedProperty["default"] };
-});
 define('rebound-component/lazy-value', ['exports', 'module'], function (exports, module) {
   // Rebound Lazy Value
   // ----------------
@@ -16415,6 +16274,146 @@ define('rebound-component/lazy-value', ['exports', 'module'], function (exports,
   });
 
   module.exports = LazyValue;
+});
+define("rebound-data/rebound-data", ["exports", "module", "rebound-data/model", "rebound-data/collection", "rebound-data/computed-property", "rebound-component/utils"], function (exports, module, _reboundDataModel, _reboundDataCollection, _reboundDataComputedProperty, _reboundComponentUtils) {
+  // Rebound Data
+  // ----------------
+  // These are methods inherited by all Rebound data types: **Models**,
+  // **Collections** and **Computed Properties**. Controls tree ancestry
+  // tracking, deep event propagation and tree destruction.
+
+  "use strict";
+
+  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
+  var _Model = _interopRequireDefault(_reboundDataModel);
+
+  var _Collection = _interopRequireDefault(_reboundDataCollection);
+
+  var _ComputedProperty = _interopRequireDefault(_reboundDataComputedProperty);
+
+  var _$ = _interopRequireDefault(_reboundComponentUtils);
+
+  var sharedMethods = {
+    // When a change event propagates up the tree it modifies the path part of
+    // `change:<path>` to reflect the fully qualified path relative to that object.
+    // Ex: Would trigger `change:val`, `change:[0].val`, `change:arr[0].val` and `obj.arr[0].val`
+    // on each parent as it is propagated up the tree.
+    propagateEvent: function propagateEvent(type, model) {
+      if (this.__parent__ === this || type === "dirty") return;
+      if (type.indexOf("change:") === 0 && model.isModel) {
+        if (this.isCollection && ~type.indexOf("change:[")) return;
+        var key,
+            path = model.__path().replace(this.__parent__.__path(), "").replace(/^\./, ""),
+            changed = model.changedAttributes();
+
+        for (key in changed) {
+          // TODO: Modifying arguments array is bad. change this
+          arguments[0] = "change:" + path + (path && ".") + key; // jshint ignore:line
+          this.__parent__.trigger.apply(this.__parent__, arguments);
+        }
+        return;
+      }
+      return this.__parent__.trigger.apply(this.__parent__, arguments);
+    },
+
+    // Set this data object's parent to `parent` and, as long as a data object is
+    // not its own parent, propagate every event triggered on `this` up the tree.
+    setParent: function setParent(parent) {
+      if (this.__parent__) this.off("all", this.propagateEvent);
+      this.__parent__ = parent;
+      this._hasAncestry = true;
+      if (parent !== this) this.on("all", this.__parent__.propagateEvent);
+      return parent;
+    },
+
+    // Recursively set a data tree's root element starting with `this` to the deepest child.
+    // TODO: I dont like this recursively setting elements root when one element's root changes. Fix this.
+    setRoot: function setRoot(root) {
+      var obj = this;
+      obj.__root__ = root;
+      var val = obj.models || obj.attributes || obj.cache;
+      _.each(val, function (value, key) {
+        if (value && value.isData) {
+          value.setRoot(root);
+        }
+      });
+      return root;
+    },
+
+    // Tests to see if `this` has a parent `obj`.
+    hasParent: function hasParent(obj) {
+      var tmp = this;
+      while (tmp !== obj) {
+        tmp = tmp.__parent__;
+        if (_.isUndefined(tmp)) return false;
+        if (tmp === obj) return true;
+        if (tmp.__parent__ === tmp) return false;
+      }
+      return true;
+    },
+
+    // De-initializes a data tree starting with `this` and recursively calling `deinitialize()` on each child.
+    deinitialize: function deinitialize() {
+      var _this = this;
+
+      // Undelegate Backbone Events from this data object
+      if (this.undelegateEvents) this.undelegateEvents();
+      if (this.stopListening) this.stopListening();
+      if (this.off) this.off();
+      if (this.unwire) this.unwire();
+
+      // Destroy this data object's lineage
+      delete this.__parent__;
+      delete this.__root__;
+      delete this.__path;
+
+      // If there is a dom element associated with this data object, destroy all listeners associated with it.
+      // Remove all event listeners from this dom element, recursively remove element lazyvalues,
+      // and then remove the element referance itself.
+      if (this.el) {
+        _.each(this.el.__listeners, function (handler, eventType) {
+          if (this.el.removeEventListener) this.el.removeEventListener(eventType, handler, false);
+          if (this.el.detachEvent) this.el.detachEvent("on" + eventType, handler);
+        }, this);
+        (0, _$["default"])(this.el).walkTheDOM(function (el) {
+          if (el.__lazyValue && el.__lazyValue.destroy()) n.__lazyValue.destroy();
+        });
+        delete this.el.__listeners;
+        delete this.el.__events;
+        delete this.$el;
+        delete this.el;
+      }
+
+      // Clean up Hook callback references
+      delete this.__observers;
+
+      // Mark as deinitialized so we don't loop on cyclic dependancies.
+      this.deinitialized = true;
+
+      // Destroy all children of this data object.
+      // If a Collection, de-init all of its Models, if a Model, de-init all of its
+      // Attributes, if a Computed Property, de-init its Cache objects.
+      _.each(this.models, function (val) {
+        val && val.deinitialize && val.deinitialize();
+      });
+      this.models && (this.models.length = 0);
+      _.each(this.attributes, function (val, key) {
+        delete _this.attributes[key];val && val.deinitialize && val.deinitialize();
+      });
+      if (this.cache) {
+        this.cache.collection.deinitialize();
+        this.cache.model.deinitialize();
+      }
+    }
+  };
+
+  // Extend all of the **Rebound Data** prototypes with these shared methods
+  _.extend(_Model["default"].prototype, sharedMethods);
+  _.extend(_Collection["default"].prototype, sharedMethods);
+  _.extend(_ComputedProperty["default"].prototype, sharedMethods);
+
+  module.exports = { Model: _Model["default"], Collection: _Collection["default"], ComputedProperty: _ComputedProperty["default"] };
 });
 define("rebound-component/utils", ["exports", "module"], function (exports, module) {
   // Rebound Utils

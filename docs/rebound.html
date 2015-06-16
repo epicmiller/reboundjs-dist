@@ -4290,7 +4290,8 @@ Syncing between models and collections passed are handled in model and collectio
             
             <div class="content"><div class='highlight'><pre>
   <span class="hljs-keyword">for</span>(<span class="hljs-keyword">var</span> prop <span class="hljs-keyword">in</span> componentData){
-    <span class="hljs-keyword">let</span> key = prop;</pre></div></div>
+    <span class="hljs-keyword">let</span> key = prop;
+    <span class="hljs-keyword">if</span>(componentData[key].isLazyValue &amp;&amp; attrs[key].isLazyValue){</pre></div></div>
             
         </li>
         
@@ -4305,11 +4306,9 @@ Syncing between models and collections passed are handled in model and collectio
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">if</span>(componentData[key].isLazyValue){
-      componentData[key].onNotify(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{
+            <div class="content"><div class='highlight'><pre>      componentData[key].onNotify(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{
         attrs[key].set(attrs[key].path, componentData[key].value);
-      });
-    }</pre></div></div>
+      });</pre></div></div>
             
         </li>
         
@@ -4324,11 +4323,9 @@ Syncing between models and collections passed are handled in model and collectio
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">if</span>(attrs[key].isLazyValue){
-      attrs[key].onNotify(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{
+            <div class="content"><div class='highlight'><pre>      attrs[key].onNotify(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{
         componentData[key].set(key, attrs[key].value);
-      });
-    }</pre></div></div>
+      });</pre></div></div>
             
         </li>
         
@@ -4343,8 +4340,9 @@ Syncing between models and collections passed are handled in model and collectio
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    componentData[key].value;
+            <div class="content"><div class='highlight'><pre>      componentData[key].value;
 
+    }
   }</pre></div></div>
             
         </li>

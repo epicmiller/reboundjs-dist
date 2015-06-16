@@ -459,22 +459,21 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
     var _loop = function () {
       var key = prop;
-      // For each lazy param passed to our component, have it update the original context when changed.
-      if (componentData[key].isLazyValue) {
+      if (componentData[key].isLazyValue && attrs[key].isLazyValue) {
+
+        // For each lazy param passed to our component, have it update the original context when changed.
         componentData[key].onNotify(function () {
           attrs[key].set(attrs[key].path, componentData[key].value);
         });
-      }
 
-      // For each lazy param passed to our component, have it update the component when changed.
-      if (attrs[key].isLazyValue) {
+        // For each lazy param passed to our component, have it update the component when changed.
         attrs[key].onNotify(function () {
           componentData[key].set(key, attrs[key].value);
         });
-      }
 
-      // Seed the cache
-      componentData[key].value;
+        // Seed the cache
+        componentData[key].value;
+      }
     };
 
     // Set up two way binding between component and original context for non-data attributes
