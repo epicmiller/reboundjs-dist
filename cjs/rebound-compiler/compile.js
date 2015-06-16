@@ -36,18 +36,18 @@ var _reboundComponentComponent2 = _interopRequireDefault(_reboundComponentCompon
 function compile(str) {
   var options = arguments[1] === undefined ? {} : arguments[1];
 
-  var str = (0, _reboundCompilerParser2["default"])(str, options);
+  /* jshint evil: true */
+  // Parse the template and compile our template function
+  var defs = (0, _reboundCompilerParser2["default"])(str, options),
+      template = (0, _htmlbarsCompilerCompiler.compile)(defs.template);
 
-  // Compile our template function
-  var func = (0, _htmlbarsCompilerCompiler.compile)(str.template);
-
-  if (str.isPartial) {
-    return _reboundComponentHelpers2["default"].registerPartial(options.name, func);
+  if (defs.isPartial) {
+    return _reboundComponentHelpers2["default"].registerPartial(options.name, template);
   } else {
-    return _reboundComponentComponent2["default"].registerComponent(str.name, {
-      prototype: new Function("return " + str.script)(),
-      template: func,
-      style: str.style
+    return _reboundComponentComponent2["default"].registerComponent(defs.name, {
+      prototype: new Function("return " + defs.script)(),
+      template: template,
+      style: defs.style
     });
   }
 }

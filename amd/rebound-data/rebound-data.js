@@ -1,8 +1,8 @@
 define("rebound-data/rebound-data", ["exports", "module", "rebound-data/model", "rebound-data/collection", "rebound-data/computed-property", "rebound-component/utils"], function (exports, module, _reboundDataModel, _reboundDataCollection, _reboundDataComputedProperty, _reboundComponentUtils) {
   // Rebound Data
   // ----------------
-  // These are methods inherited by all Rebound data types – **Models**,
-  // **Collections** and **Computed Properties** – and control tree ancestry
+  // These are methods inherited by all Rebound data types: **Models**,
+  // **Collections** and **Computed Properties**. Controls tree ancestry
   // tracking, deep event propagation and tree destruction.
 
   "use strict";

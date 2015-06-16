@@ -9425,7 +9425,18 @@ define('property-compiler/property-compiler', ['exports', 'module', 'property-co
 
   var _tokenizer = _interopRequireDefault(_propertyCompilerTokenizer);
 
-  var computedProperties = [];
+  var TERMINATORS = [';', ',', '==', '>', '<', '>=', '<=', '>==', '<==', '!=', '!==', '===', '&&', '||', '+', '-', '/', '*', '{', '}'];
+
+  function reduceMemos(memo, paths) {
+    var newMemo = [];
+    paths = !_.isArray(paths) ? [paths] : paths;
+    _.each(paths, function (path) {
+      _.each(memo, function (mem) {
+        newMemo.push(_.compact([mem, path]).join('.').replace('.[', '['));
+      });
+    });
+    return newMemo;
+  }
 
   // TODO: Make this farrrrrr more robust...very minimal right now
 
@@ -9437,22 +9448,13 @@ define('property-compiler/property-compiler', ['exports', 'module', 'property-co
     var str = prop.toString(),
         //.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s;])+\/\/(?:.*)$)/gm, '$1'), // String representation of function sans comments
     nextToken = _tokenizer['default'].tokenize(str),
-        tokens = [],
         token,
         finishedPaths = [],
-        namedPaths = {},
-        opcodes = [],
-        named = false,
         listening = 0,
-        inSubComponent = 0,
-        subComponent = [],
-        root,
         paths = [],
         path,
-        tmpPath,
         attrs = [],
-        workingpath = [],
-        terminators = [';', ',', '==', '>', '<', '>=', '<=', '>==', '<==', '!=', '!==', '===', '&&', '||', '+', '-', '/', '*', '{', '}'];
+        workingpath = [];
     do {
 
       token = nextToken();
@@ -9488,13 +9490,10 @@ define('property-compiler/property-compiler', ['exports', 'module', 'property-co
       }
 
       if (token.value === 'at') {
-
         path = nextToken();
         while (_.isUndefined(path.value)) {
           path = nextToken();
         }
-        // workingpath[workingpath.length -1] = workingpath[workingpath.length -1] + '[' + path.value + ']';
-        // workingpath.push('[' + path.value + ']');
         workingpath.push('@each');
       }
 
@@ -9515,17 +9514,8 @@ define('property-compiler/property-compiler', ['exports', 'module', 'property-co
         workingpath.push(attrs);
       }
 
-      if (listening && (_.indexOf(terminators, token.type.type) > -1 || _.indexOf(terminators, token.value) > -1)) {
-        workingpath = _.reduce(workingpath, function (memo, paths) {
-          var newMemo = [];
-          paths = !_.isArray(paths) ? [paths] : paths;
-          _.each(paths, function (path) {
-            _.each(memo, function (mem) {
-              newMemo.push(_.compact([mem, path]).join('.').replace('.[', '['));
-            });
-          });
-          return newMemo;
-        }, ['']);
+      if (listening && (_.indexOf(TERMINATORS, token.type.type) > -1 || _.indexOf(TERMINATORS, token.value) > -1)) {
+        workingpath = _.reduce(workingpath, reduceMemos, ['']);
         finishedPaths = _.compact(_.union(finishedPaths, workingpath));
         workingpath = [];
         listening--;
@@ -9534,8 +9524,11 @@ define('property-compiler/property-compiler', ['exports', 'module', 'property-co
 
     console.log('COMPUTED PROPERTY', name, 'registered with these dependancy paths:', finishedPaths);
 
+    // Save our finished paths directly on the function
+    prop.__params = finishedPaths;
+
     // Return the dependancies list
-    return prop.__params = finishedPaths;
+    return finishedPaths;
   }
 
   module.exports = { compile: compile };
@@ -9561,18 +9554,18 @@ define("rebound-compiler/compile", ["exports", "module", "rebound-compiler/parse
   function compile(str) {
     var options = arguments[1] === undefined ? {} : arguments[1];
 
-    var str = (0, _parse["default"])(str, options);
+    /* jshint evil: true */
+    // Parse the template and compile our template function
+    var defs = (0, _parse["default"])(str, options),
+        template = (0, _htmlbarsCompilerCompiler.compile)(defs.template);
 
-    // Compile our template function
-    var func = (0, _htmlbarsCompilerCompiler.compile)(str.template);
-
-    if (str.isPartial) {
-      return _helpers["default"].registerPartial(options.name, func);
+    if (defs.isPartial) {
+      return _helpers["default"].registerPartial(options.name, template);
     } else {
-      return _Component["default"].registerComponent(str.name, {
-        prototype: new Function("return " + str.script)(),
-        template: func,
-        style: str.style
+      return _Component["default"].registerComponent(defs.name, {
+        prototype: new Function("return " + defs.script)(),
+        template: template,
+        style: defs.style
       });
     }
   }
@@ -9600,24 +9593,151 @@ define("rebound-compiler/compile", ["exports", "module", "rebound-compiler/parse
   function compile(str) {
     var options = arguments[1] === undefined ? {} : arguments[1];
 
-    var str = (0, _parse["default"])(str, options);
+    /* jshint evil: true */
+    // Parse the template and compile our template function
+    var defs = (0, _parse["default"])(str, options),
+        template = (0, _htmlbarsCompilerCompiler.compile)(defs.template);
 
-    // Compile our template function
-    var func = (0, _htmlbarsCompilerCompiler.compile)(str.template);
-
-    if (str.isPartial) {
-      return _helpers["default"].registerPartial(options.name, func);
+    if (defs.isPartial) {
+      return _helpers["default"].registerPartial(options.name, template);
     } else {
-      return _Component["default"].registerComponent(str.name, {
-        prototype: new Function("return " + str.script)(),
-        template: func,
-        style: str.style
+      return _Component["default"].registerComponent(defs.name, {
+        prototype: new Function("return " + defs.script)(),
+        template: template,
+        style: defs.style
       });
     }
   }
 
   module.exports = { compile: compile };
 });
+define("rebound-data/collection", ["exports", "module", "rebound-data/model", "rebound-component/utils"], function (exports, module, _reboundDataModel, _reboundComponentUtils) {
+  // Rebound Collection
+  // ----------------
+
+  "use strict";
+
+  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
+  var _Model = _interopRequireDefault(_reboundDataModel);
+
+  var _$ = _interopRequireDefault(_reboundComponentUtils);
+
+  function pathGenerator(collection) {
+    return function () {
+      return collection.__path() + "[" + collection.indexOf(collection._byId[this.cid]) + "]";
+    };
+  }
+
+  var Collection = Backbone.Collection.extend({
+
+    isCollection: true,
+    isData: true,
+
+    model: _Model["default"],
+
+    __path: function __path() {
+      return "";
+    },
+
+    constructor: function constructor(models, options) {
+      models || (models = []);
+      options || (options = {});
+      this.__observers = {};
+      this.helpers = {};
+      this.cid = _.uniqueId("collection");
+
+      // Set lineage
+      this.setParent(options.parent || this);
+      this.setRoot(options.root || this);
+      this.__path = options.path || this.__path;
+
+      Backbone.Collection.apply(this, arguments);
+
+      // When a model is removed from its original collection, destroy it
+      // TODO: Fix this. Computed properties now somehow allow collection to share a model. They may be removed from one but not the other. That is bad.
+      // The clone = false options is the culprit. Find a better way to copy all of the collections custom attributes over to the clone.
+      this.on("remove", function (model, collection, options) {});
+    },
+
+    get: function get(key, options) {
+
+      // If the key is a number or object, default to backbone's collection get
+      if (typeof key == "number" || typeof key == "object") {
+        return Backbone.Collection.prototype.get.call(this, key);
+      }
+
+      // If key is not a string, return undefined
+      if (!_.isString(key)) return void 0;
+
+      // Split the path at all '.', '[' and ']' and find the value referanced.
+      var parts = _$["default"].splitPath(key),
+          result = this,
+          l = parts.length,
+          i = 0;
+      options || (options = {});
+
+      if (_.isUndefined(key) || _.isNull(key)) return key;
+      if (key === "" || parts.length === 0) return result;
+
+      if (parts.length > 0) {
+        for (i = 0; i < l; i++) {
+          // If returning raw, always return the first computed property found. If undefined, you're done.
+          if (result && result.isComputedProperty && options.raw) return result;
+          if (result && result.isComputedProperty) result = result.value();
+          if (_.isUndefined(result) || _.isNull(result)) return result;
+          if (parts[i] === "@parent") result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result.hasOwnProperty(parts[i])) result = result[parts[i]];
+        }
+      }
+
+      if (result && result.isComputedProperty && !options.raw) result = result.value();
+
+      return result;
+    },
+
+    set: function set(models, options) {
+      var newModels = [],
+          lineage = {
+        parent: this,
+        root: this.__root__,
+        path: pathGenerator(this),
+        silent: true
+      };
+      options = options || {},
+
+      // If no models passed, implies an empty array
+      models || (models = []);
+
+      // If models is a string, call set at that path
+      if (_.isString(models)) return this.get(_$["default"].splitPath(models)[0]).set(_$["default"].splitPath(models).splice(1, models.length).join("."), options);
+      if (!_.isObject(models)) return console.error("Collection.set must be passed a Model, Object, array or Models and Objects, or another Collection");
+
+      // If another collection, treat like an array
+      models = models.isCollection ? models.models : models;
+      // Ensure models is an array
+      models = !_.isArray(models) ? [models] : models;
+
+      // If the model already exists in this collection, or we are told not to clone it, let Backbone handle the merge
+      // Otherwise, create our copy of this model, give them the same cid so our helpers treat them as the same object
+      _.each(models, function (data, index) {
+        if (data.isModel && options.clone === false || this._byId[data.cid]) return newModels[index] = data;
+        newModels[index] = new this.model(data, _.defaults(lineage, options));
+        data.isModel && (newModels[index].cid = data.cid);
+      }, this);
+
+      // Ensure that this element now knows that it has children now. Without this cyclic dependancies cause issues
+      this._hasAncestry || (this._hasAncestry = newModels.length > 0);
+
+      // Call original set function with model duplicates
+      return Backbone.Collection.prototype.set.call(this, newModels, options);
+    }
+
+  });
+
+  module.exports = Collection;
+});
+
+// model.deinitialize();
 define("rebound-component/component", ["exports", "module", "dom-helper", "htmlbars-runtime/render", "rebound-component/hooks", "rebound-component/helpers", "rebound-component/utils", "rebound-data/rebound-data"], function (exports, module, _domHelper, _htmlbarsRuntimeRender, _reboundComponentHooks, _reboundComponentHelpers, _reboundComponentUtils, _reboundDataReboundData) {
   // Rebound Component
   // ----------------
@@ -9781,7 +9901,7 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
       this.el = options.outlet || document.createDocumentFragment();
       this.$el = _.isUndefined(window.Backbone.$) ? false : window.Backbone.$(this.el);
       this.template = options.template || this.template;
-      this.el["data"] = this;
+      this.el.data = this;
 
       // Render our dom and place the dom in our custom element
       // TODO: Check if template is a string, and if the compiler exists on the page, and compile if needed
@@ -9944,7 +10064,7 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
       }
 
       // All other values are component methods, leave them be unless already defined.
-    };
+    }
 
     // Extend our prototype with any remaining protoProps, overriting pre-defined ones
     if (protoProps) {
@@ -9976,17 +10096,17 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
     };
 
     proto.attachedCallback = function () {
-      script.attachedCallback && script.attachedCallback.call(this["data"]);
+      script.attachedCallback && script.attachedCallback.call(this.data);
     };
 
     proto.detachedCallback = function () {
-      script.detachedCallback && script.detachedCallback.call(this["data"]);
-      this["data"].deinitialize();
+      script.detachedCallback && script.detachedCallback.call(this.data);
+      this.data.deinitialize();
     };
 
     proto.attributeChangedCallback = function (attrName, oldVal, newVal) {
-      this["data"]._onAttributeChange(attrName, oldVal, newVal);
-      script.attributeChangedCallback && script.attributeChangedCallback.call(this["data"], attrName, oldVal, newVal);
+      this.data._onAttributeChange(attrName, oldVal, newVal);
+      script.attributeChangedCallback && script.attributeChangedCallback.call(this.data, attrName, oldVal, newVal);
     };
 
     return document.registerElement(name, { prototype: proto });
@@ -10014,133 +10134,6 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
 // }
 //
 // else{ this.set(attrName, newVal, {quiet: true}); }
-define("rebound-data/collection", ["exports", "module", "rebound-data/model", "rebound-component/utils"], function (exports, module, _reboundDataModel, _reboundComponentUtils) {
-  // Rebound Collection
-  // ----------------
-
-  "use strict";
-
-  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-  var _Model = _interopRequireDefault(_reboundDataModel);
-
-  var _$ = _interopRequireDefault(_reboundComponentUtils);
-
-  function pathGenerator(collection) {
-    return function () {
-      return collection.__path() + "[" + collection.indexOf(collection._byId[this.cid]) + "]";
-    };
-  }
-
-  var Collection = Backbone.Collection.extend({
-
-    isCollection: true,
-    isData: true,
-
-    model: _Model["default"],
-
-    __path: function __path() {
-      return "";
-    },
-
-    constructor: function constructor(models, options) {
-      models || (models = []);
-      options || (options = {});
-      this.__observers = {};
-      this.helpers = {};
-      this.cid = _.uniqueId("collection");
-
-      // Set lineage
-      this.setParent(options.parent || this);
-      this.setRoot(options.root || this);
-      this.__path = options.path || this.__path;
-
-      Backbone.Collection.apply(this, arguments);
-
-      // When a model is removed from its original collection, destroy it
-      // TODO: Fix this. Computed properties now somehow allow collection to share a model. They may be removed from one but not the other. That is bad.
-      // The clone = false options is the culprit. Find a better way to copy all of the collections custom attributes over to the clone.
-      this.on("remove", function (model, collection, options) {});
-    },
-
-    get: function get(key, options) {
-
-      // If the key is a number or object, default to backbone's collection get
-      if (typeof key == "number" || typeof key == "object") {
-        return Backbone.Collection.prototype.get.call(this, key);
-      }
-
-      // If key is not a string, return undefined
-      if (!_.isString(key)) return void 0;
-
-      // Split the path at all '.', '[' and ']' and find the value referanced.
-      var parts = _$["default"].splitPath(key),
-          result = this,
-          l = parts.length,
-          i = 0;
-      options || (options = {});
-
-      if (_.isUndefined(key) || _.isNull(key)) return key;
-      if (key === "" || parts.length === 0) return result;
-
-      if (parts.length > 0) {
-        for (i = 0; i < l; i++) {
-          // If returning raw, always return the first computed property found. If undefined, you're done.
-          if (result && result.isComputedProperty && options.raw) return result;
-          if (result && result.isComputedProperty) result = result.value();
-          if (_.isUndefined(result) || _.isNull(result)) return result;
-          if (parts[i] === "@parent") result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result.hasOwnProperty(parts[i])) result = result[parts[i]];
-        }
-      }
-
-      if (result && result.isComputedProperty && !options.raw) result = result.value();
-
-      return result;
-    },
-
-    set: function set(models, options) {
-      var newModels = [],
-          lineage = {
-        parent: this,
-        root: this.__root__,
-        path: pathGenerator(this),
-        silent: true
-      };
-      options = options || {},
-
-      // If no models passed, implies an empty array
-      models || (models = []);
-
-      // If models is a string, call set at that path
-      if (_.isString(models)) return this.get(_$["default"].splitPath(models)[0]).set(_$["default"].splitPath(models).splice(1, models.length).join("."), options);
-      if (!_.isObject(models)) return console.error("Collection.set must be passed a Model, Object, array or Models and Objects, or another Collection");
-
-      // If another collection, treat like an array
-      models = models.isCollection ? models.models : models;
-      // Ensure models is an array
-      models = !_.isArray(models) ? [models] : models;
-
-      // If the model already exists in this collection, or we are told not to clone it, let Backbone handle the merge
-      // Otherwise, create our copy of this model, give them the same cid so our helpers treat them as the same object
-      _.each(models, function (data, index) {
-        if (data.isModel && options.clone === false || this._byId[data.cid]) return newModels[index] = data;
-        newModels[index] = new this.model(data, _.defaults(lineage, options));
-        data.isModel && (newModels[index].cid = data.cid);
-      }, this);
-
-      // Ensure that this element now knows that it has children now. Without this cyclic dependancies cause issues
-      this._hasAncestry || (this._hasAncestry = newModels.length > 0);
-
-      // Call original set function with model duplicates
-      return Backbone.Collection.prototype.set.call(this, newModels, options);
-    }
-
-  });
-
-  module.exports = Collection;
-});
-
-// model.deinitialize();
 define("rebound-router/lazy-component", ["exports", "module"], function (exports, module) {
   // Services keep track of their consumers. LazyComponent are placeholders
   // for services that haven't loaded yet. A LazyComponent mimics the api of a
@@ -10240,230 +10233,6 @@ define("runtime", ["exports", "module", "rebound-component/utils", "rebound-comp
   if (Config) Rebound.start(JSON.parse(Config));
 
   module.exports = Rebound;
-});
-define('rebound-compiler/parser', ['exports', 'module'], function (exports, module) {
-  // Rebound Template Parser
-  // -----------------------
-
-  // Remove the contents of the component's `script` tag.
-  'use strict';
-
-  function getScript(str) {
-    var start = str.lastIndexOf('</template>'),
-        str = str.slice(start > -1 ? start : 0, str.length);
-    start = str.indexOf('<script>');
-    var end = str.lastIndexOf('</script>');
-
-    if (start > -1 && end > -1) return '(function(){' + str.substring(start + 8, end) + '})()';
-    return '{}';
-  }
-
-  // Remove the contents of the component's `style` tag.
-  function getStyle(str) {
-    return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
-  }
-
-  function stripLinkTags(str) {
-    // Remove link tags from template, these are fetched in getDependancies
-    return str.replace(/<link .*href=(['"]?)(.*).html\1[^>]*>/gi, '');
-  }
-
-  // Remove the contents of the component's `template` tag.
-  function getTemplate(str) {
-    var start = str.indexOf('<template>');
-    var end = str.lastIndexOf('</template>');
-
-    // Get only the content between the template tags, or set to an empty string.
-    str = start > -1 && end > -1 ? str.substring(start + 10, end) : '';
-
-    return stripLinkTags(str);
-  }
-
-  // Get the component's name from its `name` attribute.
-  function getName(str) {
-    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
-  }
-
-  // Minify the string passed in by replacing all whitespace.
-  function minify(str) {
-    return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
-  }
-
-  // Strip javascript comments
-  function removeComments(str) {
-    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
-  }
-
-  // TODO: This is messy, clean it up!
-  function getDependancies(template) {
-    var base = arguments[1] === undefined ? '' : arguments[1];
-
-    var imports = [],
-        partials = [],
-        deps = [],
-        match,
-        importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
-        partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
-        start = template.indexOf('<template>'),
-        end = template.lastIndexOf('</template>');
-    if (start > -1 && end > -1) template = template.substring(start + 10, end);
-
-    // Assemple our component dependancies by finding link tags and parsing their src
-    while ((match = importsre.exec(template)) != null) {
-      imports.push(match[2]);
-    }
-    imports.forEach(function (importString, index) {
-      deps.push('"' + base + importString + '"');
-    });
-
-    // Assemble our partial dependancies
-    partials = template.match(partialsre);
-
-    if (partials) {
-      partials.forEach(function (partial, index) {
-        deps.push('"' + base + partial.replace(/\{\{>[\s*]?['"]?([^'"]*)['"]?[\s*]?\}\}/gi, '$1') + '"');
-      });
-    }
-
-    return deps;
-  }
-
-  function parse(str) {
-    var options = arguments[1] === undefined ? {} : arguments[1];
-
-    // If the element tag is present
-    if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {
-      return {
-        isPartial: false,
-        name: getName(str),
-        style: getStyle(str),
-        template: getTemplate(str),
-        script: getScript(str),
-        deps: getDependancies(str, options.baseDest)
-      };
-    }
-
-    return {
-      isPartial: true,
-      name: options.name,
-      template: stripLinkTags(str),
-      deps: getDependancies(str, options.baseDest)
-    };
-  }
-
-  module.exports = parse;
-});
-define('rebound-compiler/parser', ['exports', 'module'], function (exports, module) {
-  // Rebound Template Parser
-  // -----------------------
-
-  // Remove the contents of the component's `script` tag.
-  'use strict';
-
-  function getScript(str) {
-    var start = str.lastIndexOf('</template>'),
-        str = str.slice(start > -1 ? start : 0, str.length);
-    start = str.indexOf('<script>');
-    var end = str.lastIndexOf('</script>');
-
-    if (start > -1 && end > -1) return '(function(){' + str.substring(start + 8, end) + '})()';
-    return '{}';
-  }
-
-  // Remove the contents of the component's `style` tag.
-  function getStyle(str) {
-    return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
-  }
-
-  function stripLinkTags(str) {
-    // Remove link tags from template, these are fetched in getDependancies
-    return str.replace(/<link .*href=(['"]?)(.*).html\1[^>]*>/gi, '');
-  }
-
-  // Remove the contents of the component's `template` tag.
-  function getTemplate(str) {
-    var start = str.indexOf('<template>');
-    var end = str.lastIndexOf('</template>');
-
-    // Get only the content between the template tags, or set to an empty string.
-    str = start > -1 && end > -1 ? str.substring(start + 10, end) : '';
-
-    return stripLinkTags(str);
-  }
-
-  // Get the component's name from its `name` attribute.
-  function getName(str) {
-    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
-  }
-
-  // Minify the string passed in by replacing all whitespace.
-  function minify(str) {
-    return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
-  }
-
-  // Strip javascript comments
-  function removeComments(str) {
-    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
-  }
-
-  // TODO: This is messy, clean it up!
-  function getDependancies(template) {
-    var base = arguments[1] === undefined ? '' : arguments[1];
-
-    var imports = [],
-        partials = [],
-        deps = [],
-        match,
-        importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
-        partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
-        start = template.indexOf('<template>'),
-        end = template.lastIndexOf('</template>');
-    if (start > -1 && end > -1) template = template.substring(start + 10, end);
-
-    // Assemple our component dependancies by finding link tags and parsing their src
-    while ((match = importsre.exec(template)) != null) {
-      imports.push(match[2]);
-    }
-    imports.forEach(function (importString, index) {
-      deps.push('"' + base + importString + '"');
-    });
-
-    // Assemble our partial dependancies
-    partials = template.match(partialsre);
-
-    if (partials) {
-      partials.forEach(function (partial, index) {
-        deps.push('"' + base + partial.replace(/\{\{>[\s*]?['"]?([^'"]*)['"]?[\s*]?\}\}/gi, '$1') + '"');
-      });
-    }
-
-    return deps;
-  }
-
-  function parse(str) {
-    var options = arguments[1] === undefined ? {} : arguments[1];
-
-    // If the element tag is present
-    if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {
-      return {
-        isPartial: false,
-        name: getName(str),
-        style: getStyle(str),
-        template: getTemplate(str),
-        script: getScript(str),
-        deps: getDependancies(str, options.baseDest)
-      };
-    }
-
-    return {
-      isPartial: true,
-      name: options.name,
-      template: stripLinkTags(str),
-      deps: getDependancies(str, options.baseDest)
-    };
-  }
-
-  module.exports = parse;
 });
 define("property-compiler/tokenizer", ["exports", "module"], function (exports, module) {
   /*jshint -W054 */
@@ -11476,6 +11245,230 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
 
   module.exports = { tokenize: _exports.tokenize };
 });
+define('rebound-compiler/parser', ['exports', 'module'], function (exports, module) {
+  // Rebound Template Parser
+  // -----------------------
+
+  // Remove the contents of the component's `script` tag.
+  'use strict';
+
+  function getScript(str) {
+    var start = str.lastIndexOf('</template>');
+    str = str.slice(start > -1 ? start : 0, str.length);
+    start = str.indexOf('<script>');
+    var end = str.lastIndexOf('</script>');
+
+    if (start > -1 && end > -1) return '(function(){' + str.substring(start + 8, end) + '})()';
+    return '{}';
+  }
+
+  // Remove the contents of the component's `style` tag.
+  function getStyle(str) {
+    return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
+  }
+
+  function stripLinkTags(str) {
+    // Remove link tags from template, these are fetched in getDependancies
+    return str.replace(/<link .*href=(['"]?)(.*).html\1[^>]*>/gi, '');
+  }
+
+  // Remove the contents of the component's `template` tag.
+  function getTemplate(str) {
+    var start = str.indexOf('<template>');
+    var end = str.lastIndexOf('</template>');
+
+    // Get only the content between the template tags, or set to an empty string.
+    str = start > -1 && end > -1 ? str.substring(start + 10, end) : '';
+
+    return stripLinkTags(str);
+  }
+
+  // Get the component's name from its `name` attribute.
+  function getName(str) {
+    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
+  }
+
+  // Minify the string passed in by replacing all whitespace.
+  function minify(str) {
+    return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
+  }
+
+  // Strip javascript comments
+  function removeComments(str) {
+    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
+  }
+
+  // TODO: This is messy, clean it up!
+  function getDependancies(template) {
+    var base = arguments[1] === undefined ? '' : arguments[1];
+
+    var imports = [],
+        partials = [],
+        deps = [],
+        match,
+        importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
+        partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
+        start = template.indexOf('<template>'),
+        end = template.lastIndexOf('</template>');
+    if (start > -1 && end > -1) template = template.substring(start + 10, end);
+
+    // Assemple our component dependancies by finding link tags and parsing their src
+    while ((match = importsre.exec(template)) !== null) {
+      imports.push(match[2]);
+    }
+    imports.forEach(function (importString, index) {
+      deps.push('"' + base + importString + '"');
+    });
+
+    // Assemble our partial dependancies
+    partials = template.match(partialsre);
+
+    if (partials) {
+      partials.forEach(function (partial, index) {
+        deps.push('"' + base + partial.replace(/\{\{>[\s*]?['"]?([^'"]*)['"]?[\s*]?\}\}/gi, '$1') + '"');
+      });
+    }
+
+    return deps;
+  }
+
+  function parse(str) {
+    var options = arguments[1] === undefined ? {} : arguments[1];
+
+    // If the element tag is present
+    if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {
+      return {
+        isPartial: false,
+        name: getName(str),
+        style: getStyle(str),
+        template: getTemplate(str),
+        script: getScript(str),
+        deps: getDependancies(str, options.baseDest)
+      };
+    }
+
+    return {
+      isPartial: true,
+      name: options.name,
+      template: stripLinkTags(str),
+      deps: getDependancies(str, options.baseDest)
+    };
+  }
+
+  module.exports = parse;
+});
+define('rebound-compiler/parser', ['exports', 'module'], function (exports, module) {
+  // Rebound Template Parser
+  // -----------------------
+
+  // Remove the contents of the component's `script` tag.
+  'use strict';
+
+  function getScript(str) {
+    var start = str.lastIndexOf('</template>');
+    str = str.slice(start > -1 ? start : 0, str.length);
+    start = str.indexOf('<script>');
+    var end = str.lastIndexOf('</script>');
+
+    if (start > -1 && end > -1) return '(function(){' + str.substring(start + 8, end) + '})()';
+    return '{}';
+  }
+
+  // Remove the contents of the component's `style` tag.
+  function getStyle(str) {
+    return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
+  }
+
+  function stripLinkTags(str) {
+    // Remove link tags from template, these are fetched in getDependancies
+    return str.replace(/<link .*href=(['"]?)(.*).html\1[^>]*>/gi, '');
+  }
+
+  // Remove the contents of the component's `template` tag.
+  function getTemplate(str) {
+    var start = str.indexOf('<template>');
+    var end = str.lastIndexOf('</template>');
+
+    // Get only the content between the template tags, or set to an empty string.
+    str = start > -1 && end > -1 ? str.substring(start + 10, end) : '';
+
+    return stripLinkTags(str);
+  }
+
+  // Get the component's name from its `name` attribute.
+  function getName(str) {
+    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
+  }
+
+  // Minify the string passed in by replacing all whitespace.
+  function minify(str) {
+    return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
+  }
+
+  // Strip javascript comments
+  function removeComments(str) {
+    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
+  }
+
+  // TODO: This is messy, clean it up!
+  function getDependancies(template) {
+    var base = arguments[1] === undefined ? '' : arguments[1];
+
+    var imports = [],
+        partials = [],
+        deps = [],
+        match,
+        importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
+        partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
+        start = template.indexOf('<template>'),
+        end = template.lastIndexOf('</template>');
+    if (start > -1 && end > -1) template = template.substring(start + 10, end);
+
+    // Assemple our component dependancies by finding link tags and parsing their src
+    while ((match = importsre.exec(template)) !== null) {
+      imports.push(match[2]);
+    }
+    imports.forEach(function (importString, index) {
+      deps.push('"' + base + importString + '"');
+    });
+
+    // Assemble our partial dependancies
+    partials = template.match(partialsre);
+
+    if (partials) {
+      partials.forEach(function (partial, index) {
+        deps.push('"' + base + partial.replace(/\{\{>[\s*]?['"]?([^'"]*)['"]?[\s*]?\}\}/gi, '$1') + '"');
+      });
+    }
+
+    return deps;
+  }
+
+  function parse(str) {
+    var options = arguments[1] === undefined ? {} : arguments[1];
+
+    // If the element tag is present
+    if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {
+      return {
+        isPartial: false,
+        name: getName(str),
+        style: getStyle(str),
+        template: getTemplate(str),
+        script: getScript(str),
+        deps: getDependancies(str, options.baseDest)
+      };
+    }
+
+    return {
+      isPartial: true,
+      name: options.name,
+      template: stripLinkTags(str),
+      deps: getDependancies(str, options.baseDest)
+    };
+  }
+
+  module.exports = parse;
+});
 define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", "rebound-component/utils"], function (exports, _reboundComponentLazyValue, _reboundComponentUtils) {
   // Rebound Helpers
   // ----------------
@@ -11561,6 +11554,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
   ********************************/
 
   helpers["debugger"] = function (params, hash, options, env) {
+    /* jshint -W087 */
     debugger;
     return "";
   };
@@ -11650,7 +11644,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
 
   // Given an array, predicate and optional extra variable, finds the index in the array where predicate is true
   function findIndex(arr, predicate, cid) {
-    if (arr == null) {
+    if (arr === null) {
       throw new TypeError("findIndex called on null or undefined");
     }
     if (typeof predicate !== "function") {
@@ -11698,376 +11692,6 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
 
   exports["default"] = helpers;
   exports.partials = partials;
-});
-define("rebound-router/rebound-router", ["exports", "module", "rebound-component/utils", "rebound-router/lazy-component"], function (exports, module, _reboundComponentUtils, _reboundRouterLazyComponent) {
-  // Rebound Router
-  // ----------------
-
-  "use strict";
-
-  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-  var _$ = _interopRequireDefault(_reboundComponentUtils);
-
-  var _LazyComponent = _interopRequireDefault(_reboundRouterLazyComponent);
-
-  var DEFAULT_404_PAGE = "<div style=\"display: block;text-align: center;font-size: 22px;\">\n  <h1 style=\"margin-top: 60px;\">\n    Oops! We couldn't find this page.\n  </h1>\n  <a href=\"#\" onclick=\"window.history.back();return false;\" style=\"display: block;text-decoration: none;margin-top: 30px;\">\n    Take me back\n  </a>\n</div>";
-
-  var ERROR_ROUTE_NAME = "error";
-  var SUCCESS = "success";
-  var ERROR = "error";
-  var LOADING = "loading";
-
-  // Overload Backbone's loadUrl so it returns the value of the routed callback
-  // instead of undefined
-  Backbone.history.loadUrl = function (fragment) {
-    fragment = this.fragment = this.getFragment(fragment);
-    var resp = false;
-    _.any(this.handlers, function (handler) {
-      if (handler.route.test(fragment)) {
-        resp = handler.callback(fragment);
-        return true;
-      }
-    });
-    return resp;
-  };
-
-  // ReboundRouter Constructor
-  var ReboundRouter = Backbone.Router.extend({
-
-    status: SUCCESS, // loading, success or error
-
-    // By default there is one route. The wildcard route fetches the required
-    // page assets based on user-defined naming convention.
-    routes: {
-      "*route": "wildcardRoute"
-    },
-
-    // Called when no matching routes are found. Extracts root route and fetches it's resources
-    wildcardRoute: function wildcardRoute(route) {
-      var primaryRoute;
-
-      // If empty route sent, route home
-      route = route || "";
-
-      // Get Root of Route
-      primaryRoute = route ? route.split("/")[0] : "index";
-
-      // Fetch Resources
-      document.body.classList.add("loading");
-
-      return this._fetchResource(route, this.config.container).then(function () {
-        document.body.classList.remove("loading");
-      })["catch"](function () {});
-    },
-
-    // Modify navigate to default to `trigger=true` and to return the value of
-    // `Backbone.history.navigate` inside of a promise.
-    navigate: function navigate(fragment) {
-      var options = arguments[1] === undefined ? {} : arguments[1];
-
-      options.trigger === undefined && (options.trigger = true);
-      var resp = Backbone.history.navigate(fragment, options);
-
-      // Always return a promise
-      return new Promise(function (resolve, reject) {
-        if (resp && resp.constructor === Promise) resp.then(resolve, reject);
-        resolve(resp);
-      });
-    },
-
-    // Modify `router.execute` to return the value of our route callback
-    execute: function execute(callback, args, name) {
-      if (callback) return callback.apply(this, args);
-    },
-
-    route: function route(_route, name, callback) {
-      var _this = this;
-
-      if (!_.isRegExp(_route)) _route = this._routeToRegExp(_route);
-      if (_.isFunction(name)) {
-        callback = name;
-        name = "";
-      }
-
-      if (!callback) callback = this[name];
-      Backbone.history.route(_route, function (fragment) {
-        var args = _this._extractParameters(_route, fragment);
-        var resp = _this.execute(callback, args, name);
-        if (resp !== false) {
-          _this.trigger.apply(_this, ["route:" + name].concat(args));
-          _this.trigger("route", name, args);
-          Backbone.history.trigger("route", _this, name, args);
-        }
-        return resp;
-      });
-      return this;
-    },
-
-    // On startup, save our config object and start the router
-    initialize: function initialize() {
-      var options = arguments[0] === undefined ? {} : arguments[0];
-      var callback = arguments[1] === undefined ? function () {} : arguments[1];
-
-      // Let all of our components always have referance to our router
-      Rebound.Component.prototype.router = this;
-
-      // Save our config referance
-      this.config = options;
-      this.config.handlers = [];
-
-      // Allow user to override error route
-      ERROR_ROUTE_NAME = this.config.errorRoute || ERROR_ROUTE_NAME;
-
-      // Use the user provided container, or default to the closest `<content>` tag
-      var container = this.config.container = (0, _$["default"])(this.config.container || "content")[0];
-
-      // Convert our routeMappings to regexps and push to our handlers
-      _.each(this.config.routeMapping, function (value, route) {
-        if (!_.isRegExp(route)) route = this._routeToRegExp(route);
-        this.config.handlers.unshift({ route: route, primaryRoute: value });
-      }, this);
-
-      this._watchLinks(container);
-      Rebound.services.page = new _LazyComponent["default"]();
-
-      // Install our global components
-      _.each(this.config.services, function (selector, route) {
-        var container = (0, _$["default"])(selector)[0] || document.createElement(selector || "span");
-        this._watchLinks(container);
-        Rebound.services[route] = new _LazyComponent["default"]();
-        this._fetchResource(route, container)["catch"](function () {});
-      }, this);
-
-      // Start the history and call the provided callback
-      Backbone.history.start({
-        pushState: this.config.pushState === undefined ? true : this.config.pushState,
-        root: this.config.root
-      }).then(callback);
-
-      return this;
-    },
-
-    // Given a dom element, watch for all click events on anchor tags.
-    // If the clicked anchor has a relative url, attempt to route to that path.
-    // Give all links on the page that match this path the class `active`.
-    _watchLinks: function _watchLinks(container) {
-      var _this2 = this;
-
-      // Navigate to route for any link with a relative href
-      var remoteUrl = /^([a-z]+:)|^(\/\/)|^([^\/]+\.)/;
-      (0, _$["default"])(container).on("click", "a", function (e) {
-        var path = e.target.getAttribute("href");
-        // If path is not an remote url, ends in .[a-z], or blank, try and navigate to that route.
-        if (path && path !== "#" && !remoteUrl.test(path)) e.preventDefault();
-        // If this is not our current route, navigate to the new route
-        if (path !== "/" + Backbone.history.fragment) {
-          (0, _$["default"])(container).unMarkLinks();
-          _this2.navigate(path, { trigger: true }).then(function () {
-            (0, _$["default"])(container).markLinks();
-          });
-        }
-      });
-    },
-
-    // De-initializes the previous app before rendering a new app
-    // This way we can ensure that every new page starts with a clean slate
-    // This is crucial for scalability of a single page app.
-    _uninstallResource: function _uninstallResource() {
-      var _this3 = this;
-
-      if (!this.current) return;
-
-      var oldPageName = this.current.__name;
-
-      // Unset Previous Application's Routes. For each route in the page app:
-      _.each(this.current["data"].routes, function (value, key) {
-
-        var regExp = _this3._routeToRegExp(key).toString();
-
-        // Remove the handler from our route object
-        Backbone.history.handlers = _.filter(Backbone.history.handlers, function (obj) {
-          return obj.route.toString() !== regExp;
-        });
-
-        // Delete our referance to the route's callback
-        delete _this3["_function_" + key];
-      });
-
-      // Un-hook Event Bindings, Delete Objects
-      this.current["data"].deinitialize();
-
-      // Now we no longer have a page installed.
-      this.current = undefined;
-
-      // Disable old css if it exists
-      setTimeout(function () {
-        if (_this3.status = ERROR) return;
-        document.getElementById(oldPageName + "-css").setAttribute("disabled", true);
-      }, 500);
-    },
-
-    // Give our new page component, load routes and render a new instance of the
-    // page component in the top level outlet.
-    _installResource: function _installResource(PageApp, primaryRoute, container) {
-      var _this4 = this;
-
-      var oldPageName, pageInstance, container;
-      var isService = container !== this.config.container;
-      container.classList.remove("error", "loading");
-
-      if (!isService && this.current) this._uninstallResource();
-
-      // Load New PageApp, give it it's name so we know what css to remove when it deinitializes
-      pageInstance = new PageApp();
-      pageInstance.__name = primaryRoute;
-
-      // Add to our page
-      container.innerHTML = "";
-      container.appendChild(pageInstance);
-
-      // Make sure we're back at the top of the page
-      document.body.scrollTop = 0;
-
-      // Augment ApplicationRouter with new routes from PageApp
-      _.each(pageInstance["data"].routes, function (value, key) {
-        // Generate our route callback's new name
-        var routeFunctionName = "_function_" + key,
-            functionName;
-        // Add the new callback referance on to our router and add the route handler
-        _this4[routeFunctionName] = function () {
-          pageInstance["data"][value].apply(pageInstance["data"], arguments);
-        };
-        _this4.route(key, value, _this4[routeFunctionName]);
-      }, this);
-
-      var name = isService ? primaryRoute : "page";
-      if (!isService) this.current = pageInstance;
-      if (window.Rebound.services[name].isService) window.Rebound.services[name].hydrate(pageInstance["data"]);
-      window.Rebound.services[name] = pageInstance["data"];
-
-      // Re-trigger route so the newly added route may execute if there's a route match.
-      // If no routes are matched, app will hit wildCard route which will then trigger 404
-      if (!isService) {
-        if (this.config.triggerOnFirstLoad) Backbone.history.loadUrl(Backbone.history.fragment);
-        this.config.triggerOnFirstLoad = true;
-      }
-
-      // Return our newly installed app
-      return pageInstance;
-    },
-
-    // Fetches HTML and CSS
-    _fetchResource: function _fetchResource(route, container) {
-      var _this5 = this;
-
-      var jsUrl,
-          cssUrl,
-          cssLoaded = false,
-          jsLoaded = false,
-          cssElement,
-          jsElement,
-          PageClass,
-          appName,
-          primaryRoute,
-          isService = container !== this.config.container;
-
-      // Get the root of this route
-      appName = primaryRoute = route ? route.split("/")[0] : "index";
-
-      // Find Any Custom Route Mappings
-      _.any(this.config.handlers, function (handler) {
-        if (handler.route.test(route)) {
-          appName = handler.primaryRoute;
-          return true;
-        }
-      });
-
-      jsUrl = this.config.jsPath.replace(/:route/g, primaryRoute).replace(/:app/g, appName);
-      cssUrl = this.config.cssPath.replace(/:route/g, primaryRoute).replace(/:app/g, appName);
-      cssElement = document.getElementById(appName + "-css");
-      jsElement = document.getElementById(appName + "-js");
-
-      // Wrap these async resource fetches in a promise and return it.
-      // This promise resolves when both css and js resources are loaded
-      // It rejects if either of the css or js resources fails to load.
-      return new Promise(function (resolve, reject) {
-
-        _this5.status = LOADING;
-
-        var defaultError = function defaultError(err) {
-          if (!isService) {
-            _this5._uninstallResource();
-            container.innerHTML = DEFAULT_404_PAGE;
-          }
-          reject(err);
-        };
-
-        var throwError = function throwError(err) {
-          if (route === ERROR_ROUTE_NAME) return defaultError();
-          if (_this5.status === ERROR) return;
-          _this5.status = ERROR;
-          console.error("Could not " + (isService ? "load the " + route + " service:" : "find the " + route + " page:") + "\n  - CSS Url: " + cssUrl + "\n  - JavaScript Url: " + jsUrl);
-          _this5._fetchResource(ERROR_ROUTE_NAME, container).then(reject, reject);
-        };
-
-        // If Page Is Already Loaded Then The Route Does Not Exist. 404 and Exit.
-        if (_this5.current && _this5.current.name === primaryRoute) {
-          return throwError();
-        }
-
-        // If this css element is not on the page already, it hasn't been loaded before -
-        // create the element and load the css resource.
-        // Else if the css resource has been loaded before, enable it
-        if (cssElement === null) {
-          cssElement = document.createElement("link");
-          cssElement.setAttribute("type", "text/css");
-          cssElement.setAttribute("rel", "stylesheet");
-          cssElement.setAttribute("href", cssUrl);
-          cssElement.setAttribute("id", appName + "-css");
-          (0, _$["default"])(cssElement).on("load", function (event) {
-            if ((cssLoaded = true) && jsLoaded) {
-              _this5.status = SUCCESS;
-              _this5._installResource(PageClass, appName, container);
-              resolve(_this5);
-            }
-          });
-          (0, _$["default"])(cssElement).on("error", function (err) {
-            cssElement.dataset.error = "";
-            throwError();
-          });
-          document.head.appendChild(cssElement);
-        } else {
-          if (cssElement.hasAttribute("data-error")) {
-            return throwError();
-          }
-          if ((cssLoaded = true) && jsLoaded) {
-            cssElement && cssElement.removeAttribute("disabled");
-            cssLoaded = true;
-          }
-        }
-
-        // AMD will manage dependancies for us. Load the JavaScript.
-        window.require([jsUrl], function (c) {
-          jsElement = (0, _$["default"])("script[src=\"" + jsUrl + "\"]")[0];
-          jsElement.setAttribute("id", appName + "-js");
-          if ((jsLoaded = true) && (PageClass = c) && cssLoaded) {
-            _this5.status = SUCCESS;
-            cssElement && cssElement.removeAttribute("disabled");
-            _this5._installResource(PageClass, appName, container);
-            resolve(_this5);
-          }
-        }, function () {
-          jsElement = (0, _$["default"])("script[src=\"" + jsUrl + "\"]")[0];
-          jsElement.setAttribute("id", appName + "-js");
-          jsElement.dataset.error = "";
-          throwError();
-        });
-      });
-    }
-  });
-
-  module.exports = ReboundRouter;
 });
 define("rebound-data/computed-property", ["exports", "module", "property-compiler/property-compiler", "rebound-component/utils"], function (exports, module, _propertyCompilerPropertyCompiler, _reboundComponentUtils) {
   // Rebound Computed Property
@@ -12207,7 +11831,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
       // anything inside that collection or that contains that collection.
       else if (type === "add" || type === "remove") {
         _.each(this.__computedDeps, function (dependants, dependancy) {
-          if (startsWith(dependancy, vector) || startsWith(vector, dependancy)) push.call(this._toCall, dependants);;
+          if (startsWith(dependancy, vector) || startsWith(vector, dependancy)) push.call(this._toCall, dependants);
         }, this);
       }
 
@@ -12470,42 +12094,375 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
 
   module.exports = ComputedProperty;
 });
-define("rebound-compiler/precompile", ["exports", "module", "./parser", "htmlbars"], function (exports, module, _parser, _htmlbars) {
-  // Rebound Pre-Compiler
+define("rebound-router/rebound-router", ["exports", "module", "rebound-component/utils", "rebound-router/lazy-component"], function (exports, module, _reboundComponentUtils, _reboundRouterLazyComponent) {
+  // Rebound Router
   // ----------------
 
   "use strict";
 
   function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
 
-  var _parse = _interopRequireDefault(_parser);
+  var _$ = _interopRequireDefault(_reboundComponentUtils);
 
-  function precompile(str) {
-    var options = arguments[1] === undefined ? {} : arguments[1];
+  var _LazyComponent = _interopRequireDefault(_reboundRouterLazyComponent);
 
-    if (!str || str.length === 0) {
-      return console.error("No template provided!");
+  var DEFAULT_404_PAGE = "<div style=\"display: block;text-align: center;font-size: 22px;\">\n  <h1 style=\"margin-top: 60px;\">\n    Oops! We couldn't find this page.\n  </h1>\n  <a href=\"#\" onclick=\"window.history.back();return false;\" style=\"display: block;text-decoration: none;margin-top: 30px;\">\n    Take me back\n  </a>\n</div>";
+
+  var ERROR_ROUTE_NAME = "error";
+  var SUCCESS = "success";
+  var ERROR = "error";
+  var LOADING = "loading";
+
+  // Overload Backbone's loadUrl so it returns the value of the routed callback
+  // instead of undefined
+  Backbone.history.loadUrl = function (fragment) {
+    fragment = this.fragment = this.getFragment(fragment);
+    var resp = false;
+    _.any(this.handlers, function (handler) {
+      if (handler.route.test(fragment)) {
+        resp = handler.callback(fragment);
+        return true;
+      }
+    });
+    return resp;
+  };
+
+  // ReboundRouter Constructor
+  var ReboundRouter = Backbone.Router.extend({
+
+    status: SUCCESS, // loading, success or error
+
+    // By default there is one route. The wildcard route fetches the required
+    // page assets based on user-defined naming convention.
+    routes: {
+      "*route": "wildcardRoute"
+    },
+
+    // Called when no matching routes are found. Extracts root route and fetches it's resources
+    wildcardRoute: function wildcardRoute(route) {
+      var primaryRoute;
+
+      // If empty route sent, route home
+      route = route || "";
+
+      // Get Root of Route
+      primaryRoute = route ? route.split("/")[0] : "index";
+
+      // Fetch Resources
+      document.body.classList.add("loading");
+
+      return this._fetchResource(route, this.config.container).then(function () {
+        document.body.classList.remove("loading");
+      })["catch"](function () {});
+    },
+
+    // Modify navigate to default to `trigger=true` and to return the value of
+    // `Backbone.history.navigate` inside of a promise.
+    navigate: function navigate(fragment) {
+      var options = arguments[1] === undefined ? {} : arguments[1];
+
+      options.trigger === undefined && (options.trigger = true);
+      var resp = Backbone.history.navigate(fragment, options);
+
+      // Always return a promise
+      return new Promise(function (resolve, reject) {
+        if (resp && resp.constructor === Promise) resp.then(resolve, reject);
+        resolve(resp);
+      });
+    },
+
+    // Modify `router.execute` to return the value of our route callback
+    execute: function execute(callback, args, name) {
+      if (callback) return callback.apply(this, args);
+    },
+
+    route: function route(_route, name, callback) {
+      var _this = this;
+
+      if (!_.isRegExp(_route)) _route = this._routeToRegExp(_route);
+      if (_.isFunction(name)) {
+        callback = name;
+        name = "";
+      }
+
+      if (!callback) callback = this[name];
+      Backbone.history.route(_route, function (fragment) {
+        var args = _this._extractParameters(_route, fragment);
+        var resp = _this.execute(callback, args, name);
+        if (resp !== false) {
+          _this.trigger.apply(_this, ["route:" + name].concat(args));
+          _this.trigger("route", name, args);
+          Backbone.history.trigger("route", _this, name, args);
+        }
+        return resp;
+      });
+      return this;
+    },
+
+    // On startup, save our config object and start the router
+    initialize: function initialize() {
+      var options = arguments[0] === undefined ? {} : arguments[0];
+      var callback = arguments[1] === undefined ? function () {} : arguments[1];
+
+      // Let all of our components always have referance to our router
+      Rebound.Component.prototype.router = this;
+
+      // Save our config referance
+      this.config = options;
+      this.config.handlers = [];
+
+      // Allow user to override error route
+      ERROR_ROUTE_NAME = this.config.errorRoute || ERROR_ROUTE_NAME;
+
+      // Use the user provided container, or default to the closest `<content>` tag
+      var container = this.config.container = (0, _$["default"])(this.config.container || "content")[0];
+
+      // Convert our routeMappings to regexps and push to our handlers
+      _.each(this.config.routeMapping, function (value, route) {
+        if (!_.isRegExp(route)) route = this._routeToRegExp(route);
+        this.config.handlers.unshift({ route: route, primaryRoute: value });
+      }, this);
+
+      this._watchLinks(container);
+      Rebound.services.page = new _LazyComponent["default"]();
+
+      // Install our global components
+      _.each(this.config.services, function (selector, route) {
+        var container = (0, _$["default"])(selector)[0] || document.createElement(selector || "span");
+        this._watchLinks(container);
+        Rebound.services[route] = new _LazyComponent["default"]();
+        this._fetchResource(route, container)["catch"](function () {});
+      }, this);
+
+      // Start the history and call the provided callback
+      Backbone.history.start({
+        pushState: this.config.pushState === undefined ? true : this.config.pushState,
+        root: this.config.root
+      }).then(callback);
+
+      return this;
+    },
+
+    // Given a dom element, watch for all click events on anchor tags.
+    // If the clicked anchor has a relative url, attempt to route to that path.
+    // Give all links on the page that match this path the class `active`.
+    _watchLinks: function _watchLinks(container) {
+      var _this2 = this;
+
+      // Navigate to route for any link with a relative href
+      var remoteUrl = /^([a-z]+:)|^(\/\/)|^([^\/]+\.)/;
+      (0, _$["default"])(container).on("click", "a", function (e) {
+        var path = e.target.getAttribute("href");
+        // If path is not an remote url, ends in .[a-z], or blank, try and navigate to that route.
+        if (path && path !== "#" && !remoteUrl.test(path)) e.preventDefault();
+        // If this is not our current route, navigate to the new route
+        if (path !== "/" + Backbone.history.fragment) {
+          (0, _$["default"])(container).unMarkLinks();
+          _this2.navigate(path, { trigger: true }).then(function () {
+            (0, _$["default"])(container).markLinks();
+          });
+        }
+      });
+    },
+
+    // De-initializes the previous app before rendering a new app
+    // This way we can ensure that every new page starts with a clean slate
+    // This is crucial for scalability of a single page app.
+    _uninstallResource: function _uninstallResource() {
+      var _this3 = this;
+
+      if (!this.current) return;
+
+      var oldPageName = this.current.__name;
+
+      // Unset Previous Application's Routes. For each route in the page app:
+      _.each(this.current.data.routes, function (value, key) {
+
+        var regExp = _this3._routeToRegExp(key).toString();
+
+        // Remove the handler from our route object
+        Backbone.history.handlers = _.filter(Backbone.history.handlers, function (obj) {
+          return obj.route.toString() !== regExp;
+        });
+
+        // Delete our referance to the route's callback
+        delete _this3["_function_" + key];
+      });
+
+      // Un-hook Event Bindings, Delete Objects
+      this.current.data.deinitialize();
+
+      // Now we no longer have a page installed.
+      this.current = undefined;
+
+      // Disable old css if it exists
+      setTimeout(function () {
+        if (_this3.status === ERROR) return;
+        document.getElementById(oldPageName + "-css").setAttribute("disabled", true);
+      }, 500);
+    },
+
+    // Give our new page component, load routes and render a new instance of the
+    // page component in the top level outlet.
+    _installResource: function _installResource(PageApp, primaryRoute, container) {
+      var _this4 = this;
+
+      var oldPageName, pageInstance;
+      var isService = container !== this.config.container;
+      container.classList.remove("error", "loading");
+
+      if (!isService && this.current) this._uninstallResource();
+
+      // Load New PageApp, give it it's name so we know what css to remove when it deinitializes
+      pageInstance = new PageApp();
+      pageInstance.__name = primaryRoute;
+
+      // Add to our page
+      container.innerHTML = "";
+      container.appendChild(pageInstance);
+
+      // Make sure we're back at the top of the page
+      document.body.scrollTop = 0;
+
+      // Augment ApplicationRouter with new routes from PageApp
+      _.each(pageInstance.data.routes, function (value, key) {
+        // Generate our route callback's new name
+        var routeFunctionName = "_function_" + key,
+            functionName;
+        // Add the new callback referance on to our router and add the route handler
+        _this4[routeFunctionName] = function () {
+          pageInstance.data[value].apply(pageInstance.data, arguments);
+        };
+        _this4.route(key, value, _this4[routeFunctionName]);
+      }, this);
+
+      var name = isService ? primaryRoute : "page";
+      if (!isService) this.current = pageInstance;
+      if (window.Rebound.services[name].isService) window.Rebound.services[name].hydrate(pageInstance.data);
+      window.Rebound.services[name] = pageInstance.data;
+
+      // Re-trigger route so the newly added route may execute if there's a route match.
+      // If no routes are matched, app will hit wildCard route which will then trigger 404
+      if (!isService) {
+        if (this.config.triggerOnFirstLoad) Backbone.history.loadUrl(Backbone.history.fragment);
+        this.config.triggerOnFirstLoad = true;
+      }
+
+      // Return our newly installed app
+      return pageInstance;
+    },
+
+    // Fetches HTML and CSS
+    _fetchResource: function _fetchResource(route, container) {
+      var _this5 = this;
+
+      var jsUrl,
+          cssUrl,
+          cssLoaded = false,
+          jsLoaded = false,
+          cssElement,
+          jsElement,
+          PageClass,
+          appName,
+          primaryRoute,
+          isService = container !== this.config.container;
+
+      // Get the root of this route
+      appName = primaryRoute = route ? route.split("/")[0] : "index";
+
+      // Find Any Custom Route Mappings
+      _.any(this.config.handlers, function (handler) {
+        if (handler.route.test(route)) {
+          appName = handler.primaryRoute;
+          return true;
+        }
+      });
+
+      jsUrl = this.config.jsPath.replace(/:route/g, primaryRoute).replace(/:app/g, appName);
+      cssUrl = this.config.cssPath.replace(/:route/g, primaryRoute).replace(/:app/g, appName);
+      cssElement = document.getElementById(appName + "-css");
+      jsElement = document.getElementById(appName + "-js");
+
+      // Wrap these async resource fetches in a promise and return it.
+      // This promise resolves when both css and js resources are loaded
+      // It rejects if either of the css or js resources fails to load.
+      return new Promise(function (resolve, reject) {
+
+        _this5.status = LOADING;
+
+        var defaultError = function defaultError(err) {
+          if (!isService) {
+            _this5._uninstallResource();
+            container.innerHTML = DEFAULT_404_PAGE;
+          }
+          reject(err);
+        };
+
+        var throwError = function throwError(err) {
+          if (route === ERROR_ROUTE_NAME) return defaultError();
+          if (_this5.status === ERROR) return;
+          _this5.status = ERROR;
+          console.error("Could not " + (isService ? "load the " + route + " service:" : "find the " + route + " page:") + "\n  - CSS Url: " + cssUrl + "\n  - JavaScript Url: " + jsUrl);
+          _this5._fetchResource(ERROR_ROUTE_NAME, container).then(reject, reject);
+        };
+
+        // If Page Is Already Loaded Then The Route Does Not Exist. 404 and Exit.
+        if (_this5.current && _this5.current.name === primaryRoute) {
+          return throwError();
+        }
+
+        // If this css element is not on the page already, it hasn't been loaded before -
+        // create the element and load the css resource.
+        // Else if the css resource has been loaded before, enable it
+        if (cssElement === null) {
+          cssElement = document.createElement("link");
+          cssElement.setAttribute("type", "text/css");
+          cssElement.setAttribute("rel", "stylesheet");
+          cssElement.setAttribute("href", cssUrl);
+          cssElement.setAttribute("id", appName + "-css");
+          (0, _$["default"])(cssElement).on("load", function (event) {
+            if ((cssLoaded = true) && jsLoaded) {
+              _this5.status = SUCCESS;
+              _this5._installResource(PageClass, appName, container);
+              resolve(_this5);
+            }
+          });
+          (0, _$["default"])(cssElement).on("error", function (err) {
+            cssElement.dataset.error = "";
+            throwError();
+          });
+          document.head.appendChild(cssElement);
+        } else {
+          if (cssElement.hasAttribute("data-error")) {
+            return throwError();
+          }
+          if ((cssLoaded = true) && jsLoaded) {
+            cssElement && cssElement.removeAttribute("disabled");
+            cssLoaded = true;
+          }
+        }
+
+        // AMD will manage dependancies for us. Load the JavaScript.
+        window.require([jsUrl], function (c) {
+          jsElement = (0, _$["default"])("script[src=\"" + jsUrl + "\"]")[0];
+          jsElement.setAttribute("id", appName + "-js");
+          if ((jsLoaded = true) && (PageClass = c) && cssLoaded) {
+            _this5.status = SUCCESS;
+            cssElement && cssElement.removeAttribute("disabled");
+            _this5._installResource(PageClass, appName, container);
+            resolve(_this5);
+          }
+        }, function () {
+          jsElement = (0, _$["default"])("script[src=\"" + jsUrl + "\"]")[0];
+          jsElement.setAttribute("id", appName + "-js");
+          jsElement.dataset.error = "";
+          throwError();
+        });
+      });
     }
+  });
 
-    var template;
-    str = (0, _parse["default"])(str, options);
-
-    // Compile
-    str.template = "" + (0, _htmlbars.compileSpec)(str.template);
-
-    // If is a partial
-    if (str.isPartial) {
-      template = "\n      define( [ " + str.deps.join(", ") + " ], function(){\n        var template = " + str.template + ";\n        window.Rebound.registerPartial(\"" + str.name + "\", template);\n      });";
-    }
-    // Else, is a component
-    else {
-      template = "\n      define( [ " + str.deps.join(", ") + " ], function(){\n        return window.Rebound.registerComponent(\"" + str.name + "\", {\n          prototype: " + str.script + ",\n          template: " + str.template + ",\n          style: \"" + str.style + "\"\n        });\n      });";
-    }
-
-    return template;
-  }
-
-  module.exports = precompile;
+  module.exports = ReboundRouter;
 });
 define("rebound-compiler/precompile", ["exports", "module", "./parser", "htmlbars"], function (exports, module, _parser, _htmlbars) {
   // Rebound Pre-Compiler
@@ -12679,7 +12636,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     }
 
     return lazyValue;
-  };
+  }
 
   _hooks["default"].cleanupRenderNode = function () {};
 
@@ -12808,8 +12765,10 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
   _hooks["default"].subexpr = function subexpr(env, scope, helperName, params, hash) {
     var helper = _helpers["default"].lookupHelper(helperName, env),
         lazyValue,
+        i,
+        l,
         name = "subexpr " + helperName + ": ";
-    for (var i = 0, l = params.length; i < l; i++) {
+    for (i = 0, l = params.length; i < l; i++) {
       if (params[i].isLazyValue) name += params[i].cid;
     }
 
@@ -12821,7 +12780,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       lazyValue = _hooks["default"].get(env, context, helperName);
     }
 
-    for (var i = 0, l = params.length; i < l; i++) {
+    for (i = 0, l = params.length; i < l; i++) {
       if (params[i].isLazyValue) {
         lazyValue.addDependentValue(params[i]);
       }
@@ -12834,14 +12793,16 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
   _hooks["default"].concat = function concat(env, params) {
 
-    var name = "concat: ";
+    var name = "concat: ",
+        i,
+        l;
 
     if (params.length === 1) {
       return params[0];
     }
 
-    for (var i = 0, l = params.length; i < l; i++) {
-      name += params[i].isLazyValue ? params[i].cid : params[i];
+    for (i = 0, l = params.length; i < l; i++) {
+      name += params[i] && params[i].isLazyValue ? params[i].cid : params[i];
     }
 
     if (env.streams[name]) return env.streams[name];
@@ -12849,14 +12810,14 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     var lazyValue = new _LazyValue["default"](function (params) {
       var value = "";
 
-      for (var i = 0, l = params.length; i < l; i++) {
-        value += params[i].isLazyValue ? params[i].value : params[i];
+      for (i = 0, l = params.length; i < l; i++) {
+        value += params[i] && params[i].isLazyValue ? params[i].value : params[i] || "";
       }
 
       return value;
     }, { context: params[0].context });
 
-    for (var i = 0, l = params.length; i < l; i++) {
+    for (i = 0, l = params.length; i < l; i++) {
       lazyValue.addDependentValue(params[i]);
     }
 
@@ -12867,8 +12828,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
   // Content Hook
   _hooks["default"].content = function content(morph, env, context, path, lazyValue) {
-    var lazyValue,
-        value,
+    var value,
         observer = subtreeObserver,
         domElement = morph.contextualElement,
         helper = _helpers["default"].lookupHelper(path, env);
@@ -12959,10 +12919,10 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
   };
 
   _hooks["default"].partial = function partial(renderNode, env, scope, path) {
-    var partial = _reboundComponentHelpers.partials[path];
-    if (partial && partial.render) {
+    var part = _reboundComponentHelpers.partials[path];
+    if (part && part.render) {
       env = Object.create(env);
-      env.template = partial.render(scope.self, env, { contextualElement: renderNode.contextualElement }, scope.block);
+      env.template = part.render(scope.self, env, { contextualElement: renderNode.contextualElement }, scope.block);
       return env.template.fragment;
     }
   };
@@ -12992,11 +12952,11 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     // Global seed data is consumed by element as its created. This is not scoped and very dumb.
     Rebound.seedData = seedData;
     element = document.createElement(tagName);
-    component = element["data"];
+    component = element.data;
     delete Rebound.seedData;
 
     // For each lazy param passed to our component, create its lazyValue
-    for (key in seedData) {
+    for (var key in seedData) {
       componentData[key] = streamProperty(component, key);
     }
 
@@ -13105,11 +13065,48 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 // for(let i in renderNode.lazyValues)
 //   if(renderNode.lazyValues[i].isLazyValue)
 //     renderNode.lazyValues[i].destroy();
+define("rebound-compiler/precompile", ["exports", "module", "./parser", "htmlbars"], function (exports, module, _parser, _htmlbars) {
+  // Rebound Pre-Compiler
+  // ----------------
+
+  "use strict";
+
+  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
+  var _parse = _interopRequireDefault(_parser);
+
+  function precompile(str) {
+    var options = arguments[1] === undefined ? {} : arguments[1];
+
+    if (!str || str.length === 0) {
+      return console.error("No template provided!");
+    }
+
+    var template;
+    str = (0, _parse["default"])(str, options);
+
+    // Compile
+    str.template = "" + (0, _htmlbars.compileSpec)(str.template);
+
+    // If is a partial
+    if (str.isPartial) {
+      template = "\n      define( [ " + str.deps.join(", ") + " ], function(){\n        var template = " + str.template + ";\n        window.Rebound.registerPartial(\"" + str.name + "\", template);\n      });";
+    }
+    // Else, is a component
+    else {
+      template = "\n      define( [ " + str.deps.join(", ") + " ], function(){\n        return window.Rebound.registerComponent(\"" + str.name + "\", {\n          prototype: " + str.script + ",\n          template: " + str.template + ",\n          style: \"" + str.style + "\"\n        });\n      });";
+    }
+
+    return template;
+  }
+
+  module.exports = precompile;
+});
 define("rebound-data/model", ["exports", "module", "rebound-data/computed-property", "rebound-component/utils"], function (exports, module, _reboundDataComputedProperty, _reboundComponentUtils) {
   // Rebound Model
   // ----------------
 
-  // Rebound **Models** are the basic data object in the framework — frequently
+  // Rebound **Models** are the basic data object in the framework - frequently
   // representing a row in a table in a database on your server. The inherit from
   // Backbone Models and have all of the same useful methods you are used to for
   // performing computations and transformations on that data. Rebound augments
@@ -13202,7 +13199,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
           changed[key] = undefined;
           this.unset(key, { silent: true });
         }
-      };
+      }
 
       // Any unset changed values will be set to obj[key]
       _.each(obj, function (value, key, obj) {
@@ -13283,9 +13280,9 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
 
       // For each attribute passed:
       for (key in attrs) {
-        var val = attrs[key],
+        var _val = attrs[key],
             paths = _$["default"].splitPath(key),
-            attr = paths.pop() || ""; // The key        ex: foo[0].bar --> bar
+            _attr = paths.pop() || ""; // The key        ex: foo[0].bar --> bar
         target = this.get(paths.join(".")), // The element    ex: foo.bar.baz --> foo.bar
         lineage;
 
@@ -13300,7 +13297,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
         }
 
         // The old value of `attr` in `target`
-        var destination = target.get(attr, { raw: true }) || {};
+        destination = target.get(_attr, { raw: true }) || {};
 
         // Create this new object's lineage.
         lineage = {
@@ -13324,20 +13321,20 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
         // - Else If this value is a `Object`, turn it into a `Model`.
         // - Else val is a primitive value, set it accordingly.
 
-        if (_.isNull(val) || _.isUndefined(val)) val = this.defaults[key];
-        if (val && val.isComputedProperty) val = val.value();
-        if (_.isNull(val) || _.isUndefined(val)) val = undefined;else if (options.raw === true) val = val;else if (destination.isComputedProperty && destination.func === val) continue;else if (val.isComputedProto) val = new _ComputedProperty["default"](val.get, val.set, lineage);else if (val.isData && target.hasParent(val)) val = val;else if (destination.isComputedProperty || destination.isCollection && (_.isArray(val) || val.isCollection) || destination.isModel && (_.isObject(val) || val.isModel)) {
-          destination.set(val, options);
+        if (_.isNull(_val) || _.isUndefined(_val)) _val = this.defaults[key];
+        if (_val && _val.isComputedProperty) _val = _val.value();
+        if (_.isNull(_val) || _.isUndefined(_val)) _val = undefined;else if (options.raw === true) _val = _val;else if (destination.isComputedProperty && destination.func === _val) continue;else if (_val.isComputedProto) _val = new _ComputedProperty["default"](_val.get, _val.set, lineage);else if (_val.isData && target.hasParent(_val)) _val = _val;else if (destination.isComputedProperty || destination.isCollection && (_.isArray(_val) || _val.isCollection) || destination.isModel && (_.isObject(_val) || _val.isModel)) {
+          destination.set(_val, options);
           continue;
-        } else if (val.isData && options.clone !== false) val = new val.constructor(val.attributes || val.models, lineage);else if (_.isArray(val)) val = new Rebound.Collection(val, lineage); // TODO: Remove global referance
-        else if (_.isObject(val)) val = new Model(val, lineage);
+        } else if (_val.isData && options.clone !== false) _val = new _val.constructor(_val.attributes || _val.models, lineage);else if (_.isArray(_val)) _val = new Rebound.Collection(_val, lineage); // TODO: Remove global referance
+        else if (_.isObject(_val)) _val = new Model(_val, lineage);
 
         // If val is a data object, let this object know it is now a parent
-        this._hasAncestry = val && val.isData || false;
+        this._hasAncestry = _val && _val.isData || false;
 
         // Set the value
-        Backbone.Model.prototype.set.call(target, attr, val, options); // TODO: Event cleanup when replacing a model or collection with another value
-      };
+        Backbone.Model.prototype.set.call(target, _attr, _val, options); // TODO: Event cleanup when replacing a model or collection with another value
+      }
 
       return this;
     },
@@ -13371,8 +13368,8 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
 define("rebound-data/rebound-data", ["exports", "module", "rebound-data/model", "rebound-data/collection", "rebound-data/computed-property", "rebound-component/utils"], function (exports, module, _reboundDataModel, _reboundDataCollection, _reboundDataComputedProperty, _reboundComponentUtils) {
   // Rebound Data
   // ----------------
-  // These are methods inherited by all Rebound data types – **Models**,
-  // **Collections** and **Computed Properties** – and control tree ancestry
+  // These are methods inherited by all Rebound data types: **Models**,
+  // **Collections** and **Computed Properties**. Controls tree ancestry
   // tracking, deep event propagation and tree destruction.
 
   "use strict";
@@ -13642,11 +13639,11 @@ define('rebound-component/lazy-value', ['exports', 'module'], function (exports,
             child = children[i];
             values[i] = child && child.isLazyValue ? child.value : child;
           }
-
-          return this.cache = this.valueFn(values);
+          this.cache = this.valueFn(values);
         } else {
-          return this.cache = this.valueFn(EMPTY_ARRAY);
+          this.cache = this.valueFn(EMPTY_ARRAY);
         }
+        return this.cache;
       },
       configurable: true,
       enumerable: true

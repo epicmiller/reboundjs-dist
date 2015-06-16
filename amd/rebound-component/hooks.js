@@ -133,7 +133,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     }
 
     return lazyValue;
-  };
+  }
 
   _hooks["default"].cleanupRenderNode = function () {};
 
@@ -262,8 +262,10 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
   _hooks["default"].subexpr = function subexpr(env, scope, helperName, params, hash) {
     var helper = _helpers["default"].lookupHelper(helperName, env),
         lazyValue,
+        i,
+        l,
         name = "subexpr " + helperName + ": ";
-    for (var i = 0, l = params.length; i < l; i++) {
+    for (i = 0, l = params.length; i < l; i++) {
       if (params[i].isLazyValue) name += params[i].cid;
     }
 
@@ -275,7 +277,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       lazyValue = _hooks["default"].get(env, context, helperName);
     }
 
-    for (var i = 0, l = params.length; i < l; i++) {
+    for (i = 0, l = params.length; i < l; i++) {
       if (params[i].isLazyValue) {
         lazyValue.addDependentValue(params[i]);
       }
@@ -288,14 +290,16 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
   _hooks["default"].concat = function concat(env, params) {
 
-    var name = "concat: ";
+    var name = "concat: ",
+        i,
+        l;
 
     if (params.length === 1) {
       return params[0];
     }
 
-    for (var i = 0, l = params.length; i < l; i++) {
-      name += params[i].isLazyValue ? params[i].cid : params[i];
+    for (i = 0, l = params.length; i < l; i++) {
+      name += params[i] && params[i].isLazyValue ? params[i].cid : params[i];
     }
 
     if (env.streams[name]) return env.streams[name];
@@ -303,14 +307,14 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     var lazyValue = new _LazyValue["default"](function (params) {
       var value = "";
 
-      for (var i = 0, l = params.length; i < l; i++) {
-        value += params[i].isLazyValue ? params[i].value : params[i];
+      for (i = 0, l = params.length; i < l; i++) {
+        value += params[i] && params[i].isLazyValue ? params[i].value : params[i] || "";
       }
 
       return value;
     }, { context: params[0].context });
 
-    for (var i = 0, l = params.length; i < l; i++) {
+    for (i = 0, l = params.length; i < l; i++) {
       lazyValue.addDependentValue(params[i]);
     }
 
@@ -321,8 +325,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
   // Content Hook
   _hooks["default"].content = function content(morph, env, context, path, lazyValue) {
-    var lazyValue,
-        value,
+    var value,
         observer = subtreeObserver,
         domElement = morph.contextualElement,
         helper = _helpers["default"].lookupHelper(path, env);
@@ -413,10 +416,10 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
   };
 
   _hooks["default"].partial = function partial(renderNode, env, scope, path) {
-    var partial = _reboundComponentHelpers.partials[path];
-    if (partial && partial.render) {
+    var part = _reboundComponentHelpers.partials[path];
+    if (part && part.render) {
       env = Object.create(env);
-      env.template = partial.render(scope.self, env, { contextualElement: renderNode.contextualElement }, scope.block);
+      env.template = part.render(scope.self, env, { contextualElement: renderNode.contextualElement }, scope.block);
       return env.template.fragment;
     }
   };
@@ -446,11 +449,11 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     // Global seed data is consumed by element as its created. This is not scoped and very dumb.
     Rebound.seedData = seedData;
     element = document.createElement(tagName);
-    component = element["data"];
+    component = element.data;
     delete Rebound.seedData;
 
     // For each lazy param passed to our component, create its lazyValue
-    for (key in seedData) {
+    for (var key in seedData) {
       componentData[key] = streamProperty(component, key);
     }
 

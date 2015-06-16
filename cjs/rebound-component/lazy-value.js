@@ -134,11 +134,11 @@ LazyValue.prototype = Object.defineProperties({
           child = children[i];
           values[i] = child && child.isLazyValue ? child.value : child;
         }
-
-        return this.cache = this.valueFn(values);
+        this.cache = this.valueFn(values);
       } else {
-        return this.cache = this.valueFn(EMPTY_ARRAY);
+        this.cache = this.valueFn(EMPTY_ARRAY);
       }
+      return this.cache;
     },
     configurable: true,
     enumerable: true

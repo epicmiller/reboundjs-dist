@@ -180,7 +180,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       var oldPageName = this.current.__name;
 
       // Unset Previous Application's Routes. For each route in the page app:
-      _.each(this.current["data"].routes, function (value, key) {
+      _.each(this.current.data.routes, function (value, key) {
 
         var regExp = _this3._routeToRegExp(key).toString();
 
@@ -194,14 +194,14 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       });
 
       // Un-hook Event Bindings, Delete Objects
-      this.current["data"].deinitialize();
+      this.current.data.deinitialize();
 
       // Now we no longer have a page installed.
       this.current = undefined;
 
       // Disable old css if it exists
       setTimeout(function () {
-        if (_this3.status = ERROR) return;
+        if (_this3.status === ERROR) return;
         document.getElementById(oldPageName + "-css").setAttribute("disabled", true);
       }, 500);
     },
@@ -211,7 +211,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
     _installResource: function _installResource(PageApp, primaryRoute, container) {
       var _this4 = this;
 
-      var oldPageName, pageInstance, container;
+      var oldPageName, pageInstance;
       var isService = container !== this.config.container;
       container.classList.remove("error", "loading");
 
@@ -229,21 +229,21 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       document.body.scrollTop = 0;
 
       // Augment ApplicationRouter with new routes from PageApp
-      _.each(pageInstance["data"].routes, function (value, key) {
+      _.each(pageInstance.data.routes, function (value, key) {
         // Generate our route callback's new name
         var routeFunctionName = "_function_" + key,
             functionName;
         // Add the new callback referance on to our router and add the route handler
         _this4[routeFunctionName] = function () {
-          pageInstance["data"][value].apply(pageInstance["data"], arguments);
+          pageInstance.data[value].apply(pageInstance.data, arguments);
         };
         _this4.route(key, value, _this4[routeFunctionName]);
       }, this);
 
       var name = isService ? primaryRoute : "page";
       if (!isService) this.current = pageInstance;
-      if (window.Rebound.services[name].isService) window.Rebound.services[name].hydrate(pageInstance["data"]);
-      window.Rebound.services[name] = pageInstance["data"];
+      if (window.Rebound.services[name].isService) window.Rebound.services[name].hydrate(pageInstance.data);
+      window.Rebound.services[name] = pageInstance.data;
 
       // Re-trigger route so the newly added route may execute if there's a route match.
       // If no routes are matched, app will hit wildCard route which will then trigger 404

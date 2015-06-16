@@ -6,8 +6,8 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
   'use strict';
 
   function getScript(str) {
-    var start = str.lastIndexOf('</template>'),
-        str = str.slice(start > -1 ? start : 0, str.length);
+    var start = str.lastIndexOf('</template>');
+    str = str.slice(start > -1 ? start : 0, str.length);
     start = str.indexOf('<script>');
     var end = str.lastIndexOf('</script>');
 
@@ -66,7 +66,7 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
     if (start > -1 && end > -1) template = template.substring(start + 10, end);
 
     // Assemple our component dependancies by finding link tags and parsing their src
-    while ((match = importsre.exec(template)) != null) {
+    while ((match = importsre.exec(template)) !== null) {
       imports.push(match[2]);
     }
     imports.forEach(function (importString, index) {

@@ -1,7 +1,7 @@
 // Rebound Model
 // ----------------
 
-// Rebound **Models** are the basic data object in the framework — frequently
+// Rebound **Models** are the basic data object in the framework - frequently
 // representing a row in a table in a database on your server. The inherit from
 // Backbone Models and have all of the same useful methods you are used to for
 // performing computations and transformations on that data. Rebound augments
@@ -102,7 +102,7 @@ var Model = Backbone.Model.extend({
         changed[key] = undefined;
         this.unset(key, { silent: true });
       }
-    };
+    }
 
     // Any unset changed values will be set to obj[key]
     _.each(obj, function (value, key, obj) {
@@ -183,9 +183,9 @@ var Model = Backbone.Model.extend({
 
     // For each attribute passed:
     for (key in attrs) {
-      var val = attrs[key],
+      var _val = attrs[key],
           paths = _reboundComponentUtils2["default"].splitPath(key),
-          attr = paths.pop() || ""; // The key        ex: foo[0].bar --> bar
+          _attr = paths.pop() || ""; // The key        ex: foo[0].bar --> bar
       target = this.get(paths.join(".")), // The element    ex: foo.bar.baz --> foo.bar
       lineage;
 
@@ -200,7 +200,7 @@ var Model = Backbone.Model.extend({
       }
 
       // The old value of `attr` in `target`
-      var destination = target.get(attr, { raw: true }) || {};
+      destination = target.get(_attr, { raw: true }) || {};
 
       // Create this new object's lineage.
       lineage = {
@@ -224,20 +224,20 @@ var Model = Backbone.Model.extend({
       // - Else If this value is a `Object`, turn it into a `Model`.
       // - Else val is a primitive value, set it accordingly.
 
-      if (_.isNull(val) || _.isUndefined(val)) val = this.defaults[key];
-      if (val && val.isComputedProperty) val = val.value();
-      if (_.isNull(val) || _.isUndefined(val)) val = undefined;else if (options.raw === true) val = val;else if (destination.isComputedProperty && destination.func === val) continue;else if (val.isComputedProto) val = new _reboundDataComputedProperty2["default"](val.get, val.set, lineage);else if (val.isData && target.hasParent(val)) val = val;else if (destination.isComputedProperty || destination.isCollection && (_.isArray(val) || val.isCollection) || destination.isModel && (_.isObject(val) || val.isModel)) {
-        destination.set(val, options);
+      if (_.isNull(_val) || _.isUndefined(_val)) _val = this.defaults[key];
+      if (_val && _val.isComputedProperty) _val = _val.value();
+      if (_.isNull(_val) || _.isUndefined(_val)) _val = undefined;else if (options.raw === true) _val = _val;else if (destination.isComputedProperty && destination.func === _val) continue;else if (_val.isComputedProto) _val = new _reboundDataComputedProperty2["default"](_val.get, _val.set, lineage);else if (_val.isData && target.hasParent(_val)) _val = _val;else if (destination.isComputedProperty || destination.isCollection && (_.isArray(_val) || _val.isCollection) || destination.isModel && (_.isObject(_val) || _val.isModel)) {
+        destination.set(_val, options);
         continue;
-      } else if (val.isData && options.clone !== false) val = new val.constructor(val.attributes || val.models, lineage);else if (_.isArray(val)) val = new Rebound.Collection(val, lineage); // TODO: Remove global referance
-      else if (_.isObject(val)) val = new Model(val, lineage);
+      } else if (_val.isData && options.clone !== false) _val = new _val.constructor(_val.attributes || _val.models, lineage);else if (_.isArray(_val)) _val = new Rebound.Collection(_val, lineage); // TODO: Remove global referance
+      else if (_.isObject(_val)) _val = new Model(_val, lineage);
 
       // If val is a data object, let this object know it is now a parent
-      this._hasAncestry = val && val.isData || false;
+      this._hasAncestry = _val && _val.isData || false;
 
       // Set the value
-      Backbone.Model.prototype.set.call(target, attr, val, options); // TODO: Event cleanup when replacing a model or collection with another value
-    };
+      Backbone.Model.prototype.set.call(target, _attr, _val, options); // TODO: Event cleanup when replacing a model or collection with another value
+    }
 
     return this;
   },

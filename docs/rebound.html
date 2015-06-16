@@ -153,7 +153,7 @@ in use, throw an error</p>
       }
       <span class="hljs-keyword">if</span>(<span class="hljs-built_in">document</span>.readyState === <span class="hljs-string">"complete"</span>) <span class="hljs-keyword">return</span> run();
       <span class="hljs-built_in">document</span>.addEventListener(<span class="hljs-string">"readystatechange"</span>, run);
-    })
+    });
   }
 };</pre></div></div>
             
@@ -212,8 +212,8 @@ in use, throw an error</p>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-12">&#182;</a>
               </div>
-              <p>These are methods inherited by all Rebound data types – <strong>Models</strong>,
-<strong>Collections</strong> and <strong>Computed Properties</strong> – and control tree ancestry
+              <p>These are methods inherited by all Rebound data types: <strong>Models</strong>,
+<strong>Collections</strong> and <strong>Computed Properties</strong>. Controls tree ancestry
 tracking, deep event propagation and tree destruction.</p>
 
             </div>
@@ -532,7 +532,7 @@ _.extend(ComputedProperty.prototype, sharedMethods);
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-28">&#182;</a>
               </div>
-              <p>Rebound <strong>Models</strong> are the basic data object in the framework — frequently
+              <p>Rebound <strong>Models</strong> are the basic data object in the framework - frequently
 representing a row in a table in a database on your server. The inherit from
 Backbone Models and have all of the same useful methods you are used to for
 performing computations and transformations on that data. Rebound augments
@@ -714,7 +714,7 @@ old values.</p>
         value.reset((obj[key] || []), {silent: <span class="hljs-literal">true</span>});
         <span class="hljs-keyword">if</span>(value.isCollection) changed[key] = [];
         <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span>(value.isModel &amp;&amp; value.isComputedProperty) changed[key] = value.cache.model.changed;
-        <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span>(value.isModel) changed[key] = value.changed
+        <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span>(value.isModel) changed[key] = value.changed;
       }
       <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (obj.hasOwnProperty(key)){ changed[key] = obj[key]; }
       <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.defaults.hasOwnProperty(key) &amp;&amp; !_.isFunction(<span class="hljs-keyword">this</span>.defaults[key])){
@@ -724,7 +724,7 @@ old values.</p>
         changed[key] = <span class="hljs-literal">undefined</span>;
         <span class="hljs-keyword">this</span>.unset(key, {silent: <span class="hljs-literal">true</span>});
       }
-    };</pre></div></div>
+    }</pre></div></div>
             
         </li>
         
@@ -913,7 +913,7 @@ find the correct value to call the original <code>Backbone.Set</code> on.</p>
             </div>
             
             <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">for</span>(key <span class="hljs-keyword">in</span> attrs){
-      <span class="hljs-keyword">var</span> val = attrs[key],
+      <span class="hljs-keyword">let</span> val = attrs[key],
           paths = $.splitPath(key),
           attr  = paths.pop() || <span class="hljs-string">''</span>;           <span class="hljs-comment">// The key        ex: foo[0].bar --&gt; bar</span>
           target = <span class="hljs-keyword">this</span>.get(paths.join(<span class="hljs-string">'.'</span>)),  <span class="hljs-comment">// The element    ex: foo.bar.baz --&gt; foo.bar</span>
@@ -954,7 +954,7 @@ find the correct value to call the original <code>Backbone.Set</code> on.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      <span class="hljs-keyword">var</span> destination = target.get(attr, {raw: <span class="hljs-literal">true</span>}) || {};</pre></div></div>
+            <div class="content"><div class='highlight'><pre>      destination = target.get(attr, {raw: <span class="hljs-literal">true</span>}) || {};</pre></div></div>
             
         </li>
         
@@ -976,7 +976,7 @@ find the correct value to call the original <code>Backbone.Set</code> on.</p>
         path: pathGenerator(target, key),
         silent: <span class="hljs-literal">true</span>,
         defaults: options.defaults
-      }</pre></div></div>
+      };</pre></div></div>
             
         </li>
         
@@ -1053,7 +1053,7 @@ find the correct value to call the original <code>Backbone.Set</code> on.</p>
             
             <div class="content"><div class='highlight'><pre>      Backbone.Model.prototype.set.call(target, attr, val, options); <span class="hljs-comment">// TODO: Event cleanup when replacing a model or collection with another value</span>
 
-    };
+    }
 
     <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>;
 
@@ -1103,7 +1103,7 @@ If there are any cyclic dependancies the object’s <code>cid</code> is used ins
             <div class="content"><div class='highlight'><pre>Model.extend = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(protoProps, staticProps)</span> </span>{
   $.extractComputedProps(protoProps.defaults);
   <span class="hljs-keyword">return</span> Backbone.Model.extend.call(<span class="hljs-keyword">this</span>, protoProps, staticProps);
-}
+};
 
 <span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> Model;</pre></div></div>
             
@@ -1667,7 +1667,7 @@ anything inside that collection or that contains that collection.</p>
             
             <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span>(type === <span class="hljs-string">'add'</span> || type === <span class="hljs-string">'remove'</span>){
       _.each(<span class="hljs-keyword">this</span>.__computedDeps, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(dependants, dependancy)</span></span>{
-        <span class="hljs-keyword">if</span>( startsWith(dependancy, vector) || startsWith(vector, dependancy) ) push.call(<span class="hljs-keyword">this</span>._toCall, dependants);;
+        <span class="hljs-keyword">if</span>( startsWith(dependancy, vector) || startsWith(vector, dependancy) ) push.call(<span class="hljs-keyword">this</span>._toCall, dependants);
       }, <span class="hljs-keyword">this</span>);
     }</pre></div></div>
             
@@ -2539,7 +2539,7 @@ Set our component’s context with the passed data merged with the component’s
             <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">this</span>.el = options.outlet || <span class="hljs-built_in">document</span>.createDocumentFragment();
     <span class="hljs-keyword">this</span>.$el = (_.isUndefined(<span class="hljs-built_in">window</span>.Backbone.$)) ? <span class="hljs-literal">false</span> : <span class="hljs-built_in">window</span>.Backbone.$(<span class="hljs-keyword">this</span>.el);
     <span class="hljs-keyword">this</span>.template = options.template || <span class="hljs-keyword">this</span>.template;
-    <span class="hljs-keyword">this</span>.el[<span class="hljs-string">'data'</span>] = <span class="hljs-keyword">this</span>;</pre></div></div>
+    <span class="hljs-keyword">this</span>.el.data = <span class="hljs-keyword">this</span>;</pre></div></div>
             
         </li>
         
@@ -2746,7 +2746,7 @@ object’s _toRender queue.</p>
           }
         }
       }
-    } <span class="hljs-keyword">while</span>(context !== data &amp;&amp; (context = context.get(parts.shift())))</pre></div></div>
+    } <span class="hljs-keyword">while</span>(context !== data &amp;&amp; (context = context.get(parts.shift())));</pre></div></div>
             
         </li>
         
@@ -2919,7 +2919,7 @@ Component.extend= <span class="hljs-function"><span class="hljs-keyword">functio
             </div>
             
             <div class="content"><div class='highlight'><pre>
-  };</pre></div></div>
+  }</pre></div></div>
             
         </li>
         
@@ -2973,21 +2973,21 @@ Component.registerComponent = <span class="hljs-function"><span class="hljs-keyw
   };
 
   proto.attachedCallback = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
-    script.attachedCallback &amp;&amp; script.attachedCallback.call(<span class="hljs-keyword">this</span>[<span class="hljs-string">'data'</span>]);
+    script.attachedCallback &amp;&amp; script.attachedCallback.call(<span class="hljs-keyword">this</span>.data);
   };
 
   proto.detachedCallback = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
-    script.detachedCallback &amp;&amp; script.detachedCallback.call(<span class="hljs-keyword">this</span>[<span class="hljs-string">'data'</span>]);
-    <span class="hljs-keyword">this</span>[<span class="hljs-string">'data'</span>].deinitialize();
+    script.detachedCallback &amp;&amp; script.detachedCallback.call(<span class="hljs-keyword">this</span>.data);
+    <span class="hljs-keyword">this</span>.data.deinitialize();
   };
 
   proto.attributeChangedCallback = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(attrName, oldVal, newVal)</span> </span>{
-    <span class="hljs-keyword">this</span>[<span class="hljs-string">'data'</span>]._onAttributeChange(attrName, oldVal, newVal);
-    script.attributeChangedCallback &amp;&amp; script.attributeChangedCallback.call(<span class="hljs-keyword">this</span>[<span class="hljs-string">'data'</span>], attrName, oldVal, newVal);
+    <span class="hljs-keyword">this</span>.data._onAttributeChange(attrName, oldVal, newVal);
+    script.attributeChangedCallback &amp;&amp; script.attributeChangedCallback.call(<span class="hljs-keyword">this</span>.data, attrName, oldVal, newVal);
   };
 
   <span class="hljs-keyword">return</span> <span class="hljs-built_in">document</span>.registerElement(name, { prototype: proto });
-}
+};
 
 _.bindAll(Component, <span class="hljs-string">'registerComponent'</span>);
 
@@ -3114,14 +3114,15 @@ helpers.registerHelper = <span class="hljs-function"><span class="hljs-keyword">
 ********************************/</span>
 
 helpers.debugger = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(params, hash, options, env)</span></span>{
+  <span class="hljs-comment">/* jshint -W087 */</span>
   <span class="hljs-keyword">debugger</span>;
   <span class="hljs-keyword">return</span> <span class="hljs-string">''</span>;
-}
+};
 
 helpers.log = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(params, hash, options, env)</span></span>{
   <span class="hljs-built_in">console</span>.log.apply(<span class="hljs-built_in">console</span>, params);
   <span class="hljs-keyword">return</span> <span class="hljs-string">''</span>;
-}
+};
 
 helpers.on = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(params, hash, options, env)</span></span>{
   <span class="hljs-keyword">var</span> i, callback, delegate, element,
@@ -3311,7 +3312,7 @@ helpers.if = <span class="hljs-function"><span class="hljs-keyword">function</sp
             </div>
             
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">findIndex</span><span class="hljs-params">(arr, predicate, cid)</span> </span>{
-  <span class="hljs-keyword">if</span> (arr == <span class="hljs-literal">null</span>) {
+  <span class="hljs-keyword">if</span> (arr === <span class="hljs-literal">null</span>) {
     <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">TypeError</span>(<span class="hljs-string">'findIndex called on null or undefined'</span>);
   }
   <span class="hljs-keyword">if</span> (<span class="hljs-keyword">typeof</span> predicate !== <span class="hljs-string">'function'</span>) {
@@ -3358,7 +3359,7 @@ helpers.partial = <span class="hljs-function"><span class="hljs-keyword">functio
 };
 
 <span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> helpers;
-<span class="hljs-keyword">export</span> { partials }</pre></div></div>
+<span class="hljs-keyword">export</span> { partials };</pre></div></div>
             
         </li>
         
@@ -3635,15 +3636,15 @@ hooks.invokeHelper = <span class="hljs-function"><span class="hljs-keyword">func
   }
 
   <span class="hljs-keyword">return</span> lazyValue;
+}
+
+hooks.cleanupRenderNode = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{
 };
 
-hooks.cleanupRenderNode= <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{
-};
-
-hooks.destroyRenderNode= <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(renderNode)</span></span>{
+hooks.destroyRenderNode = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(renderNode)</span></span>{
 
 };
-hooks.willCleanupTree= <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(renderNode)</span></span>{</pre></div></div>
+hooks.willCleanupTree = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(renderNode)</span></span>{</pre></div></div>
             
         </li>
         
@@ -3710,7 +3711,7 @@ augmented with helpers as it goes</p>
     revalidateQueue: {},
     isReboundEnv: <span class="hljs-literal">true</span>
   };
-}
+};
 
 hooks.createChildEnv = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(parent)</span></span>{
   <span class="hljs-keyword">var</span> env = createObject(parent);
@@ -3736,7 +3737,7 @@ See <code>bindLocal</code> for more information.</p>
             </div>
             
             <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">return</span> { self: <span class="hljs-literal">null</span>, blocks: {}, locals: {}, localPresent: {}, streams: {} };
-}
+};
 
 hooks.createChildScope = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(parent)</span> </span>{
   <span class="hljs-keyword">var</span> scope = createObject(parent);
@@ -3891,7 +3892,7 @@ hooks.linkRenderNode = <span class="hljs-function"><span class="hljs-keyword">fu
             </div>
             
             <div class="content"><div class='highlight'><pre>  renderNode.path = path;
-  renderNode.lazyValues || (renderNode.lazyValues = {})
+  renderNode.lazyValues || (renderNode.lazyValues = {});
 
   <span class="hljs-keyword">if</span> (params &amp;&amp; params.length) {
     <span class="hljs-keyword">for</span> (<span class="hljs-keyword">var</span> i = <span class="hljs-number">0</span>; i &lt; params.length; i++) {
@@ -3929,9 +3930,9 @@ hooks.getValue = <span class="hljs-function"><span class="hljs-keyword">function
 
 hooks.subexpr = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">subexpr</span><span class="hljs-params">(env, scope, helperName, params, hash)</span> </span>{
   <span class="hljs-keyword">var</span> helper = helpers.lookupHelper(helperName, env),
-      lazyValue,
+      lazyValue, i, l,
       name = <span class="hljs-string">`subexpr <span class="hljs-subst">${helperName}</span>: `</span>;
-  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">var</span> i = <span class="hljs-number">0</span>, l = params.length; i &lt; l; i++) {
+  <span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>, l = params.length; i &lt; l; i++) {
     <span class="hljs-keyword">if</span>(params[i].isLazyValue) name += params[i].cid;
   }
 
@@ -3943,7 +3944,7 @@ hooks.subexpr = <span class="hljs-function"><span class="hljs-keyword">function<
     lazyValue = hooks.get(env, context, helperName);
   }
 
-  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">var</span> i = <span class="hljs-number">0</span>, l = params.length; i &lt; l; i++) {
+  <span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>, l = params.length; i &lt; l; i++) {
     <span class="hljs-keyword">if</span>(params[i].isLazyValue) {
       lazyValue.addDependentValue(params[i]);
     }
@@ -3956,14 +3957,14 @@ hooks.subexpr = <span class="hljs-function"><span class="hljs-keyword">function<
 
 hooks.concat = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">concat</span><span class="hljs-params">(env, params)</span></span>{
 
-  <span class="hljs-keyword">var</span> name = <span class="hljs-string">"concat: "</span>;
+  <span class="hljs-keyword">var</span> name = <span class="hljs-string">"concat: "</span>, i, l;
 
   <span class="hljs-keyword">if</span>(params.length === <span class="hljs-number">1</span>){
     <span class="hljs-keyword">return</span> params[<span class="hljs-number">0</span>];
   }
 
-  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">var</span> i = <span class="hljs-number">0</span>, l = params.length; i &lt; l; i++) {
-    name += (params[i].isLazyValue) ? params[i].cid : params[i];
+  <span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>, l = params.length; i &lt; l; i++) {
+    name += (params[i] &amp;&amp; params[i].isLazyValue) ? params[i].cid : params[i];
   }
 
   <span class="hljs-keyword">if</span>(env.streams[name]) <span class="hljs-keyword">return</span> env.streams[name];
@@ -3971,14 +3972,14 @@ hooks.concat = <span class="hljs-function"><span class="hljs-keyword">function</
   <span class="hljs-keyword">var</span> lazyValue = <span class="hljs-keyword">new</span> LazyValue(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(params)</span> </span>{
     <span class="hljs-keyword">var</span> value = <span class="hljs-string">""</span>;
 
-    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">var</span> i = <span class="hljs-number">0</span>, l = params.length; i &lt; l; i++) {
-      value += (params[i].isLazyValue) ? params[i].value : params[i];
+    <span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>, l = params.length; i &lt; l; i++) {
+      value += (params[i] &amp;&amp; params[i].isLazyValue) ? params[i].value : (params[i] || <span class="hljs-string">''</span>);
     }
 
     <span class="hljs-keyword">return</span> value;
   }, {context: params[<span class="hljs-number">0</span>].context});
 
-  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">var</span> i = <span class="hljs-number">0</span>, l = params.length; i &lt; l; i++) {
+  <span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>, l = params.length; i &lt; l; i++) {
     lazyValue.addDependentValue(params[i]);
   }
 
@@ -4002,15 +4003,14 @@ hooks.concat = <span class="hljs-function"><span class="hljs-keyword">function</
             </div>
             
             <div class="content"><div class='highlight'><pre>hooks.content = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">content</span><span class="hljs-params">(morph, env, context, path, lazyValue)</span></span>{
-  <span class="hljs-keyword">var</span> lazyValue,
-      value,
+  <span class="hljs-keyword">var</span> value,
       observer = subtreeObserver,
       domElement = morph.contextualElement,
       helper = helpers.lookupHelper(path, env);
 
   <span class="hljs-keyword">var</span> updateTextarea = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(lazyValue)</span></span>{
     domElement.value = lazyValue.value;
-  }</pre></div></div>
+  };</pre></div></div>
             
         </li>
         
@@ -4187,10 +4187,10 @@ If the router has assigned it a truthy ‘active’ property, ensure that the ex
 };
 
 hooks.partial = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">partial</span><span class="hljs-params">(renderNode, env, scope, path)</span></span>{
-  <span class="hljs-keyword">var</span> partial = partials[path];
-  <span class="hljs-keyword">if</span>( partial &amp;&amp; partial.render ){
+  <span class="hljs-keyword">let</span> part = partials[path];
+  <span class="hljs-keyword">if</span>( part &amp;&amp; part.render ){
     env = <span class="hljs-built_in">Object</span>.create(env);
-    env.template = partial.render(scope.self, env, {contextualElement: renderNode.contextualElement}, scope.block);
+    env.template = part.render(scope.self, env, {contextualElement: renderNode.contextualElement}, scope.block);
     <span class="hljs-keyword">return</span> env.template.fragment;
   }
 };
@@ -4233,7 +4233,7 @@ hooks.component = <span class="hljs-function"><span class="hljs-keyword">functio
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">for</span>(<span class="hljs-keyword">var</span> key <span class="hljs-keyword">in</span> attrs){
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">for</span>(<span class="hljs-keyword">let</span> key <span class="hljs-keyword">in</span> attrs){
     seedData[key] = hooks.getValue(attrs[key]);
   }</pre></div></div>
             
@@ -4254,7 +4254,7 @@ Global seed data is consumed by element as its created. This is not scoped and v
             
             <div class="content"><div class='highlight'><pre>  Rebound.seedData = seedData;
   element = <span class="hljs-built_in">document</span>.createElement(tagName);
-  component = element[<span class="hljs-string">'data'</span>];
+  component = element.data;
   <span class="hljs-keyword">delete</span> Rebound.seedData;</pre></div></div>
             
         </li>
@@ -4270,7 +4270,7 @@ Global seed data is consumed by element as its created. This is not scoped and v
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">for</span>(key <span class="hljs-keyword">in</span> seedData){
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">for</span>(<span class="hljs-keyword">let</span> key <span class="hljs-keyword">in</span> seedData){
     componentData[key] = streamProperty(component, key);
   }</pre></div></div>
             
@@ -4475,7 +4475,7 @@ Find a way to remedy this. Until then, don’t show objects.</p>
     <span class="hljs-keyword">if</span>(el.tagName === <span class="hljs-string">'CONTENT'</span>) outlet = el;
     <span class="hljs-keyword">if</span>(el.tagName.indexOf(<span class="hljs-string">'-'</span>) &gt; -<span class="hljs-number">1</span>) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
     <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
-  })</pre></div></div>
+  });</pre></div></div>
             
         </li>
         
@@ -4533,7 +4533,7 @@ is provided, render it into the outlet</p>
     EMPTY_ARRAY = [];
 
 <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">LazyValue</span><span class="hljs-params">(fn, options)</span> </span>{
-  options || (options = {})
+  options || (options = {});
   <span class="hljs-keyword">this</span>.cid = _.uniqueId(<span class="hljs-string">'lazyValue'</span>);
   <span class="hljs-keyword">this</span>.valueFn = fn;
   <span class="hljs-keyword">this</span>.context = options.context || <span class="hljs-literal">null</span>;
@@ -4561,11 +4561,11 @@ LazyValue.prototype = {
         child = children[i];
         values[i] = (child &amp;&amp; child.isLazyValue) ? child.value : child;
       }
-
-      <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.cache = <span class="hljs-keyword">this</span>.valueFn(values);
+      <span class="hljs-keyword">this</span>.cache = <span class="hljs-keyword">this</span>.valueFn(values);
     } <span class="hljs-keyword">else</span> {
-      <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.cache = <span class="hljs-keyword">this</span>.valueFn(EMPTY_ARRAY);
+      <span class="hljs-keyword">this</span>.cache = <span class="hljs-keyword">this</span>.valueFn(EMPTY_ARRAY);
     }
+    <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.cache;
   },
 
   set: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(key, value, options)</span></span>{
@@ -4785,7 +4785,7 @@ instead of undefined</p>
     }
   });
   <span class="hljs-keyword">return</span> resp;
-}</pre></div></div>
+};</pre></div></div>
             
         </li>
         
@@ -4903,7 +4903,7 @@ page assets based on user-defined naming convention.</p>
             </div>
             
             <div class="content"><div class='highlight'><pre>  navigate: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(fragment, options={})</span> </span>{
-    (options.trigger === <span class="hljs-literal">undefined</span>) &amp;&amp; (options.trigger = <span class="hljs-literal">true</span>)
+    (options.trigger === <span class="hljs-literal">undefined</span>) &amp;&amp; (options.trigger = <span class="hljs-literal">true</span>);
     <span class="hljs-keyword">var</span> resp = Backbone.history.navigate(fragment, options);</pre></div></div>
             
         </li>
@@ -4921,7 +4921,7 @@ page assets based on user-defined naming convention.</p>
             
             <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Promise</span>(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(resolve, reject)</span> </span>{
       <span class="hljs-keyword">if</span>(resp &amp;&amp; resp.constructor === <span class="hljs-built_in">Promise</span>) resp.then(resolve, reject);
-      resolve(resp)
+      resolve(resp);
     });
   },</pre></div></div>
             
@@ -5205,7 +5205,7 @@ This is crucial for scalability of a single page app.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    _.each(<span class="hljs-keyword">this</span>.current[<span class="hljs-string">'data'</span>].routes, (value, key) =&gt; {
+            <div class="content"><div class='highlight'><pre>    _.each(<span class="hljs-keyword">this</span>.current.data.routes, (value, key) =&gt; {
 
       <span class="hljs-keyword">var</span> regExp = <span class="hljs-keyword">this</span>._routeToRegExp(key).toString();</pre></div></div>
             
@@ -5254,7 +5254,7 @@ This is crucial for scalability of a single page app.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">this</span>.current[<span class="hljs-string">'data'</span>].deinitialize();</pre></div></div>
+            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">this</span>.current.data.deinitialize();</pre></div></div>
             
         </li>
         
@@ -5285,7 +5285,7 @@ This is crucial for scalability of a single page app.</p>
             </div>
             
             <div class="content"><div class='highlight'><pre>    setTimeout(() =&gt; {
-      <span class="hljs-keyword">if</span>(<span class="hljs-keyword">this</span>.status = ERROR) <span class="hljs-keyword">return</span>;
+      <span class="hljs-keyword">if</span>(<span class="hljs-keyword">this</span>.status === ERROR) <span class="hljs-keyword">return</span>;
       <span class="hljs-built_in">document</span>.getElementById(oldPageName + <span class="hljs-string">'-css'</span>).setAttribute(<span class="hljs-string">'disabled'</span>, <span class="hljs-literal">true</span>);
     }, <span class="hljs-number">500</span>);
 
@@ -5306,7 +5306,7 @@ page component in the top level outlet.</p>
             </div>
             
             <div class="content"><div class='highlight'><pre>  _installResource: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(PageApp, primaryRoute, container)</span> </span>{
-    <span class="hljs-keyword">var</span> oldPageName, pageInstance, container;
+    <span class="hljs-keyword">var</span> oldPageName, pageInstance;
     <span class="hljs-keyword">var</span> isService = (container !== <span class="hljs-keyword">this</span>.config.container);
     container.classList.remove(<span class="hljs-string">'error'</span>, <span class="hljs-string">'loading'</span>);
 
@@ -5372,7 +5372,7 @@ page component in the top level outlet.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    _.each(pageInstance[<span class="hljs-string">'data'</span>].routes, (value, key) =&gt; {</pre></div></div>
+            <div class="content"><div class='highlight'><pre>    _.each(pageInstance.data.routes, (value, key) =&gt; {</pre></div></div>
             
         </li>
         
@@ -5403,15 +5403,15 @@ page component in the top level outlet.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      <span class="hljs-keyword">this</span>[routeFunctionName] =  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">()</span> </span>{ pageInstance[<span class="hljs-string">'data'</span>][value].apply(pageInstance[<span class="hljs-string">'data'</span>], <span class="hljs-built_in">arguments</span>); };
+            <div class="content"><div class='highlight'><pre>      <span class="hljs-keyword">this</span>[routeFunctionName] =  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">()</span> </span>{ pageInstance.data[value].apply(pageInstance.data, <span class="hljs-built_in">arguments</span>); };
       <span class="hljs-keyword">this</span>.route(key, value, <span class="hljs-keyword">this</span>[routeFunctionName]);
     }, <span class="hljs-keyword">this</span>);
 
     <span class="hljs-keyword">var</span> name = (isService) ? primaryRoute : <span class="hljs-string">'page'</span>;
     <span class="hljs-keyword">if</span>(!isService) <span class="hljs-keyword">this</span>.current = pageInstance;
     <span class="hljs-keyword">if</span>(<span class="hljs-built_in">window</span>.Rebound.services[name].isService)
-      <span class="hljs-built_in">window</span>.Rebound.services[name].hydrate(pageInstance[<span class="hljs-string">'data'</span>]);
-    <span class="hljs-built_in">window</span>.Rebound.services[name] = pageInstance[<span class="hljs-string">'data'</span>];</pre></div></div>
+      <span class="hljs-built_in">window</span>.Rebound.services[name].hydrate(pageInstance.data);
+    <span class="hljs-built_in">window</span>.Rebound.services[name] = pageInstance.data;</pre></div></div>
             
         </li>
         
@@ -5534,17 +5534,17 @@ It rejects if either of the css or js resources fails to load.</p>
           container.innerHTML = DEFAULT_404_PAGE;
         }
         reject(err);
-      }
+      };
 
       <span class="hljs-keyword">var</span> throwError = (err) =&gt; {
-        <span class="hljs-keyword">if</span>(route === ERROR_ROUTE_NAME) <span class="hljs-keyword">return</span> defaultError()
+        <span class="hljs-keyword">if</span>(route === ERROR_ROUTE_NAME) <span class="hljs-keyword">return</span> defaultError();
         <span class="hljs-keyword">if</span>(<span class="hljs-keyword">this</span>.status === ERROR) <span class="hljs-keyword">return</span>;
         <span class="hljs-keyword">this</span>.status = ERROR;
         <span class="hljs-built_in">console</span>.error(<span class="hljs-string">'Could not '</span> + ((isService) ? <span class="hljs-string">'load the '</span> + route + <span class="hljs-string">' service:'</span> : <span class="hljs-string">'find the '</span> + route + <span class="hljs-string">' page:'</span>) +
                       <span class="hljs-string">'\n  - CSS Url: '</span>+ cssUrl +
                       <span class="hljs-string">'\n  - JavaScript Url: '</span> + jsUrl);
         <span class="hljs-keyword">this</span>._fetchResource(ERROR_ROUTE_NAME, container).then(reject, reject);
-      }</pre></div></div>
+      };</pre></div></div>
             
         </li>
         
@@ -5618,7 +5618,7 @@ Else if the css resource has been loaded before, enable it</p>
             </div>
             
             <div class="content"><div class='highlight'><pre>      <span class="hljs-built_in">window</span>.require([jsUrl], (c) =&gt; {
-        jsElement = $(<span class="hljs-string">'script[src="'</span>+jsUrl+<span class="hljs-string">'"]'</span>)[<span class="hljs-number">0</span>]
+        jsElement = $(<span class="hljs-string">'script[src="'</span>+jsUrl+<span class="hljs-string">'"]'</span>)[<span class="hljs-number">0</span>];
         jsElement.setAttribute(<span class="hljs-string">'id'</span>, appName + <span class="hljs-string">'-js'</span>);
         <span class="hljs-keyword">if</span>((jsLoaded = <span class="hljs-literal">true</span>) &amp;&amp; (PageClass = c) &amp;&amp; cssLoaded){
           <span class="hljs-keyword">this</span>.status = SUCCESS;
@@ -5627,7 +5627,7 @@ Else if the css resource has been loaded before, enable it</p>
           resolve(<span class="hljs-keyword">this</span>);
         }
       }, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{
-        jsElement = $(<span class="hljs-string">'script[src="'</span>+jsUrl+<span class="hljs-string">'"]'</span>)[<span class="hljs-number">0</span>]
+        jsElement = $(<span class="hljs-string">'script[src="'</span>+jsUrl+<span class="hljs-string">'"]'</span>)[<span class="hljs-number">0</span>];
         jsElement.setAttribute(<span class="hljs-string">'id'</span>, appName + <span class="hljs-string">'-js'</span>);
         jsElement.dataset.error = <span class="hljs-string">''</span>;
         throwError();
@@ -6479,7 +6479,18 @@ _.extend($, utils.prototype);
             <div class="content"><div class='highlight'><pre>
 <span class="hljs-keyword">import</span> tokenizer <span class="hljs-keyword">from</span> <span class="hljs-string">"property-compiler/tokenizer"</span>;
 
-<span class="hljs-keyword">var</span> computedProperties = [];</pre></div></div>
+<span class="hljs-keyword">const</span> TERMINATORS = [<span class="hljs-string">';'</span>,<span class="hljs-string">','</span>,<span class="hljs-string">'=='</span>,<span class="hljs-string">'&gt;'</span>,<span class="hljs-string">'&lt;'</span>,<span class="hljs-string">'&gt;='</span>,<span class="hljs-string">'&lt;='</span>,<span class="hljs-string">'&gt;=='</span>,<span class="hljs-string">'&lt;=='</span>,<span class="hljs-string">'!='</span>,<span class="hljs-string">'!=='</span>, <span class="hljs-string">'==='</span>, <span class="hljs-string">'&amp;&amp;'</span>, <span class="hljs-string">'||'</span>, <span class="hljs-string">'+'</span>, <span class="hljs-string">'-'</span>, <span class="hljs-string">'/'</span>, <span class="hljs-string">'*'</span>, <span class="hljs-string">'{'</span>, <span class="hljs-string">'}'</span>];
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">reduceMemos</span><span class="hljs-params">(memo, paths)</span></span>{
+  <span class="hljs-keyword">var</span> newMemo = [];
+  paths = (!_.isArray(paths)) ? [paths] : paths;
+  _.each(paths, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(path)</span></span>{
+    _.each(memo, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(mem)</span></span>{
+      newMemo.push(_.compact([mem, path]).join(<span class="hljs-string">'.'</span>).replace(<span class="hljs-string">'.['</span>, <span class="hljs-string">'['</span>));
+    });
+  });
+  <span class="hljs-keyword">return</span> newMemo;
+}</pre></div></div>
             
         </li>
         
@@ -6502,22 +6513,13 @@ _.extend($, utils.prototype);
 
   <span class="hljs-keyword">var</span> str = prop.toString(), <span class="hljs-comment">//.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s;])+\/\/(?:.*)$)/gm, '$1'), // String representation of function sans comments</span>
       nextToken = tokenizer.tokenize(str),
-      tokens = [],
       token,
       finishedPaths = [],
-      namedPaths = {},
-      opcodes = [],
-      named = <span class="hljs-literal">false</span>,
       listening = <span class="hljs-number">0</span>,
-      inSubComponent = <span class="hljs-number">0</span>,
-      subComponent = [],
-      root,
       paths = [],
       path,
-      tmpPath,
       attrs = [],
-      workingpath = [],
-      terminators = [<span class="hljs-string">';'</span>,<span class="hljs-string">','</span>,<span class="hljs-string">'=='</span>,<span class="hljs-string">'&gt;'</span>,<span class="hljs-string">'&lt;'</span>,<span class="hljs-string">'&gt;='</span>,<span class="hljs-string">'&lt;='</span>,<span class="hljs-string">'&gt;=='</span>,<span class="hljs-string">'&lt;=='</span>,<span class="hljs-string">'!='</span>,<span class="hljs-string">'!=='</span>, <span class="hljs-string">'==='</span>, <span class="hljs-string">'&amp;&amp;'</span>, <span class="hljs-string">'||'</span>, <span class="hljs-string">'+'</span>, <span class="hljs-string">'-'</span>, <span class="hljs-string">'/'</span>, <span class="hljs-string">'*'</span>, <span class="hljs-string">'{'</span>, <span class="hljs-string">'}'</span>];
+      workingpath = [];
   <span class="hljs-keyword">do</span>{
 
     token = nextToken();
@@ -6577,28 +6579,11 @@ _.extend($, utils.prototype);
     }
 
     <span class="hljs-keyword">if</span>(token.value === <span class="hljs-string">'at'</span>){
-
       path = nextToken();
       <span class="hljs-keyword">while</span>(_.isUndefined(path.value)){
         path = nextToken();
-      }</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-289">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-289">&#182;</a>
-              </div>
-              <p>workingpath[workingpath.length -1] = workingpath[workingpath.length -1] + ‘[‘ + path.value + ‘]’;
-workingpath.push(‘[‘ + path.value + ‘]’);</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>      workingpath.push(<span class="hljs-string">'@each'</span>);
-
+      }
+      workingpath.push(<span class="hljs-string">'@each'</span>);
     }
 
     <span class="hljs-keyword">if</span>(token.value === <span class="hljs-string">'where'</span> || token.value === <span class="hljs-string">'findWhere'</span>){
@@ -6618,17 +6603,8 @@ workingpath.push(‘[‘ + path.value + ‘]’);</p>
       workingpath.push(attrs);
     }
 
-    <span class="hljs-keyword">if</span>(listening &amp;&amp; (_.indexOf(terminators, token.type.type) &gt; -<span class="hljs-number">1</span> || _.indexOf(terminators, token.value) &gt; -<span class="hljs-number">1</span>)){
-      workingpath = _.reduce(workingpath, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(memo, paths)</span></span>{
-        <span class="hljs-keyword">var</span> newMemo = [];
-        paths = (!_.isArray(paths)) ? [paths] : paths;
-        _.each(paths, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(path)</span></span>{
-          _.each(memo, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(mem)</span></span>{
-            newMemo.push(_.compact([mem, path]).join(<span class="hljs-string">'.'</span>).replace(<span class="hljs-string">'.['</span>, <span class="hljs-string">'['</span>));
-          });
-        });
-        <span class="hljs-keyword">return</span> newMemo;
-      }, [<span class="hljs-string">''</span>]);
+    <span class="hljs-keyword">if</span>(listening &amp;&amp; (_.indexOf(TERMINATORS, token.type.type) &gt; -<span class="hljs-number">1</span> || _.indexOf(TERMINATORS, token.value) &gt; -<span class="hljs-number">1</span>)){
+      workingpath = _.reduce(workingpath, reduceMemos, [<span class="hljs-string">''</span>]);
       finishedPaths = _.compact(_.union(finishedPaths, workingpath));
       workingpath = [];
       listening--;
@@ -6637,6 +6613,21 @@ workingpath.push(‘[‘ + path.value + ‘]’);</p>
   } <span class="hljs-keyword">while</span>(token.start !== token.end);
 
   <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'COMPUTED PROPERTY'</span>, name, <span class="hljs-string">'registered with these dependancy paths:'</span>, finishedPaths);</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-289">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-289">&#182;</a>
+              </div>
+              <p>Save our finished paths directly on the function</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  prop.__params = finishedPaths;</pre></div></div>
             
         </li>
         
@@ -6651,7 +6642,7 @@ workingpath.push(‘[‘ + path.value + ‘]’);</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">return</span> prop.__params = finishedPaths;
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">return</span> finishedPaths;
 
 }
 

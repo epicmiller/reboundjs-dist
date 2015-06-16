@@ -8,7 +8,18 @@ define('property-compiler/property-compiler', ['exports', 'module', 'property-co
 
   var _tokenizer = _interopRequireDefault(_propertyCompilerTokenizer);
 
-  var computedProperties = [];
+  var TERMINATORS = [';', ',', '==', '>', '<', '>=', '<=', '>==', '<==', '!=', '!==', '===', '&&', '||', '+', '-', '/', '*', '{', '}'];
+
+  function reduceMemos(memo, paths) {
+    var newMemo = [];
+    paths = !_.isArray(paths) ? [paths] : paths;
+    _.each(paths, function (path) {
+      _.each(memo, function (mem) {
+        newMemo.push(_.compact([mem, path]).join('.').replace('.[', '['));
+      });
+    });
+    return newMemo;
+  }
 
   // TODO: Make this farrrrrr more robust...very minimal right now
 
@@ -20,22 +31,13 @@ define('property-compiler/property-compiler', ['exports', 'module', 'property-co
     var str = prop.toString(),
         //.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s;])+\/\/(?:.*)$)/gm, '$1'), // String representation of function sans comments
     nextToken = _tokenizer['default'].tokenize(str),
-        tokens = [],
         token,
         finishedPaths = [],
-        namedPaths = {},
-        opcodes = [],
-        named = false,
         listening = 0,
-        inSubComponent = 0,
-        subComponent = [],
-        root,
         paths = [],
         path,
-        tmpPath,
         attrs = [],
-        workingpath = [],
-        terminators = [';', ',', '==', '>', '<', '>=', '<=', '>==', '<==', '!=', '!==', '===', '&&', '||', '+', '-', '/', '*', '{', '}'];
+        workingpath = [];
     do {
 
       token = nextToken();
@@ -71,13 +73,10 @@ define('property-compiler/property-compiler', ['exports', 'module', 'property-co
       }
 
       if (token.value === 'at') {
-
         path = nextToken();
         while (_.isUndefined(path.value)) {
           path = nextToken();
         }
-        // workingpath[workingpath.length -1] = workingpath[workingpath.length -1] + '[' + path.value + ']';
-        // workingpath.push('[' + path.value + ']');
         workingpath.push('@each');
       }
 
@@ -98,17 +97,8 @@ define('property-compiler/property-compiler', ['exports', 'module', 'property-co
         workingpath.push(attrs);
       }
 
-      if (listening && (_.indexOf(terminators, token.type.type) > -1 || _.indexOf(terminators, token.value) > -1)) {
-        workingpath = _.reduce(workingpath, function (memo, paths) {
-          var newMemo = [];
-          paths = !_.isArray(paths) ? [paths] : paths;
-          _.each(paths, function (path) {
-            _.each(memo, function (mem) {
-              newMemo.push(_.compact([mem, path]).join('.').replace('.[', '['));
-            });
-          });
-          return newMemo;
-        }, ['']);
+      if (listening && (_.indexOf(TERMINATORS, token.type.type) > -1 || _.indexOf(TERMINATORS, token.value) > -1)) {
+        workingpath = _.reduce(workingpath, reduceMemos, ['']);
         finishedPaths = _.compact(_.union(finishedPaths, workingpath));
         workingpath = [];
         listening--;
@@ -117,8 +107,11 @@ define('property-compiler/property-compiler', ['exports', 'module', 'property-co
 
     console.log('COMPUTED PROPERTY', name, 'registered with these dependancy paths:', finishedPaths);
 
+    // Save our finished paths directly on the function
+    prop.__params = finishedPaths;
+
     // Return the dependancies list
-    return prop.__params = finishedPaths;
+    return finishedPaths;
   }
 
   module.exports = { compile: compile };
