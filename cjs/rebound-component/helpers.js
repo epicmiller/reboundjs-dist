@@ -209,7 +209,7 @@ helpers.each = function (params, hash, templates) {
     if (templates.inverse && templates.inverse["yield"]) templates.inverse["yield"]();
   } else {
     for (key in value) {
-      if (value.hasOwnProperty(key)) this.yieldItem(value[key].cid, [value[key]], value);
+      if (value.hasOwnProperty(key)) this.yieldItem(value[key].cid, [value[key]], params[0]);
     }
   }
   return _.uniqueId("rand");

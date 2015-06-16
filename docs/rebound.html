@@ -3345,7 +3345,7 @@ helpers.each = <span class="hljs-function"><span class="hljs-keyword">function</
   <span class="hljs-keyword">else</span>{
     <span class="hljs-keyword">for</span> (key <span class="hljs-keyword">in</span> value) {
       <span class="hljs-keyword">if</span>(value.hasOwnProperty(key))
-        <span class="hljs-keyword">this</span>.yieldItem(value[key].cid, [ value[key] ], value);
+        <span class="hljs-keyword">this</span>.yieldItem(value[key].cid, [ value[key] ], params[<span class="hljs-number">0</span>]);
     }
   }
   <span class="hljs-keyword">return</span> _.uniqueId(<span class="hljs-string">'rand'</span>);
