@@ -22,14 +22,15 @@ define("rebound-compiler/compile", ["exports", "module", "rebound-compiler/parse
     /* jshint evil: true */
     // Parse the template and compile our template function
     var defs = (0, _parse["default"])(str, options),
-        template = (0, _htmlbarsCompilerCompiler.compile)(defs.template);
+        template = new Function("return " + (0, _htmlbarsCompilerCompiler.compileSpec)(defs.template))();
 
     if (defs.isPartial) {
-      return _helpers["default"].registerPartial(options.name, template);
+      _helpers["default"].registerPartial(options.name, template);
+      return _hooks["default"].wrap(template);
     } else {
       return _Component["default"].registerComponent(defs.name, {
         prototype: new Function("return " + defs.script)(),
-        template: template,
+        template: _hooks["default"].wrap(template),
         style: defs.style
       });
     }

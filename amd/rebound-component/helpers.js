@@ -17,6 +17,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
   var helpers = {},
       partials = {};
 
+  window.partials = partials;
   helpers.registerPartial = function (name, func) {
     if (func && typeof name === "string") {
       return partials[name] = func;
@@ -206,7 +207,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
       if (templates.inverse && templates.inverse["yield"]) templates.inverse["yield"]();
     } else {
       for (key in value) {
-        if (value.hasOwnProperty(key)) this.yieldItem(value[key].cid, [value[key]], params[0]);
+        if (value.hasOwnProperty(key)) this.yieldItem(value[key].cid, [value[key]]);
       }
     }
     return _.uniqueId("rand");

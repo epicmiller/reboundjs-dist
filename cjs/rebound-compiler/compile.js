@@ -39,14 +39,15 @@ function compile(str) {
   /* jshint evil: true */
   // Parse the template and compile our template function
   var defs = (0, _reboundCompilerParser2["default"])(str, options),
-      template = (0, _htmlbarsCompilerCompiler.compile)(defs.template);
+      template = new Function("return " + (0, _htmlbarsCompilerCompiler.compileSpec)(defs.template))();
 
   if (defs.isPartial) {
-    return _reboundComponentHelpers2["default"].registerPartial(options.name, template);
+    _reboundComponentHelpers2["default"].registerPartial(options.name, template);
+    return _reboundComponentHooks2["default"].wrap(template);
   } else {
     return _reboundComponentComponent2["default"].registerComponent(defs.name, {
       prototype: new Function("return " + defs.script)(),
-      template: template,
+      template: _reboundComponentHooks2["default"].wrap(template),
       style: defs.style
     });
   }

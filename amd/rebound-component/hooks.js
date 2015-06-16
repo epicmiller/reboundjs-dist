@@ -221,6 +221,30 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     };
   };
 
+  _hooks["default"].wrapPartial = function wrapPartial(template) {
+    // Return a wrapper function that will merge user provided helpers and hooks with our defaults
+    return {
+      reboundTemplate: true,
+      meta: template.meta,
+      arity: template.arity,
+      raw: template,
+      render: function render(scope, env, options, blockArguments) {
+        if (env === undefined) env = _hooks["default"].createFreshEnv();
+        if (options === undefined) options = {};
+
+        env = _hooks["default"].createChildEnv(env);
+
+        // Ensure we have a contextual element to pass to render
+        options.contextualElement || (options.contextualElement = document.body);
+
+        // Call our func with merged helpers and hooks
+        env.template = _render2["default"]["default"](template, env, scope, options);
+        env.template.uid = _.uniqueId("template");
+        return env.template;
+      }
+    };
+  };
+
   function rerender(path, node, lazyValue, env) {
     lazyValue.onNotify(function () {
       node.isDirty = true;
@@ -416,10 +440,10 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
   };
 
   _hooks["default"].partial = function partial(renderNode, env, scope, path) {
-    var part = _reboundComponentHelpers.partials[path];
+    var part = this.wrapPartial(_reboundComponentHelpers.partials[path]);
     if (part && part.render) {
       env = Object.create(env);
-      env.template = part.render(scope.self, env, { contextualElement: renderNode.contextualElement }, scope.block);
+      env.template = part.render(scope, env, { contextualElement: renderNode.contextualElement });
       return env.template.fragment;
     }
   };

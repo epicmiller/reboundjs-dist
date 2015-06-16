@@ -12321,14 +12321,15 @@ define("rebound-compiler/compile", ["exports", "module", "rebound-compiler/parse
     /* jshint evil: true */
     // Parse the template and compile our template function
     var defs = (0, _parse["default"])(str, options),
-        template = (0, _htmlbarsCompilerCompiler.compile)(defs.template);
+        template = new Function("return " + (0, _htmlbarsCompilerCompiler.compileSpec)(defs.template))();
 
     if (defs.isPartial) {
-      return _helpers["default"].registerPartial(options.name, template);
+      _helpers["default"].registerPartial(options.name, template);
+      return _hooks["default"].wrap(template);
     } else {
       return _Component["default"].registerComponent(defs.name, {
         prototype: new Function("return " + defs.script)(),
-        template: template,
+        template: _hooks["default"].wrap(template),
         style: defs.style
       });
     }
@@ -12360,14 +12361,15 @@ define("rebound-compiler/compile", ["exports", "module", "rebound-compiler/parse
     /* jshint evil: true */
     // Parse the template and compile our template function
     var defs = (0, _parse["default"])(str, options),
-        template = (0, _htmlbarsCompilerCompiler.compile)(defs.template);
+        template = new Function("return " + (0, _htmlbarsCompilerCompiler.compileSpec)(defs.template))();
 
     if (defs.isPartial) {
-      return _helpers["default"].registerPartial(options.name, template);
+      _helpers["default"].registerPartial(options.name, template);
+      return _hooks["default"].wrap(template);
     } else {
       return _Component["default"].registerComponent(defs.name, {
         prototype: new Function("return " + defs.script)(),
-        template: template,
+        template: _hooks["default"].wrap(template),
         style: defs.style
       });
     }
@@ -12375,133 +12377,6 @@ define("rebound-compiler/compile", ["exports", "module", "rebound-compiler/parse
 
   module.exports = { compile: compile };
 });
-define("rebound-data/collection", ["exports", "module", "rebound-data/model", "rebound-component/utils"], function (exports, module, _reboundDataModel, _reboundComponentUtils) {
-  // Rebound Collection
-  // ----------------
-
-  "use strict";
-
-  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-  var _Model = _interopRequireDefault(_reboundDataModel);
-
-  var _$ = _interopRequireDefault(_reboundComponentUtils);
-
-  function pathGenerator(collection) {
-    return function () {
-      return collection.__path() + "[" + collection.indexOf(collection._byId[this.cid]) + "]";
-    };
-  }
-
-  var Collection = Backbone.Collection.extend({
-
-    isCollection: true,
-    isData: true,
-
-    model: _Model["default"],
-
-    __path: function __path() {
-      return "";
-    },
-
-    constructor: function constructor(models, options) {
-      models || (models = []);
-      options || (options = {});
-      this.__observers = {};
-      this.helpers = {};
-      this.cid = _.uniqueId("collection");
-
-      // Set lineage
-      this.setParent(options.parent || this);
-      this.setRoot(options.root || this);
-      this.__path = options.path || this.__path;
-
-      Backbone.Collection.apply(this, arguments);
-
-      // When a model is removed from its original collection, destroy it
-      // TODO: Fix this. Computed properties now somehow allow collection to share a model. They may be removed from one but not the other. That is bad.
-      // The clone = false options is the culprit. Find a better way to copy all of the collections custom attributes over to the clone.
-      this.on("remove", function (model, collection, options) {});
-    },
-
-    get: function get(key, options) {
-
-      // If the key is a number or object, default to backbone's collection get
-      if (typeof key == "number" || typeof key == "object") {
-        return Backbone.Collection.prototype.get.call(this, key);
-      }
-
-      // If key is not a string, return undefined
-      if (!_.isString(key)) return void 0;
-
-      // Split the path at all '.', '[' and ']' and find the value referanced.
-      var parts = _$["default"].splitPath(key),
-          result = this,
-          l = parts.length,
-          i = 0;
-      options || (options = {});
-
-      if (_.isUndefined(key) || _.isNull(key)) return key;
-      if (key === "" || parts.length === 0) return result;
-
-      if (parts.length > 0) {
-        for (i = 0; i < l; i++) {
-          // If returning raw, always return the first computed property found. If undefined, you're done.
-          if (result && result.isComputedProperty && options.raw) return result;
-          if (result && result.isComputedProperty) result = result.value();
-          if (_.isUndefined(result) || _.isNull(result)) return result;
-          if (parts[i] === "@parent") result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result.hasOwnProperty(parts[i])) result = result[parts[i]];
-        }
-      }
-
-      if (result && result.isComputedProperty && !options.raw) result = result.value();
-
-      return result;
-    },
-
-    set: function set(models, options) {
-      var newModels = [],
-          lineage = {
-        parent: this,
-        root: this.__root__,
-        path: pathGenerator(this),
-        silent: true
-      };
-      options = options || {},
-
-      // If no models passed, implies an empty array
-      models || (models = []);
-
-      // If models is a string, call set at that path
-      if (_.isString(models)) return this.get(_$["default"].splitPath(models)[0]).set(_$["default"].splitPath(models).splice(1, models.length).join("."), options);
-      if (!_.isObject(models)) return console.error("Collection.set must be passed a Model, Object, array or Models and Objects, or another Collection");
-
-      // If another collection, treat like an array
-      models = models.isCollection ? models.models : models;
-      // Ensure models is an array
-      models = !_.isArray(models) ? [models] : models;
-
-      // If the model already exists in this collection, or we are told not to clone it, let Backbone handle the merge
-      // Otherwise, create our copy of this model, give them the same cid so our helpers treat them as the same object
-      _.each(models, function (data, index) {
-        if (data.isModel && options.clone === false || this._byId[data.cid]) return newModels[index] = data;
-        newModels[index] = new this.model(data, _.defaults(lineage, options));
-        data.isModel && (newModels[index].cid = data.cid);
-      }, this);
-
-      // Ensure that this element now knows that it has children now. Without this cyclic dependancies cause issues
-      this._hasAncestry || (this._hasAncestry = newModels.length > 0);
-
-      // Call original set function with model duplicates
-      return Backbone.Collection.prototype.set.call(this, newModels, options);
-    }
-
-  });
-
-  module.exports = Collection;
-});
-
-// model.deinitialize();
 define("rebound-component/component", ["exports", "module", "dom-helper", "htmlbars-runtime/render", "rebound-component/hooks", "rebound-component/helpers", "rebound-component/utils", "rebound-data/rebound-data"], function (exports, module, _domHelper, _htmlbarsRuntimeRender, _reboundComponentHooks, _reboundComponentHelpers, _reboundComponentUtils, _reboundDataReboundData) {
   // Rebound Component
   // ----------------
@@ -12898,6 +12773,133 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
 // }
 //
 // else{ this.set(attrName, newVal, {quiet: true}); }
+define("rebound-data/collection", ["exports", "module", "rebound-data/model", "rebound-component/utils"], function (exports, module, _reboundDataModel, _reboundComponentUtils) {
+  // Rebound Collection
+  // ----------------
+
+  "use strict";
+
+  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
+  var _Model = _interopRequireDefault(_reboundDataModel);
+
+  var _$ = _interopRequireDefault(_reboundComponentUtils);
+
+  function pathGenerator(collection) {
+    return function () {
+      return collection.__path() + "[" + collection.indexOf(collection._byId[this.cid]) + "]";
+    };
+  }
+
+  var Collection = Backbone.Collection.extend({
+
+    isCollection: true,
+    isData: true,
+
+    model: _Model["default"],
+
+    __path: function __path() {
+      return "";
+    },
+
+    constructor: function constructor(models, options) {
+      models || (models = []);
+      options || (options = {});
+      this.__observers = {};
+      this.helpers = {};
+      this.cid = _.uniqueId("collection");
+
+      // Set lineage
+      this.setParent(options.parent || this);
+      this.setRoot(options.root || this);
+      this.__path = options.path || this.__path;
+
+      Backbone.Collection.apply(this, arguments);
+
+      // When a model is removed from its original collection, destroy it
+      // TODO: Fix this. Computed properties now somehow allow collection to share a model. They may be removed from one but not the other. That is bad.
+      // The clone = false options is the culprit. Find a better way to copy all of the collections custom attributes over to the clone.
+      this.on("remove", function (model, collection, options) {});
+    },
+
+    get: function get(key, options) {
+
+      // If the key is a number or object, default to backbone's collection get
+      if (typeof key == "number" || typeof key == "object") {
+        return Backbone.Collection.prototype.get.call(this, key);
+      }
+
+      // If key is not a string, return undefined
+      if (!_.isString(key)) return void 0;
+
+      // Split the path at all '.', '[' and ']' and find the value referanced.
+      var parts = _$["default"].splitPath(key),
+          result = this,
+          l = parts.length,
+          i = 0;
+      options || (options = {});
+
+      if (_.isUndefined(key) || _.isNull(key)) return key;
+      if (key === "" || parts.length === 0) return result;
+
+      if (parts.length > 0) {
+        for (i = 0; i < l; i++) {
+          // If returning raw, always return the first computed property found. If undefined, you're done.
+          if (result && result.isComputedProperty && options.raw) return result;
+          if (result && result.isComputedProperty) result = result.value();
+          if (_.isUndefined(result) || _.isNull(result)) return result;
+          if (parts[i] === "@parent") result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result.hasOwnProperty(parts[i])) result = result[parts[i]];
+        }
+      }
+
+      if (result && result.isComputedProperty && !options.raw) result = result.value();
+
+      return result;
+    },
+
+    set: function set(models, options) {
+      var newModels = [],
+          lineage = {
+        parent: this,
+        root: this.__root__,
+        path: pathGenerator(this),
+        silent: true
+      };
+      options = options || {},
+
+      // If no models passed, implies an empty array
+      models || (models = []);
+
+      // If models is a string, call set at that path
+      if (_.isString(models)) return this.get(_$["default"].splitPath(models)[0]).set(_$["default"].splitPath(models).splice(1, models.length).join("."), options);
+      if (!_.isObject(models)) return console.error("Collection.set must be passed a Model, Object, array or Models and Objects, or another Collection");
+
+      // If another collection, treat like an array
+      models = models.isCollection ? models.models : models;
+      // Ensure models is an array
+      models = !_.isArray(models) ? [models] : models;
+
+      // If the model already exists in this collection, or we are told not to clone it, let Backbone handle the merge
+      // Otherwise, create our copy of this model, give them the same cid so our helpers treat them as the same object
+      _.each(models, function (data, index) {
+        if (data.isModel && options.clone === false || this._byId[data.cid]) return newModels[index] = data;
+        newModels[index] = new this.model(data, _.defaults(lineage, options));
+        data.isModel && (newModels[index].cid = data.cid);
+      }, this);
+
+      // Ensure that this element now knows that it has children now. Without this cyclic dependancies cause issues
+      this._hasAncestry || (this._hasAncestry = newModels.length > 0);
+
+      // Call original set function with model duplicates
+      return Backbone.Collection.prototype.set.call(this, newModels, options);
+    }
+
+  });
+
+  module.exports = Collection;
+});
+
+// model.deinitialize();
 define("rebound-router/lazy-component", ["exports", "module"], function (exports, module) {
   // Services keep track of their consumers. LazyComponent are placeholders
   // for services that haven't loaded yet. A LazyComponent mimics the api of a
@@ -12997,230 +12999,6 @@ define("runtime", ["exports", "module", "rebound-component/utils", "rebound-comp
   if (Config) Rebound.start(JSON.parse(Config));
 
   module.exports = Rebound;
-});
-define('rebound-compiler/parser', ['exports', 'module'], function (exports, module) {
-  // Rebound Template Parser
-  // -----------------------
-
-  // Remove the contents of the component's `script` tag.
-  'use strict';
-
-  function getScript(str) {
-    var start = str.lastIndexOf('</template>');
-    str = str.slice(start > -1 ? start : 0, str.length);
-    start = str.indexOf('<script>');
-    var end = str.lastIndexOf('</script>');
-
-    if (start > -1 && end > -1) return '(function(){' + str.substring(start + 8, end) + '})()';
-    return '{}';
-  }
-
-  // Remove the contents of the component's `style` tag.
-  function getStyle(str) {
-    return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
-  }
-
-  function stripLinkTags(str) {
-    // Remove link tags from template, these are fetched in getDependancies
-    return str.replace(/<link .*href=(['"]?)(.*).html\1[^>]*>/gi, '');
-  }
-
-  // Remove the contents of the component's `template` tag.
-  function getTemplate(str) {
-    var start = str.indexOf('<template>');
-    var end = str.lastIndexOf('</template>');
-
-    // Get only the content between the template tags, or set to an empty string.
-    str = start > -1 && end > -1 ? str.substring(start + 10, end) : '';
-
-    return stripLinkTags(str);
-  }
-
-  // Get the component's name from its `name` attribute.
-  function getName(str) {
-    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
-  }
-
-  // Minify the string passed in by replacing all whitespace.
-  function minify(str) {
-    return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
-  }
-
-  // Strip javascript comments
-  function removeComments(str) {
-    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
-  }
-
-  // TODO: This is messy, clean it up!
-  function getDependancies(template) {
-    var base = arguments[1] === undefined ? '' : arguments[1];
-
-    var imports = [],
-        partials = [],
-        deps = [],
-        match,
-        importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
-        partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
-        start = template.indexOf('<template>'),
-        end = template.lastIndexOf('</template>');
-    if (start > -1 && end > -1) template = template.substring(start + 10, end);
-
-    // Assemple our component dependancies by finding link tags and parsing their src
-    while ((match = importsre.exec(template)) !== null) {
-      imports.push(match[2]);
-    }
-    imports.forEach(function (importString, index) {
-      deps.push('"' + base + importString + '"');
-    });
-
-    // Assemble our partial dependancies
-    partials = template.match(partialsre);
-
-    if (partials) {
-      partials.forEach(function (partial, index) {
-        deps.push('"' + base + partial.replace(/\{\{>[\s*]?['"]?([^'"]*)['"]?[\s*]?\}\}/gi, '$1') + '"');
-      });
-    }
-
-    return deps;
-  }
-
-  function parse(str) {
-    var options = arguments[1] === undefined ? {} : arguments[1];
-
-    // If the element tag is present
-    if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {
-      return {
-        isPartial: false,
-        name: getName(str),
-        style: getStyle(str),
-        template: getTemplate(str),
-        script: getScript(str),
-        deps: getDependancies(str, options.baseDest)
-      };
-    }
-
-    return {
-      isPartial: true,
-      name: options.name,
-      template: stripLinkTags(str),
-      deps: getDependancies(str, options.baseDest)
-    };
-  }
-
-  module.exports = parse;
-});
-define('rebound-compiler/parser', ['exports', 'module'], function (exports, module) {
-  // Rebound Template Parser
-  // -----------------------
-
-  // Remove the contents of the component's `script` tag.
-  'use strict';
-
-  function getScript(str) {
-    var start = str.lastIndexOf('</template>');
-    str = str.slice(start > -1 ? start : 0, str.length);
-    start = str.indexOf('<script>');
-    var end = str.lastIndexOf('</script>');
-
-    if (start > -1 && end > -1) return '(function(){' + str.substring(start + 8, end) + '})()';
-    return '{}';
-  }
-
-  // Remove the contents of the component's `style` tag.
-  function getStyle(str) {
-    return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
-  }
-
-  function stripLinkTags(str) {
-    // Remove link tags from template, these are fetched in getDependancies
-    return str.replace(/<link .*href=(['"]?)(.*).html\1[^>]*>/gi, '');
-  }
-
-  // Remove the contents of the component's `template` tag.
-  function getTemplate(str) {
-    var start = str.indexOf('<template>');
-    var end = str.lastIndexOf('</template>');
-
-    // Get only the content between the template tags, or set to an empty string.
-    str = start > -1 && end > -1 ? str.substring(start + 10, end) : '';
-
-    return stripLinkTags(str);
-  }
-
-  // Get the component's name from its `name` attribute.
-  function getName(str) {
-    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
-  }
-
-  // Minify the string passed in by replacing all whitespace.
-  function minify(str) {
-    return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
-  }
-
-  // Strip javascript comments
-  function removeComments(str) {
-    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
-  }
-
-  // TODO: This is messy, clean it up!
-  function getDependancies(template) {
-    var base = arguments[1] === undefined ? '' : arguments[1];
-
-    var imports = [],
-        partials = [],
-        deps = [],
-        match,
-        importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
-        partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
-        start = template.indexOf('<template>'),
-        end = template.lastIndexOf('</template>');
-    if (start > -1 && end > -1) template = template.substring(start + 10, end);
-
-    // Assemple our component dependancies by finding link tags and parsing their src
-    while ((match = importsre.exec(template)) !== null) {
-      imports.push(match[2]);
-    }
-    imports.forEach(function (importString, index) {
-      deps.push('"' + base + importString + '"');
-    });
-
-    // Assemble our partial dependancies
-    partials = template.match(partialsre);
-
-    if (partials) {
-      partials.forEach(function (partial, index) {
-        deps.push('"' + base + partial.replace(/\{\{>[\s*]?['"]?([^'"]*)['"]?[\s*]?\}\}/gi, '$1') + '"');
-      });
-    }
-
-    return deps;
-  }
-
-  function parse(str) {
-    var options = arguments[1] === undefined ? {} : arguments[1];
-
-    // If the element tag is present
-    if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {
-      return {
-        isPartial: false,
-        name: getName(str),
-        style: getStyle(str),
-        template: getTemplate(str),
-        script: getScript(str),
-        deps: getDependancies(str, options.baseDest)
-      };
-    }
-
-    return {
-      isPartial: true,
-      name: options.name,
-      template: stripLinkTags(str),
-      deps: getDependancies(str, options.baseDest)
-    };
-  }
-
-  module.exports = parse;
 });
 define("property-compiler/tokenizer", ["exports", "module"], function (exports, module) {
   /*jshint -W054 */
@@ -14233,6 +14011,230 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
 
   module.exports = { tokenize: _exports.tokenize };
 });
+define('rebound-compiler/parser', ['exports', 'module'], function (exports, module) {
+  // Rebound Template Parser
+  // -----------------------
+
+  // Remove the contents of the component's `script` tag.
+  'use strict';
+
+  function getScript(str) {
+    var start = str.lastIndexOf('</template>');
+    str = str.slice(start > -1 ? start : 0, str.length);
+    start = str.indexOf('<script>');
+    var end = str.lastIndexOf('</script>');
+
+    if (start > -1 && end > -1) return '(function(){' + str.substring(start + 8, end) + '})()';
+    return '{}';
+  }
+
+  // Remove the contents of the component's `style` tag.
+  function getStyle(str) {
+    return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
+  }
+
+  function stripLinkTags(str) {
+    // Remove link tags from template, these are fetched in getDependancies
+    return str.replace(/<link .*href=(['"]?)(.*).html\1[^>]*>/gi, '');
+  }
+
+  // Remove the contents of the component's `template` tag.
+  function getTemplate(str) {
+    var start = str.indexOf('<template>');
+    var end = str.lastIndexOf('</template>');
+
+    // Get only the content between the template tags, or set to an empty string.
+    str = start > -1 && end > -1 ? str.substring(start + 10, end) : '';
+
+    return stripLinkTags(str);
+  }
+
+  // Get the component's name from its `name` attribute.
+  function getName(str) {
+    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
+  }
+
+  // Minify the string passed in by replacing all whitespace.
+  function minify(str) {
+    return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
+  }
+
+  // Strip javascript comments
+  function removeComments(str) {
+    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
+  }
+
+  // TODO: This is messy, clean it up!
+  function getDependancies(template) {
+    var base = arguments[1] === undefined ? '' : arguments[1];
+
+    var imports = [],
+        partials = [],
+        deps = [],
+        match,
+        importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
+        partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
+        start = template.indexOf('<template>'),
+        end = template.lastIndexOf('</template>');
+    if (start > -1 && end > -1) template = template.substring(start + 10, end);
+
+    // Assemple our component dependancies by finding link tags and parsing their src
+    while ((match = importsre.exec(template)) !== null) {
+      imports.push(match[2]);
+    }
+    imports.forEach(function (importString, index) {
+      deps.push('"' + base + importString + '"');
+    });
+
+    // Assemble our partial dependancies
+    partials = template.match(partialsre);
+
+    if (partials) {
+      partials.forEach(function (partial, index) {
+        deps.push('"' + base + partial.replace(/\{\{>[\s*]?['"]?([^'"]*)['"]?[\s*]?\}\}/gi, '$1') + '"');
+      });
+    }
+
+    return deps;
+  }
+
+  function parse(str) {
+    var options = arguments[1] === undefined ? {} : arguments[1];
+
+    // If the element tag is present
+    if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {
+      return {
+        isPartial: false,
+        name: getName(str),
+        style: getStyle(str),
+        template: getTemplate(str),
+        script: getScript(str),
+        deps: getDependancies(str, options.baseDest)
+      };
+    }
+
+    return {
+      isPartial: true,
+      name: options.name,
+      template: stripLinkTags(str),
+      deps: getDependancies(str, options.baseDest)
+    };
+  }
+
+  module.exports = parse;
+});
+define('rebound-compiler/parser', ['exports', 'module'], function (exports, module) {
+  // Rebound Template Parser
+  // -----------------------
+
+  // Remove the contents of the component's `script` tag.
+  'use strict';
+
+  function getScript(str) {
+    var start = str.lastIndexOf('</template>');
+    str = str.slice(start > -1 ? start : 0, str.length);
+    start = str.indexOf('<script>');
+    var end = str.lastIndexOf('</script>');
+
+    if (start > -1 && end > -1) return '(function(){' + str.substring(start + 8, end) + '})()';
+    return '{}';
+  }
+
+  // Remove the contents of the component's `style` tag.
+  function getStyle(str) {
+    return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
+  }
+
+  function stripLinkTags(str) {
+    // Remove link tags from template, these are fetched in getDependancies
+    return str.replace(/<link .*href=(['"]?)(.*).html\1[^>]*>/gi, '');
+  }
+
+  // Remove the contents of the component's `template` tag.
+  function getTemplate(str) {
+    var start = str.indexOf('<template>');
+    var end = str.lastIndexOf('</template>');
+
+    // Get only the content between the template tags, or set to an empty string.
+    str = start > -1 && end > -1 ? str.substring(start + 10, end) : '';
+
+    return stripLinkTags(str);
+  }
+
+  // Get the component's name from its `name` attribute.
+  function getName(str) {
+    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
+  }
+
+  // Minify the string passed in by replacing all whitespace.
+  function minify(str) {
+    return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
+  }
+
+  // Strip javascript comments
+  function removeComments(str) {
+    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
+  }
+
+  // TODO: This is messy, clean it up!
+  function getDependancies(template) {
+    var base = arguments[1] === undefined ? '' : arguments[1];
+
+    var imports = [],
+        partials = [],
+        deps = [],
+        match,
+        importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
+        partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
+        start = template.indexOf('<template>'),
+        end = template.lastIndexOf('</template>');
+    if (start > -1 && end > -1) template = template.substring(start + 10, end);
+
+    // Assemple our component dependancies by finding link tags and parsing their src
+    while ((match = importsre.exec(template)) !== null) {
+      imports.push(match[2]);
+    }
+    imports.forEach(function (importString, index) {
+      deps.push('"' + base + importString + '"');
+    });
+
+    // Assemble our partial dependancies
+    partials = template.match(partialsre);
+
+    if (partials) {
+      partials.forEach(function (partial, index) {
+        deps.push('"' + base + partial.replace(/\{\{>[\s*]?['"]?([^'"]*)['"]?[\s*]?\}\}/gi, '$1') + '"');
+      });
+    }
+
+    return deps;
+  }
+
+  function parse(str) {
+    var options = arguments[1] === undefined ? {} : arguments[1];
+
+    // If the element tag is present
+    if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {
+      return {
+        isPartial: false,
+        name: getName(str),
+        style: getStyle(str),
+        template: getTemplate(str),
+        script: getScript(str),
+        deps: getDependancies(str, options.baseDest)
+      };
+    }
+
+    return {
+      isPartial: true,
+      name: options.name,
+      template: stripLinkTags(str),
+      deps: getDependancies(str, options.baseDest)
+    };
+  }
+
+  module.exports = parse;
+});
 define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", "rebound-component/utils"], function (exports, _reboundComponentLazyValue, _reboundComponentUtils) {
   // Rebound Helpers
   // ----------------
@@ -14252,6 +14254,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
   var helpers = {},
       partials = {};
 
+  window.partials = partials;
   helpers.registerPartial = function (name, func) {
     if (func && typeof name === "string") {
       return partials[name] = func;
@@ -14441,7 +14444,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
       if (templates.inverse && templates.inverse["yield"]) templates.inverse["yield"]();
     } else {
       for (key in value) {
-        if (value.hasOwnProperty(key)) this.yieldItem(value[key].cid, [value[key]], params[0]);
+        if (value.hasOwnProperty(key)) this.yieldItem(value[key].cid, [value[key]]);
       }
     }
     return _.uniqueId("rand");
@@ -15302,6 +15305,593 @@ define("rebound-compiler/precompile", ["exports", "module", "./parser", "htmlbar
 
   module.exports = precompile;
 });
+define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-value", "rebound-component/utils", "rebound-component/helpers", "htmlbars-runtime/hooks", "dom-helper", "../htmlbars-util/object-utils", "htmlbars-runtime/render"], function (exports, module, _reboundComponentLazyValue, _reboundComponentUtils, _reboundComponentHelpers, _htmlbarsRuntimeHooks, _domHelper, _htmlbarsUtilObjectUtils, _htmlbarsRuntimeRender) {
+  // Rebound Hooks
+  // ----------------
+
+  "use strict";
+
+  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
+  var _LazyValue = _interopRequireDefault(_reboundComponentLazyValue);
+
+  var _$ = _interopRequireDefault(_reboundComponentUtils);
+
+  var _helpers = _interopRequireDefault(_reboundComponentHelpers);
+
+  var _hooks = _interopRequireDefault(_htmlbarsRuntimeHooks);
+
+  var _DOMHelper = _interopRequireDefault(_domHelper);
+
+  var _render2 = _interopRequireDefault(_htmlbarsRuntimeRender);
+
+  var attributes = { abbr: 1, "accept-charset": 1, accept: 1, accesskey: 1, action: 1,
+    align: 1, alink: 1, alt: 1, archive: 1, axis: 1,
+    background: 1, bgcolor: 1, border: 1, cellpadding: 1, cellspacing: 1,
+    char: 1, charoff: 1, charset: 1, checked: 1, cite: 1,
+    "class": 1, classid: 1, clear: 1, code: 1, codebase: 1,
+    codetype: 1, color: 1, cols: 1, colspan: 1, compact: 1,
+    content: 1, coords: 1, data: 1, datetime: 1, declare: 1,
+    defer: 1, dir: 1, disabled: 1, enctype: 1, face: 1,
+    "for": 1, frame: 1, frameborder: 1, headers: 1, height: 1,
+    href: 1, hreflang: 1, hspace: 1, "http-equiv": 1, id: 1,
+    ismap: 1, label: 1, lang: 1, language: 1, link: 1,
+    longdesc: 1, marginheight: 1, marginwidth: 1, maxlength: 1, media: 1,
+    method: 1, multiple: 1, name: 1, nohref: 1, noresize: 1,
+    noshade: 1, nowrap: 1, object: 1, onblur: 1, onchange: 1,
+    onclick: 1, ondblclick: 1, onfocus: 1, onkeydown: 1, onkeypress: 1,
+    onkeyup: 1, onload: 1, onmousedown: 1, onmousemove: 1, onmouseout: 1,
+    onmouseover: 1, onmouseup: 1, onreset: 1, onselect: 1, onsubmit: 1,
+    onunload: 1, profile: 1, prompt: 1, readonly: 1, rel: 1,
+    rev: 1, rows: 1, rowspan: 1, rules: 1, scheme: 1,
+    scope: 1, scrolling: 1, selected: 1, shape: 1, size: 1,
+    span: 1, src: 1, standby: 1, start: 1, style: 1,
+    summary: 1, tabindex: 1, target: 1, text: 1, title: 1,
+    type: 1, usemap: 1, valign: 1, value: 1, valuetype: 1,
+    version: 1, vlink: 1, vspace: 1, width: 1 };
+
+  /*******************************
+          Hook Utils
+  ********************************/
+
+  _hooks["default"].get = function get(env, scope, path) {
+
+    if (path === "this") path = "";
+
+    var setPath = path;
+
+    var key,
+        value,
+        rest = _$["default"].splitPath(path);
+    key = rest.shift();
+
+    // If this path referances a block param, use that as the context instead.
+    if (scope.localPresent[key]) {
+      value = scope.locals[key];
+      path = rest.join(".");
+    } else {
+      value = scope.self;
+    }
+
+    if (scope.streams[setPath]) return scope.streams[setPath];
+    return scope.streams[setPath] = streamProperty(value, path);
+  };
+
+  // Given an object (context) and a path, create a LazyValue object that returns the value of object at context and add it as an observer of the context.
+  function streamProperty(context, path) {
+
+    // Lazy value that returns the value of context.path
+    var lazyValue = new _LazyValue["default"](function () {
+      return context.get(path);
+    }, { context: context });
+
+    // Save our path so parent lazyvalues can know the data var or helper they are getting info from
+    lazyValue.path = path;
+
+    // Save the observer at this path
+    lazyValue.addObserver(path, context);
+
+    return lazyValue;
+  }
+
+  _hooks["default"].invokeHelper = function invokeHelper(morph, env, scope, visitor, params, hash, helper, templates, context) {
+    if (morph && scope.streams[morph.guid]) {
+      scope.streams[morph.guid].value;
+      return scope.streams[morph.guid];
+    }
+    var lazyValue = streamHelper.apply(this, arguments);
+    lazyValue.path = helper.name;
+    lazyValue.value;
+    // if(morph) scope.streams[morph.guid] = lazyValue;
+    return lazyValue;
+  };
+
+  function streamHelper(morph, env, scope, visitor, params, hash, helper, templates, context) {
+
+    if (!_.isFunction(helper)) return console.error(scope + " is not a valid helper!");
+
+    // Create a lazy value that returns the value of our evaluated helper.
+    var lazyValue = new _LazyValue["default"](function () {
+      var plainParams = [],
+          plainHash = {};
+
+      // Assemble our args and hash variables. For each lazyvalue param, push the lazyValue's value so helpers with no concept of lazyvalues.
+      _.each(params, function (param, index) {
+        plainParams.push(param && param.isLazyValue ? param.value : param);
+      });
+      _.each(hash, function (hash, key) {
+        plainHash[key] = hash && hash.isLazyValue ? hash.value : hash;
+      });
+
+      // Call our helper functions with our assembled args.
+      return helper.call(context || {}, plainParams, plainHash, templates, env);
+    }, { morph: morph, path: helper.name });
+
+    // For each param or hash value passed to our helper, add it to our helper's dependant list. Helper will re-evaluate when one changes.
+    params.forEach(function (param) {
+      if (param && param.isLazyValue) {
+        lazyValue.addDependentValue(param);
+      }
+    });
+    for (var key in hash) {
+      if (hash[key] && hash[key].isLazyValue) {
+        lazyValue.addDependentValue(hash[key]);
+      }
+    }
+
+    return lazyValue;
+  }
+
+  _hooks["default"].cleanupRenderNode = function () {};
+
+  _hooks["default"].destroyRenderNode = function (renderNode) {};
+  _hooks["default"].willCleanupTree = function (renderNode) {};
+
+  /*******************************
+          Default Hooks
+  ********************************/
+
+  // Helper Hooks
+
+  _hooks["default"].hasHelper = _helpers["default"].hasHelper;
+
+  _hooks["default"].lookupHelper = _helpers["default"].lookupHelper;
+
+  // Rebound's default environment
+  // The application environment is propagated down each render call and
+  // augmented with helpers as it goes
+  _hooks["default"].createFreshEnv = function () {
+    return {
+      helpers: _helpers["default"],
+      hooks: _hooks["default"],
+      streams: {},
+      dom: new _DOMHelper["default"]["default"](),
+      useFragmentCache: true,
+      revalidateQueue: {},
+      isReboundEnv: true
+    };
+  };
+
+  _hooks["default"].createChildEnv = function (parent) {
+    var env = (0, _htmlbarsUtilObjectUtils.createObject)(parent);
+    env.helpers = (0, _htmlbarsUtilObjectUtils.createObject)(parent.helpers);
+    return env;
+  };
+
+  _hooks["default"].createFreshScope = function () {
+    // because `in` checks have unpredictable performance, keep a
+    // separate dictionary to track whether a local was bound.
+    // See `bindLocal` for more information.
+    return { self: null, blocks: {}, locals: {}, localPresent: {}, streams: {} };
+  };
+
+  _hooks["default"].createChildScope = function (parent) {
+    var scope = (0, _htmlbarsUtilObjectUtils.createObject)(parent);
+    scope.locals = (0, _htmlbarsUtilObjectUtils.createObject)(parent.locals);
+    scope.streams = (0, _htmlbarsUtilObjectUtils.createObject)(parent.streams);
+    return scope;
+  };
+
+  // Scope Hooks
+  _hooks["default"].bindScope = function bindScope(env, scope) {
+    // Initial setup of scope
+    env.scope = scope;
+  };
+
+  _hooks["default"].wrap = function wrap(template) {
+    // Return a wrapper function that will merge user provided helpers and hooks with our defaults
+    return {
+      reboundTemplate: true,
+      meta: template.meta,
+      arity: template.arity,
+      raw: template,
+      render: function render(data, env, options, blockArguments) {
+        if (env === undefined) env = _hooks["default"].createFreshEnv();
+        if (options === undefined) options = {};
+
+        // Create a fresh scope if it doesn't exist
+        var scope = _hooks["default"].createFreshScope();
+
+        env = _hooks["default"].createChildEnv(env);
+        _.extend(env.helpers, options.helpers);
+
+        // Ensure we have a contextual element to pass to render
+        options.contextualElement || (options.contextualElement = document.body);
+        options.self = data;
+        options.blockArguments = blockArguments;
+
+        // Call our func with merged helpers and hooks
+        env.template = _render2["default"]["default"](template, env, scope, options);
+        env.template.uid = _.uniqueId("template");
+        return env.template;
+      }
+    };
+  };
+
+  _hooks["default"].wrapPartial = function wrapPartial(template) {
+    // Return a wrapper function that will merge user provided helpers and hooks with our defaults
+    return {
+      reboundTemplate: true,
+      meta: template.meta,
+      arity: template.arity,
+      raw: template,
+      render: function render(scope, env, options, blockArguments) {
+        if (env === undefined) env = _hooks["default"].createFreshEnv();
+        if (options === undefined) options = {};
+
+        env = _hooks["default"].createChildEnv(env);
+
+        // Ensure we have a contextual element to pass to render
+        options.contextualElement || (options.contextualElement = document.body);
+
+        // Call our func with merged helpers and hooks
+        env.template = _render2["default"]["default"](template, env, scope, options);
+        env.template.uid = _.uniqueId("template");
+        return env.template;
+      }
+    };
+  };
+
+  function rerender(path, node, lazyValue, env) {
+    lazyValue.onNotify(function () {
+      node.isDirty = true;
+      env.revalidateQueue[env.template.uid] = env.template;
+    });
+  }
+
+  _hooks["default"].linkRenderNode = function linkRenderNode(renderNode, env, scope, path, params, hash) {
+
+    // If this node has already been rendered, it is already linked to its streams
+    if (renderNode.rendered) return;
+
+    // Save the path on our render node for easier debugging
+    renderNode.path = path;
+    renderNode.lazyValues || (renderNode.lazyValues = {});
+
+    if (params && params.length) {
+      for (var i = 0; i < params.length; i++) {
+        if (params[i].isLazyValue) {
+          rerender(path, renderNode, params[i], env);
+        }
+      }
+    }
+    if (hash) {
+      for (var key in hash) {
+        if (hash.hasOwnProperty(key) && hash[key].isLazyValue) {
+          rerender(path, renderNode, hash[key], env);
+        }
+      }
+    }
+  };
+
+  // Hooks
+
+  _hooks["default"].getValue = function (referance) {
+    return referance && referance.isLazyValue ? referance.value : referance;
+  };
+
+  _hooks["default"].subexpr = function subexpr(env, scope, helperName, params, hash) {
+    var helper = _helpers["default"].lookupHelper(helperName, env),
+        lazyValue,
+        i,
+        l,
+        name = "subexpr " + helperName + ": ";
+    for (i = 0, l = params.length; i < l; i++) {
+      if (params[i].isLazyValue) name += params[i].cid;
+    }
+
+    if (env.streams[name]) return env.streams[name];
+
+    if (helper) {
+      lazyValue = streamHelper(null, env, scope, null, params, hash, helper, {}, null);
+    } else {
+      lazyValue = _hooks["default"].get(env, context, helperName);
+    }
+
+    for (i = 0, l = params.length; i < l; i++) {
+      if (params[i].isLazyValue) {
+        lazyValue.addDependentValue(params[i]);
+      }
+    }
+
+    lazyValue.path = helperName;
+    env.streams[name] = lazyValue;
+    return lazyValue;
+  };
+
+  _hooks["default"].concat = function concat(env, params) {
+
+    var name = "concat: ",
+        i,
+        l;
+
+    if (params.length === 1) {
+      return params[0];
+    }
+
+    for (i = 0, l = params.length; i < l; i++) {
+      name += params[i] && params[i].isLazyValue ? params[i].cid : params[i];
+    }
+
+    if (env.streams[name]) return env.streams[name];
+
+    var lazyValue = new _LazyValue["default"](function (params) {
+      var value = "";
+
+      for (i = 0, l = params.length; i < l; i++) {
+        value += params[i] && params[i].isLazyValue ? params[i].value : params[i] || "";
+      }
+
+      return value;
+    }, { context: params[0].context });
+
+    for (i = 0, l = params.length; i < l; i++) {
+      lazyValue.addDependentValue(params[i]);
+    }
+
+    env.scope.streams[name] = lazyValue;
+    lazyValue.path = name;
+    return lazyValue;
+  };
+
+  // Content Hook
+  _hooks["default"].content = function content(morph, env, context, path, lazyValue) {
+    var value,
+        observer = subtreeObserver,
+        domElement = morph.contextualElement,
+        helper = _helpers["default"].lookupHelper(path, env);
+
+    var updateTextarea = function updateTextarea(lazyValue) {
+      domElement.value = lazyValue.value;
+    };
+
+    // Two way databinding for textareas
+    if (domElement.tagName === "TEXTAREA") {
+      lazyValue.onNotify(updateTextarea);
+      (0, _$["default"])(domElement).on("change keyup", function (event) {
+        lazyValue.set(lazyValue.path, this.value);
+      });
+    }
+
+    return lazyValue.value;
+  };
+
+  _hooks["default"].attribute = function attribute(attrMorph, env, scope, name, value) {
+    var val = value.isLazyValue ? value.value : value,
+        domElement = attrMorph.element,
+        checkboxChange,
+        type = domElement.getAttribute("type"),
+        attr,
+        inputTypes = { "null": true, "text": true, "email": true, "password": true,
+      "search": true, "url": true, "tel": true, "hidden": true,
+      "number": true, "color": true, "date": true, "datetime": true,
+      "datetime-local:": true, "month": true, "range": true,
+      "time": true, "week": true
+    };
+
+    // If is a text input element's value prop with only one variable, wire default events
+    if (domElement.tagName === "INPUT" && inputTypes[type] && name === "value") {
+
+      // If our special input events have not been bound yet, bind them and set flag
+      if (!attrMorph.inputObserver) {
+
+        (0, _$["default"])(domElement).on("change input propertychange", function (event) {
+          value.set(value.path, this.value);
+        });
+
+        attrMorph.inputObserver = true;
+      }
+
+      // Set the attribute on our element for visual referance
+      _.isUndefined(val) ? domElement.removeAttribute(name) : domElement.setAttribute(name, val);
+
+      attr = val;
+      return domElement.value !== String(attr) ? domElement.value = attr || "" : attr;
+    } else if (domElement.tagName === "INPUT" && (type === "checkbox" || type === "radio") && name === "checked") {
+
+      // If our special input events have not been bound yet, bind them and set flag
+      if (!attrMorph.eventsBound) {
+
+        (0, _$["default"])(domElement).on("change propertychange", function (event) {
+          value.set(value.path, this.checked ? true : false, { quiet: true });
+        });
+
+        attrMorph.eventsBound = true;
+      }
+
+      // Set the attribute on our element for visual referance
+      !val ? domElement.removeAttribute(name) : domElement.setAttribute(name, val);
+
+      return domElement.checked = val ? true : undefined;
+    }
+
+    // Special case for link elements with dynamic classes.
+    // If the router has assigned it a truthy 'active' property, ensure that the extra class is present on re-render.
+    else if (domElement.tagName === "A" && name === "class") {
+      if (_.isUndefined(val)) {
+        domElement.active ? domElement.setAttribute("class", "active") : domElement.classList.remove("class");
+      } else {
+        domElement.setAttribute(name, val + (domElement.active ? " active" : ""));
+      }
+    } else {
+      _.isString(val) && (val = val.trim());
+      val || (val = undefined);
+      if (_.isUndefined(val)) {
+        domElement.removeAttribute(name);
+      } else {
+        domElement.setAttribute(name, val);
+      }
+    }
+
+    _hooks["default"].linkRenderNode(attrMorph, env, scope, "@attribute", [value], {});
+  };
+
+  _hooks["default"].partial = function partial(renderNode, env, scope, path) {
+    var part = this.wrapPartial(_reboundComponentHelpers.partials[path]);
+    if (part && part.render) {
+      env = Object.create(env);
+      env.template = part.render(scope, env, { contextualElement: renderNode.contextualElement });
+      return env.template.fragment;
+    }
+  };
+
+  _hooks["default"].component = function (morph, env, scope, tagName, params, attrs, templates, visitor) {
+
+    // Components are only ever rendered once
+    if (morph.componentIsRendered) return;
+
+    if (env.hooks.hasHelper(env, scope, tagName)) {
+      return env.hooks.block(morph, env, scope, tagName, params, attrs, templates["default"], templates.inverse, visitor);
+    }
+
+    var component,
+        element,
+        outlet,
+        seedData = {},
+        componentData = {};
+
+    // Create a plain data object to pass to our new component as seed data
+    for (var key in attrs) {
+      seedData[key] = _hooks["default"].getValue(attrs[key]);
+    }
+
+    // For each param passed to our shared component, add it to our custom element
+    // TODO: there has to be a better way to get seed data to element instances
+    // Global seed data is consumed by element as its created. This is not scoped and very dumb.
+    Rebound.seedData = seedData;
+    element = document.createElement(tagName);
+    component = element.data;
+    delete Rebound.seedData;
+
+    // For each lazy param passed to our component, create its lazyValue
+    for (var key in seedData) {
+      componentData[key] = streamProperty(component, key);
+    }
+
+    var _loop = function () {
+      var key = prop;
+      if (componentData[key].isLazyValue && attrs[key].isLazyValue) {
+
+        // For each lazy param passed to our component, have it update the original context when changed.
+        componentData[key].onNotify(function () {
+          attrs[key].set(attrs[key].path, componentData[key].value);
+        });
+
+        // For each lazy param passed to our component, have it update the component when changed.
+        attrs[key].onNotify(function () {
+          componentData[key].set(key, attrs[key].value);
+        });
+
+        // Seed the cache
+        componentData[key].value;
+      }
+    };
+
+    // Set up two way binding between component and original context for non-data attributes
+    // Syncing between models and collections passed are handled in model and collection
+
+    for (var prop in componentData) {
+      _loop();
+    }
+
+    // TODO: Move this to Component
+    // // For each change on our component, update the states of the original context and the element's proeprties.
+    component.listenTo(component, "change", function (model) {
+      var json = component.toJSON();
+
+      if (_.isString(json)) return; // If is a string, this model is seralizing already
+
+      // Set the properties on our element for visual referance if we are on a top level attribute
+      _.each(json, function (value, key) {
+        // TODO: Currently, showing objects as properties on the custom element causes problems.
+        // Linked models between the context and component become the same exact model and all hell breaks loose.
+        // Find a way to remedy this. Until then, don't show objects.
+        if (_.isObject(value)) {
+          return;
+        }
+        value = _.isObject(value) ? JSON.stringify(value) : value;
+        try {
+          attributes[key] ? element.setAttribute(key, value) : element.dataset[key] = value;
+        } catch (e) {
+          console.error(e.message);
+        }
+      });
+    });
+
+    /** The attributeChangedCallback on our custom element updates the component's data. **/
+
+    /*******************************************************
+    
+      End data dependancy chain
+    
+    *******************************************************/
+
+    // TODO: break this out into its own function
+    // Set the properties on our element for visual referance if we are on a top level attribute
+    var compjson = component.toJSON();
+    _.each(compjson, function (value, key) {
+      // TODO: Currently, showing objects as properties on the custom element causes problems.
+      // Linked models between the context and component become the same exact model and all hell breaks loose.
+      // Find a way to remedy this. Until then, don't show objects.
+      if (_.isObject(value)) {
+        return;
+      }
+      value = _.isObject(value) ? JSON.stringify(value) : value;
+      if (!_.isNull(value) && !_.isUndefined(value)) {
+        try {
+          attributes[key] ? element.setAttribute(key, value) : element.dataset[key] = value;
+        } catch (e) {
+          console.error(e.message);
+        }
+      }
+    });
+
+    // Walk the dom, without traversing into other custom elements, and search for
+    // `<content>` outlets to render templates into.
+    (0, _$["default"])(element).walkTheDOM(function (el) {
+      if (element === el) return true;
+      if (el.tagName === "CONTENT") outlet = el;
+      if (el.tagName.indexOf("-") > -1) return false;
+      return true;
+    });
+
+    // If a `<content>` outlet is present in component's template, and a template
+    // is provided, render it into the outlet
+    if (templates["default"] && _.isElement(outlet)) {
+      outlet.innerHTML = "";
+      outlet.appendChild(_render2["default"]["default"](templates["default"], env, scope, {}).fragment);
+    }
+
+    morph.setNode(element);
+    morph.componentIsRendered = true;
+  };
+
+  module.exports = _hooks["default"];
+});
+
+// for(let i in renderNode.lazyValues)
+//   if(renderNode.lazyValues[i].isLazyValue)
+//     renderNode.lazyValues[i].destroy();
 define("rebound-data/model", ["exports", "module", "rebound-data/computed-property", "rebound-component/utils"], function (exports, module, _reboundDataComputedProperty, _reboundComponentUtils) {
   // Rebound Model
   // ----------------
@@ -15565,709 +16155,6 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
 
   module.exports = Model;
 });
-define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-value", "rebound-component/utils", "rebound-component/helpers", "htmlbars-runtime/hooks", "dom-helper", "../htmlbars-util/object-utils", "htmlbars-runtime/render"], function (exports, module, _reboundComponentLazyValue, _reboundComponentUtils, _reboundComponentHelpers, _htmlbarsRuntimeHooks, _domHelper, _htmlbarsUtilObjectUtils, _htmlbarsRuntimeRender) {
-  // Rebound Hooks
-  // ----------------
-
-  "use strict";
-
-  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-  var _LazyValue = _interopRequireDefault(_reboundComponentLazyValue);
-
-  var _$ = _interopRequireDefault(_reboundComponentUtils);
-
-  var _helpers = _interopRequireDefault(_reboundComponentHelpers);
-
-  var _hooks = _interopRequireDefault(_htmlbarsRuntimeHooks);
-
-  var _DOMHelper = _interopRequireDefault(_domHelper);
-
-  var _render2 = _interopRequireDefault(_htmlbarsRuntimeRender);
-
-  var attributes = { abbr: 1, "accept-charset": 1, accept: 1, accesskey: 1, action: 1,
-    align: 1, alink: 1, alt: 1, archive: 1, axis: 1,
-    background: 1, bgcolor: 1, border: 1, cellpadding: 1, cellspacing: 1,
-    char: 1, charoff: 1, charset: 1, checked: 1, cite: 1,
-    "class": 1, classid: 1, clear: 1, code: 1, codebase: 1,
-    codetype: 1, color: 1, cols: 1, colspan: 1, compact: 1,
-    content: 1, coords: 1, data: 1, datetime: 1, declare: 1,
-    defer: 1, dir: 1, disabled: 1, enctype: 1, face: 1,
-    "for": 1, frame: 1, frameborder: 1, headers: 1, height: 1,
-    href: 1, hreflang: 1, hspace: 1, "http-equiv": 1, id: 1,
-    ismap: 1, label: 1, lang: 1, language: 1, link: 1,
-    longdesc: 1, marginheight: 1, marginwidth: 1, maxlength: 1, media: 1,
-    method: 1, multiple: 1, name: 1, nohref: 1, noresize: 1,
-    noshade: 1, nowrap: 1, object: 1, onblur: 1, onchange: 1,
-    onclick: 1, ondblclick: 1, onfocus: 1, onkeydown: 1, onkeypress: 1,
-    onkeyup: 1, onload: 1, onmousedown: 1, onmousemove: 1, onmouseout: 1,
-    onmouseover: 1, onmouseup: 1, onreset: 1, onselect: 1, onsubmit: 1,
-    onunload: 1, profile: 1, prompt: 1, readonly: 1, rel: 1,
-    rev: 1, rows: 1, rowspan: 1, rules: 1, scheme: 1,
-    scope: 1, scrolling: 1, selected: 1, shape: 1, size: 1,
-    span: 1, src: 1, standby: 1, start: 1, style: 1,
-    summary: 1, tabindex: 1, target: 1, text: 1, title: 1,
-    type: 1, usemap: 1, valign: 1, value: 1, valuetype: 1,
-    version: 1, vlink: 1, vspace: 1, width: 1 };
-
-  /*******************************
-          Hook Utils
-  ********************************/
-
-  _hooks["default"].get = function get(env, scope, path) {
-
-    if (path === "this") path = "";
-
-    var setPath = path;
-
-    var key,
-        value,
-        rest = _$["default"].splitPath(path);
-    key = rest.shift();
-
-    // If this path referances a block param, use that as the context instead.
-    if (scope.localPresent[key]) {
-      value = scope.locals[key];
-      path = rest.join(".");
-    } else {
-      value = scope.self;
-    }
-
-    if (scope.streams[setPath]) return scope.streams[setPath];
-    return scope.streams[setPath] = streamProperty(value, path);
-  };
-
-  // Given an object (context) and a path, create a LazyValue object that returns the value of object at context and add it as an observer of the context.
-  function streamProperty(context, path) {
-
-    // Lazy value that returns the value of context.path
-    var lazyValue = new _LazyValue["default"](function () {
-      return context.get(path);
-    }, { context: context });
-
-    // Save our path so parent lazyvalues can know the data var or helper they are getting info from
-    lazyValue.path = path;
-
-    // Save the observer at this path
-    lazyValue.addObserver(path, context);
-
-    return lazyValue;
-  }
-
-  _hooks["default"].invokeHelper = function invokeHelper(morph, env, scope, visitor, params, hash, helper, templates, context) {
-    if (morph && scope.streams[morph.guid]) {
-      scope.streams[morph.guid].value;
-      return scope.streams[morph.guid];
-    }
-    var lazyValue = streamHelper.apply(this, arguments);
-    lazyValue.path = helper.name;
-    lazyValue.value;
-    // if(morph) scope.streams[morph.guid] = lazyValue;
-    return lazyValue;
-  };
-
-  function streamHelper(morph, env, scope, visitor, params, hash, helper, templates, context) {
-
-    if (!_.isFunction(helper)) return console.error(scope + " is not a valid helper!");
-
-    // Create a lazy value that returns the value of our evaluated helper.
-    var lazyValue = new _LazyValue["default"](function () {
-      var plainParams = [],
-          plainHash = {};
-
-      // Assemble our args and hash variables. For each lazyvalue param, push the lazyValue's value so helpers with no concept of lazyvalues.
-      _.each(params, function (param, index) {
-        plainParams.push(param && param.isLazyValue ? param.value : param);
-      });
-      _.each(hash, function (hash, key) {
-        plainHash[key] = hash && hash.isLazyValue ? hash.value : hash;
-      });
-
-      // Call our helper functions with our assembled args.
-      return helper.call(context || {}, plainParams, plainHash, templates, env);
-    }, { morph: morph, path: helper.name });
-
-    // For each param or hash value passed to our helper, add it to our helper's dependant list. Helper will re-evaluate when one changes.
-    params.forEach(function (param) {
-      if (param && param.isLazyValue) {
-        lazyValue.addDependentValue(param);
-      }
-    });
-    for (var key in hash) {
-      if (hash[key] && hash[key].isLazyValue) {
-        lazyValue.addDependentValue(hash[key]);
-      }
-    }
-
-    return lazyValue;
-  }
-
-  _hooks["default"].cleanupRenderNode = function () {};
-
-  _hooks["default"].destroyRenderNode = function (renderNode) {};
-  _hooks["default"].willCleanupTree = function (renderNode) {};
-
-  /*******************************
-          Default Hooks
-  ********************************/
-
-  // Helper Hooks
-
-  _hooks["default"].hasHelper = _helpers["default"].hasHelper;
-
-  _hooks["default"].lookupHelper = _helpers["default"].lookupHelper;
-
-  // Rebound's default environment
-  // The application environment is propagated down each render call and
-  // augmented with helpers as it goes
-  _hooks["default"].createFreshEnv = function () {
-    return {
-      helpers: _helpers["default"],
-      hooks: _hooks["default"],
-      streams: {},
-      dom: new _DOMHelper["default"]["default"](),
-      useFragmentCache: true,
-      revalidateQueue: {},
-      isReboundEnv: true
-    };
-  };
-
-  _hooks["default"].createChildEnv = function (parent) {
-    var env = (0, _htmlbarsUtilObjectUtils.createObject)(parent);
-    env.helpers = (0, _htmlbarsUtilObjectUtils.createObject)(parent.helpers);
-    return env;
-  };
-
-  _hooks["default"].createFreshScope = function () {
-    // because `in` checks have unpredictable performance, keep a
-    // separate dictionary to track whether a local was bound.
-    // See `bindLocal` for more information.
-    return { self: null, blocks: {}, locals: {}, localPresent: {}, streams: {} };
-  };
-
-  _hooks["default"].createChildScope = function (parent) {
-    var scope = (0, _htmlbarsUtilObjectUtils.createObject)(parent);
-    scope.locals = (0, _htmlbarsUtilObjectUtils.createObject)(parent.locals);
-    scope.streams = (0, _htmlbarsUtilObjectUtils.createObject)(parent.streams);
-    return scope;
-  };
-
-  // Scope Hooks
-  _hooks["default"].bindScope = function bindScope(env, scope) {
-    // Initial setup of scope
-    env.scope = scope;
-  };
-
-  _hooks["default"].wrap = function wrap(template) {
-    // Return a wrapper function that will merge user provided helpers and hooks with our defaults
-    return {
-      reboundTemplate: true,
-      meta: template.meta,
-      arity: template.arity,
-      raw: template,
-      render: function render(data, env, options, blockArguments) {
-        if (env === undefined) env = _hooks["default"].createFreshEnv();
-        if (options === undefined) options = {};
-
-        // Create a fresh scope if it doesn't exist
-        var scope = _hooks["default"].createFreshScope();
-
-        env = _hooks["default"].createChildEnv(env);
-        _.extend(env.helpers, options.helpers);
-
-        // Ensure we have a contextual element to pass to render
-        options.contextualElement || (options.contextualElement = document.body);
-        options.self = data;
-        options.blockArguments = blockArguments;
-
-        // Call our func with merged helpers and hooks
-        env.template = _render2["default"]["default"](template, env, scope, options);
-        env.template.uid = _.uniqueId("template");
-        return env.template;
-      }
-    };
-  };
-
-  function rerender(path, node, lazyValue, env) {
-    lazyValue.onNotify(function () {
-      node.isDirty = true;
-      env.revalidateQueue[env.template.uid] = env.template;
-    });
-  }
-
-  _hooks["default"].linkRenderNode = function linkRenderNode(renderNode, env, scope, path, params, hash) {
-
-    // If this node has already been rendered, it is already linked to its streams
-    if (renderNode.rendered) return;
-
-    // Save the path on our render node for easier debugging
-    renderNode.path = path;
-    renderNode.lazyValues || (renderNode.lazyValues = {});
-
-    if (params && params.length) {
-      for (var i = 0; i < params.length; i++) {
-        if (params[i].isLazyValue) {
-          rerender(path, renderNode, params[i], env);
-        }
-      }
-    }
-    if (hash) {
-      for (var key in hash) {
-        if (hash.hasOwnProperty(key) && hash[key].isLazyValue) {
-          rerender(path, renderNode, hash[key], env);
-        }
-      }
-    }
-  };
-
-  // Hooks
-
-  _hooks["default"].getValue = function (referance) {
-    return referance && referance.isLazyValue ? referance.value : referance;
-  };
-
-  _hooks["default"].subexpr = function subexpr(env, scope, helperName, params, hash) {
-    var helper = _helpers["default"].lookupHelper(helperName, env),
-        lazyValue,
-        i,
-        l,
-        name = "subexpr " + helperName + ": ";
-    for (i = 0, l = params.length; i < l; i++) {
-      if (params[i].isLazyValue) name += params[i].cid;
-    }
-
-    if (env.streams[name]) return env.streams[name];
-
-    if (helper) {
-      lazyValue = streamHelper(null, env, scope, null, params, hash, helper, {}, null);
-    } else {
-      lazyValue = _hooks["default"].get(env, context, helperName);
-    }
-
-    for (i = 0, l = params.length; i < l; i++) {
-      if (params[i].isLazyValue) {
-        lazyValue.addDependentValue(params[i]);
-      }
-    }
-
-    lazyValue.path = helperName;
-    env.streams[name] = lazyValue;
-    return lazyValue;
-  };
-
-  _hooks["default"].concat = function concat(env, params) {
-
-    var name = "concat: ",
-        i,
-        l;
-
-    if (params.length === 1) {
-      return params[0];
-    }
-
-    for (i = 0, l = params.length; i < l; i++) {
-      name += params[i] && params[i].isLazyValue ? params[i].cid : params[i];
-    }
-
-    if (env.streams[name]) return env.streams[name];
-
-    var lazyValue = new _LazyValue["default"](function (params) {
-      var value = "";
-
-      for (i = 0, l = params.length; i < l; i++) {
-        value += params[i] && params[i].isLazyValue ? params[i].value : params[i] || "";
-      }
-
-      return value;
-    }, { context: params[0].context });
-
-    for (i = 0, l = params.length; i < l; i++) {
-      lazyValue.addDependentValue(params[i]);
-    }
-
-    env.scope.streams[name] = lazyValue;
-    lazyValue.path = name;
-    return lazyValue;
-  };
-
-  // Content Hook
-  _hooks["default"].content = function content(morph, env, context, path, lazyValue) {
-    var value,
-        observer = subtreeObserver,
-        domElement = morph.contextualElement,
-        helper = _helpers["default"].lookupHelper(path, env);
-
-    var updateTextarea = function updateTextarea(lazyValue) {
-      domElement.value = lazyValue.value;
-    };
-
-    // Two way databinding for textareas
-    if (domElement.tagName === "TEXTAREA") {
-      lazyValue.onNotify(updateTextarea);
-      (0, _$["default"])(domElement).on("change keyup", function (event) {
-        lazyValue.set(lazyValue.path, this.value);
-      });
-    }
-
-    return lazyValue.value;
-  };
-
-  _hooks["default"].attribute = function attribute(attrMorph, env, scope, name, value) {
-    var val = value.isLazyValue ? value.value : value,
-        domElement = attrMorph.element,
-        checkboxChange,
-        type = domElement.getAttribute("type"),
-        attr,
-        inputTypes = { "null": true, "text": true, "email": true, "password": true,
-      "search": true, "url": true, "tel": true, "hidden": true,
-      "number": true, "color": true, "date": true, "datetime": true,
-      "datetime-local:": true, "month": true, "range": true,
-      "time": true, "week": true
-    };
-
-    // If is a text input element's value prop with only one variable, wire default events
-    if (domElement.tagName === "INPUT" && inputTypes[type] && name === "value") {
-
-      // If our special input events have not been bound yet, bind them and set flag
-      if (!attrMorph.inputObserver) {
-
-        (0, _$["default"])(domElement).on("change input propertychange", function (event) {
-          value.set(value.path, this.value);
-        });
-
-        attrMorph.inputObserver = true;
-      }
-
-      // Set the attribute on our element for visual referance
-      _.isUndefined(val) ? domElement.removeAttribute(name) : domElement.setAttribute(name, val);
-
-      attr = val;
-      return domElement.value !== String(attr) ? domElement.value = attr || "" : attr;
-    } else if (domElement.tagName === "INPUT" && (type === "checkbox" || type === "radio") && name === "checked") {
-
-      // If our special input events have not been bound yet, bind them and set flag
-      if (!attrMorph.eventsBound) {
-
-        (0, _$["default"])(domElement).on("change propertychange", function (event) {
-          value.set(value.path, this.checked ? true : false, { quiet: true });
-        });
-
-        attrMorph.eventsBound = true;
-      }
-
-      // Set the attribute on our element for visual referance
-      !val ? domElement.removeAttribute(name) : domElement.setAttribute(name, val);
-
-      return domElement.checked = val ? true : undefined;
-    }
-
-    // Special case for link elements with dynamic classes.
-    // If the router has assigned it a truthy 'active' property, ensure that the extra class is present on re-render.
-    else if (domElement.tagName === "A" && name === "class") {
-      if (_.isUndefined(val)) {
-        domElement.active ? domElement.setAttribute("class", "active") : domElement.classList.remove("class");
-      } else {
-        domElement.setAttribute(name, val + (domElement.active ? " active" : ""));
-      }
-    } else {
-      _.isString(val) && (val = val.trim());
-      val || (val = undefined);
-      if (_.isUndefined(val)) {
-        domElement.removeAttribute(name);
-      } else {
-        domElement.setAttribute(name, val);
-      }
-    }
-
-    _hooks["default"].linkRenderNode(attrMorph, env, scope, "@attribute", [value], {});
-  };
-
-  _hooks["default"].partial = function partial(renderNode, env, scope, path) {
-    var part = _reboundComponentHelpers.partials[path];
-    if (part && part.render) {
-      env = Object.create(env);
-      env.template = part.render(scope.self, env, { contextualElement: renderNode.contextualElement }, scope.block);
-      return env.template.fragment;
-    }
-  };
-
-  _hooks["default"].component = function (morph, env, scope, tagName, params, attrs, templates, visitor) {
-
-    // Components are only ever rendered once
-    if (morph.componentIsRendered) return;
-
-    if (env.hooks.hasHelper(env, scope, tagName)) {
-      return env.hooks.block(morph, env, scope, tagName, params, attrs, templates["default"], templates.inverse, visitor);
-    }
-
-    var component,
-        element,
-        outlet,
-        seedData = {},
-        componentData = {};
-
-    // Create a plain data object to pass to our new component as seed data
-    for (var key in attrs) {
-      seedData[key] = _hooks["default"].getValue(attrs[key]);
-    }
-
-    // For each param passed to our shared component, add it to our custom element
-    // TODO: there has to be a better way to get seed data to element instances
-    // Global seed data is consumed by element as its created. This is not scoped and very dumb.
-    Rebound.seedData = seedData;
-    element = document.createElement(tagName);
-    component = element.data;
-    delete Rebound.seedData;
-
-    // For each lazy param passed to our component, create its lazyValue
-    for (var key in seedData) {
-      componentData[key] = streamProperty(component, key);
-    }
-
-    var _loop = function () {
-      var key = prop;
-      if (componentData[key].isLazyValue && attrs[key].isLazyValue) {
-
-        // For each lazy param passed to our component, have it update the original context when changed.
-        componentData[key].onNotify(function () {
-          attrs[key].set(attrs[key].path, componentData[key].value);
-        });
-
-        // For each lazy param passed to our component, have it update the component when changed.
-        attrs[key].onNotify(function () {
-          componentData[key].set(key, attrs[key].value);
-        });
-
-        // Seed the cache
-        componentData[key].value;
-      }
-    };
-
-    // Set up two way binding between component and original context for non-data attributes
-    // Syncing between models and collections passed are handled in model and collection
-
-    for (var prop in componentData) {
-      _loop();
-    }
-
-    // TODO: Move this to Component
-    // // For each change on our component, update the states of the original context and the element's proeprties.
-    component.listenTo(component, "change", function (model) {
-      var json = component.toJSON();
-
-      if (_.isString(json)) return; // If is a string, this model is seralizing already
-
-      // Set the properties on our element for visual referance if we are on a top level attribute
-      _.each(json, function (value, key) {
-        // TODO: Currently, showing objects as properties on the custom element causes problems.
-        // Linked models between the context and component become the same exact model and all hell breaks loose.
-        // Find a way to remedy this. Until then, don't show objects.
-        if (_.isObject(value)) {
-          return;
-        }
-        value = _.isObject(value) ? JSON.stringify(value) : value;
-        try {
-          attributes[key] ? element.setAttribute(key, value) : element.dataset[key] = value;
-        } catch (e) {
-          console.error(e.message);
-        }
-      });
-    });
-
-    /** The attributeChangedCallback on our custom element updates the component's data. **/
-
-    /*******************************************************
-    
-      End data dependancy chain
-    
-    *******************************************************/
-
-    // TODO: break this out into its own function
-    // Set the properties on our element for visual referance if we are on a top level attribute
-    var compjson = component.toJSON();
-    _.each(compjson, function (value, key) {
-      // TODO: Currently, showing objects as properties on the custom element causes problems.
-      // Linked models between the context and component become the same exact model and all hell breaks loose.
-      // Find a way to remedy this. Until then, don't show objects.
-      if (_.isObject(value)) {
-        return;
-      }
-      value = _.isObject(value) ? JSON.stringify(value) : value;
-      if (!_.isNull(value) && !_.isUndefined(value)) {
-        try {
-          attributes[key] ? element.setAttribute(key, value) : element.dataset[key] = value;
-        } catch (e) {
-          console.error(e.message);
-        }
-      }
-    });
-
-    // Walk the dom, without traversing into other custom elements, and search for
-    // `<content>` outlets to render templates into.
-    (0, _$["default"])(element).walkTheDOM(function (el) {
-      if (element === el) return true;
-      if (el.tagName === "CONTENT") outlet = el;
-      if (el.tagName.indexOf("-") > -1) return false;
-      return true;
-    });
-
-    // If a `<content>` outlet is present in component's template, and a template
-    // is provided, render it into the outlet
-    if (templates["default"] && _.isElement(outlet)) {
-      outlet.innerHTML = "";
-      outlet.appendChild(_render2["default"]["default"](templates["default"], env, scope, {}).fragment);
-    }
-
-    morph.setNode(element);
-    morph.componentIsRendered = true;
-  };
-
-  module.exports = _hooks["default"];
-});
-
-// for(let i in renderNode.lazyValues)
-//   if(renderNode.lazyValues[i].isLazyValue)
-//     renderNode.lazyValues[i].destroy();
-define("rebound-data/rebound-data", ["exports", "module", "rebound-data/model", "rebound-data/collection", "rebound-data/computed-property", "rebound-component/utils"], function (exports, module, _reboundDataModel, _reboundDataCollection, _reboundDataComputedProperty, _reboundComponentUtils) {
-  // Rebound Data
-  // ----------------
-  // These are methods inherited by all Rebound data types: **Models**,
-  // **Collections** and **Computed Properties**. Controls tree ancestry
-  // tracking, deep event propagation and tree destruction.
-
-  "use strict";
-
-  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-  var _Model = _interopRequireDefault(_reboundDataModel);
-
-  var _Collection = _interopRequireDefault(_reboundDataCollection);
-
-  var _ComputedProperty = _interopRequireDefault(_reboundDataComputedProperty);
-
-  var _$ = _interopRequireDefault(_reboundComponentUtils);
-
-  var sharedMethods = {
-    // When a change event propagates up the tree it modifies the path part of
-    // `change:<path>` to reflect the fully qualified path relative to that object.
-    // Ex: Would trigger `change:val`, `change:[0].val`, `change:arr[0].val` and `obj.arr[0].val`
-    // on each parent as it is propagated up the tree.
-    propagateEvent: function propagateEvent(type, model) {
-      if (this.__parent__ === this || type === "dirty") return;
-      if (type.indexOf("change:") === 0 && model.isModel) {
-        if (this.isCollection && ~type.indexOf("change:[")) return;
-        var key,
-            path = model.__path().replace(this.__parent__.__path(), "").replace(/^\./, ""),
-            changed = model.changedAttributes();
-
-        for (key in changed) {
-          // TODO: Modifying arguments array is bad. change this
-          arguments[0] = "change:" + path + (path && ".") + key; // jshint ignore:line
-          this.__parent__.trigger.apply(this.__parent__, arguments);
-        }
-        return;
-      }
-      return this.__parent__.trigger.apply(this.__parent__, arguments);
-    },
-
-    // Set this data object's parent to `parent` and, as long as a data object is
-    // not its own parent, propagate every event triggered on `this` up the tree.
-    setParent: function setParent(parent) {
-      if (this.__parent__) this.off("all", this.propagateEvent);
-      this.__parent__ = parent;
-      this._hasAncestry = true;
-      if (parent !== this) this.on("all", this.__parent__.propagateEvent);
-      return parent;
-    },
-
-    // Recursively set a data tree's root element starting with `this` to the deepest child.
-    // TODO: I dont like this recursively setting elements root when one element's root changes. Fix this.
-    setRoot: function setRoot(root) {
-      var obj = this;
-      obj.__root__ = root;
-      var val = obj.models || obj.attributes || obj.cache;
-      _.each(val, function (value, key) {
-        if (value && value.isData) {
-          value.setRoot(root);
-        }
-      });
-      return root;
-    },
-
-    // Tests to see if `this` has a parent `obj`.
-    hasParent: function hasParent(obj) {
-      var tmp = this;
-      while (tmp !== obj) {
-        tmp = tmp.__parent__;
-        if (_.isUndefined(tmp)) return false;
-        if (tmp === obj) return true;
-        if (tmp.__parent__ === tmp) return false;
-      }
-      return true;
-    },
-
-    // De-initializes a data tree starting with `this` and recursively calling `deinitialize()` on each child.
-    deinitialize: function deinitialize() {
-      var _this = this;
-
-      // Undelegate Backbone Events from this data object
-      if (this.undelegateEvents) this.undelegateEvents();
-      if (this.stopListening) this.stopListening();
-      if (this.off) this.off();
-      if (this.unwire) this.unwire();
-
-      // Destroy this data object's lineage
-      delete this.__parent__;
-      delete this.__root__;
-      delete this.__path;
-
-      // If there is a dom element associated with this data object, destroy all listeners associated with it.
-      // Remove all event listeners from this dom element, recursively remove element lazyvalues,
-      // and then remove the element referance itself.
-      if (this.el) {
-        _.each(this.el.__listeners, function (handler, eventType) {
-          if (this.el.removeEventListener) this.el.removeEventListener(eventType, handler, false);
-          if (this.el.detachEvent) this.el.detachEvent("on" + eventType, handler);
-        }, this);
-        (0, _$["default"])(this.el).walkTheDOM(function (el) {
-          if (el.__lazyValue && el.__lazyValue.destroy()) n.__lazyValue.destroy();
-        });
-        delete this.el.__listeners;
-        delete this.el.__events;
-        delete this.$el;
-        delete this.el;
-      }
-
-      // Clean up Hook callback references
-      delete this.__observers;
-
-      // Mark as deinitialized so we don't loop on cyclic dependancies.
-      this.deinitialized = true;
-
-      // Destroy all children of this data object.
-      // If a Collection, de-init all of its Models, if a Model, de-init all of its
-      // Attributes, if a Computed Property, de-init its Cache objects.
-      _.each(this.models, function (val) {
-        val && val.deinitialize && val.deinitialize();
-      });
-      this.models && (this.models.length = 0);
-      _.each(this.attributes, function (val, key) {
-        delete _this.attributes[key];val && val.deinitialize && val.deinitialize();
-      });
-      if (this.cache) {
-        this.cache.collection.deinitialize();
-        this.cache.model.deinitialize();
-      }
-    }
-  };
-
-  // Extend all of the **Rebound Data** prototypes with these shared methods
-  _.extend(_Model["default"].prototype, sharedMethods);
-  _.extend(_Collection["default"].prototype, sharedMethods);
-  _.extend(_ComputedProperty["default"].prototype, sharedMethods);
-
-  module.exports = { Model: _Model["default"], Collection: _Collection["default"], ComputedProperty: _ComputedProperty["default"] };
-});
 define('rebound-component/lazy-value', ['exports', 'module'], function (exports, module) {
   // Rebound Lazy Value
   // ----------------
@@ -16414,6 +16301,146 @@ define('rebound-component/lazy-value', ['exports', 'module'], function (exports,
   });
 
   module.exports = LazyValue;
+});
+define("rebound-data/rebound-data", ["exports", "module", "rebound-data/model", "rebound-data/collection", "rebound-data/computed-property", "rebound-component/utils"], function (exports, module, _reboundDataModel, _reboundDataCollection, _reboundDataComputedProperty, _reboundComponentUtils) {
+  // Rebound Data
+  // ----------------
+  // These are methods inherited by all Rebound data types: **Models**,
+  // **Collections** and **Computed Properties**. Controls tree ancestry
+  // tracking, deep event propagation and tree destruction.
+
+  "use strict";
+
+  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
+  var _Model = _interopRequireDefault(_reboundDataModel);
+
+  var _Collection = _interopRequireDefault(_reboundDataCollection);
+
+  var _ComputedProperty = _interopRequireDefault(_reboundDataComputedProperty);
+
+  var _$ = _interopRequireDefault(_reboundComponentUtils);
+
+  var sharedMethods = {
+    // When a change event propagates up the tree it modifies the path part of
+    // `change:<path>` to reflect the fully qualified path relative to that object.
+    // Ex: Would trigger `change:val`, `change:[0].val`, `change:arr[0].val` and `obj.arr[0].val`
+    // on each parent as it is propagated up the tree.
+    propagateEvent: function propagateEvent(type, model) {
+      if (this.__parent__ === this || type === "dirty") return;
+      if (type.indexOf("change:") === 0 && model.isModel) {
+        if (this.isCollection && ~type.indexOf("change:[")) return;
+        var key,
+            path = model.__path().replace(this.__parent__.__path(), "").replace(/^\./, ""),
+            changed = model.changedAttributes();
+
+        for (key in changed) {
+          // TODO: Modifying arguments array is bad. change this
+          arguments[0] = "change:" + path + (path && ".") + key; // jshint ignore:line
+          this.__parent__.trigger.apply(this.__parent__, arguments);
+        }
+        return;
+      }
+      return this.__parent__.trigger.apply(this.__parent__, arguments);
+    },
+
+    // Set this data object's parent to `parent` and, as long as a data object is
+    // not its own parent, propagate every event triggered on `this` up the tree.
+    setParent: function setParent(parent) {
+      if (this.__parent__) this.off("all", this.propagateEvent);
+      this.__parent__ = parent;
+      this._hasAncestry = true;
+      if (parent !== this) this.on("all", this.__parent__.propagateEvent);
+      return parent;
+    },
+
+    // Recursively set a data tree's root element starting with `this` to the deepest child.
+    // TODO: I dont like this recursively setting elements root when one element's root changes. Fix this.
+    setRoot: function setRoot(root) {
+      var obj = this;
+      obj.__root__ = root;
+      var val = obj.models || obj.attributes || obj.cache;
+      _.each(val, function (value, key) {
+        if (value && value.isData) {
+          value.setRoot(root);
+        }
+      });
+      return root;
+    },
+
+    // Tests to see if `this` has a parent `obj`.
+    hasParent: function hasParent(obj) {
+      var tmp = this;
+      while (tmp !== obj) {
+        tmp = tmp.__parent__;
+        if (_.isUndefined(tmp)) return false;
+        if (tmp === obj) return true;
+        if (tmp.__parent__ === tmp) return false;
+      }
+      return true;
+    },
+
+    // De-initializes a data tree starting with `this` and recursively calling `deinitialize()` on each child.
+    deinitialize: function deinitialize() {
+      var _this = this;
+
+      // Undelegate Backbone Events from this data object
+      if (this.undelegateEvents) this.undelegateEvents();
+      if (this.stopListening) this.stopListening();
+      if (this.off) this.off();
+      if (this.unwire) this.unwire();
+
+      // Destroy this data object's lineage
+      delete this.__parent__;
+      delete this.__root__;
+      delete this.__path;
+
+      // If there is a dom element associated with this data object, destroy all listeners associated with it.
+      // Remove all event listeners from this dom element, recursively remove element lazyvalues,
+      // and then remove the element referance itself.
+      if (this.el) {
+        _.each(this.el.__listeners, function (handler, eventType) {
+          if (this.el.removeEventListener) this.el.removeEventListener(eventType, handler, false);
+          if (this.el.detachEvent) this.el.detachEvent("on" + eventType, handler);
+        }, this);
+        (0, _$["default"])(this.el).walkTheDOM(function (el) {
+          if (el.__lazyValue && el.__lazyValue.destroy()) n.__lazyValue.destroy();
+        });
+        delete this.el.__listeners;
+        delete this.el.__events;
+        delete this.$el;
+        delete this.el;
+      }
+
+      // Clean up Hook callback references
+      delete this.__observers;
+
+      // Mark as deinitialized so we don't loop on cyclic dependancies.
+      this.deinitialized = true;
+
+      // Destroy all children of this data object.
+      // If a Collection, de-init all of its Models, if a Model, de-init all of its
+      // Attributes, if a Computed Property, de-init its Cache objects.
+      _.each(this.models, function (val) {
+        val && val.deinitialize && val.deinitialize();
+      });
+      this.models && (this.models.length = 0);
+      _.each(this.attributes, function (val, key) {
+        delete _this.attributes[key];val && val.deinitialize && val.deinitialize();
+      });
+      if (this.cache) {
+        this.cache.collection.deinitialize();
+        this.cache.model.deinitialize();
+      }
+    }
+  };
+
+  // Extend all of the **Rebound Data** prototypes with these shared methods
+  _.extend(_Model["default"].prototype, sharedMethods);
+  _.extend(_Collection["default"].prototype, sharedMethods);
+  _.extend(_ComputedProperty["default"].prototype, sharedMethods);
+
+  module.exports = { Model: _Model["default"], Collection: _Collection["default"], ComputedProperty: _ComputedProperty["default"] };
 });
 define("rebound-component/utils", ["exports", "module"], function (exports, module) {
   // Rebound Utils
