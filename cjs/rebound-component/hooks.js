@@ -457,6 +457,8 @@ _htmlbarsRuntimeHooks2["default"].attribute = function attribute(attrMorph, env,
 };
 
 _htmlbarsRuntimeHooks2["default"].partial = function partial(renderNode, env, scope, path) {
+  if (!path) console.error("Partial helper must be passed path!");
+  path = path.isLazyValue ? path.value : path;
   var part = this.wrapPartial(_reboundComponentHelpers.partials[path]);
   if (part && part.render) {
     env = Object.create(env);

@@ -4246,6 +4246,8 @@ If the router has assigned it a truthy ‘active’ property, ensure that the ex
 };
 
 hooks.partial = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">partial</span><span class="hljs-params">(renderNode, env, scope, path)</span></span>{
+  <span class="hljs-keyword">if</span>(!path) <span class="hljs-built_in">console</span>.error(<span class="hljs-string">'Partial helper must be passed path!'</span>);
+  path = path.isLazyValue ? path.value : path;
   <span class="hljs-keyword">let</span> part = <span class="hljs-keyword">this</span>.wrapPartial(partials[path]);
   <span class="hljs-keyword">if</span>( part &amp;&amp; part.render ){
     env = <span class="hljs-built_in">Object</span>.create(env);

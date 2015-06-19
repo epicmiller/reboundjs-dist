@@ -440,6 +440,8 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
   };
 
   _hooks["default"].partial = function partial(renderNode, env, scope, path) {
+    if (!path) console.error("Partial helper must be passed path!");
+    path = path.isLazyValue ? path.value : path;
     var part = this.wrapPartial(_reboundComponentHelpers.partials[path]);
     if (part && part.render) {
       env = Object.create(env);
