@@ -736,7 +736,7 @@ old values.</p>
       value = <span class="hljs-keyword">this</span>.attributes[key];
       <span class="hljs-keyword">if</span>(value === obj[key]) <span class="hljs-keyword">continue</span>;
       <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span>(_.isUndefined(value)) obj[key] &amp;&amp; (changed[key] = obj[key]);
-      <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (key === <span class="hljs-keyword">this</span>.idAttribute) <span class="hljs-keyword">continue</span>;
+      <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (key === <span class="hljs-keyword">this</span>.idAttribute || value.isComponent) <span class="hljs-keyword">continue</span>;
       <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (value.isCollection || value.isModel || value.isComputedProperty){
         value.reset((obj[key] || []), {silent: <span class="hljs-literal">true</span>});
         <span class="hljs-keyword">if</span>(value.isCollection) changed[key] = [];

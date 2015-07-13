@@ -111,7 +111,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
       // - Otherwise, unset the attribute.
       for (key in this.attributes) {
         value = this.attributes[key];
-        if (value === obj[key]) continue;else if (_.isUndefined(value)) obj[key] && (changed[key] = obj[key]);else if (key === this.idAttribute) continue;else if (value.isCollection || value.isModel || value.isComputedProperty) {
+        if (value === obj[key]) continue;else if (_.isUndefined(value)) obj[key] && (changed[key] = obj[key]);else if (key === this.idAttribute || value.isComponent) continue;else if (value.isCollection || value.isModel || value.isComputedProperty) {
           value.reset(obj[key] || [], { silent: true });
           if (value.isCollection) changed[key] = [];else if (value.isModel && value.isComputedProperty) changed[key] = value.cache.model.changed;else if (value.isModel) changed[key] = value.changed;
         } else if (obj.hasOwnProperty(key)) {
