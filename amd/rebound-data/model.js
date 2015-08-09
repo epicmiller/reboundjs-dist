@@ -23,7 +23,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
   function pathGenerator(parent, key) {
     return function () {
       var path = parent.__path();
-      return path + (path === "" ? "" : ".") + key;
+      return path + (path === '' ? '' : '.') + key;
     };
   }
 
@@ -35,7 +35,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
     // A method that returns a root path by default. Meant to be overridden on
     // instantiation.
     __path: function __path() {
-      return "";
+      return '';
     },
 
     // Create a new Model with the specified attributes. The Model's lineage is set
@@ -60,7 +60,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
     toggle: function toggle(attr, options) {
       options = options ? _.clone(options) : {};
       var val = this.get(attr);
-      if (!_.isBoolean(val)) console.error("Tried to toggle non-boolean value " + attr + "!", this);
+      if (!_.isBoolean(val)) console.error('Tried to toggle non-boolean value ' + attr + '!', this);
       return this.set(attr, !val, options);
     },
 
@@ -71,13 +71,13 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
       var wait = options.wait;
 
       var destroy = function destroy() {
-        model.trigger("destroy", model, model.collection, options);
+        model.trigger('destroy', model, model.collection, options);
       };
 
       options.success = function (resp) {
         if (wait) destroy();
         if (success) success.call(options.context, model, resp, options);
-        if (!model.isNew()) model.trigger("sync", model, resp, options);
+        if (!model.isNew()) model.trigger('sync', model, resp, options);
       };
 
       var xhr = false;
@@ -85,7 +85,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
         _.defer(options.success);
       } else {
         wrapError(this, options);
-        xhr = this.sync("delete", this, options);
+        xhr = this.sync('delete', this, options);
       }
       if (!wait) destroy();
       return xhr;
@@ -134,7 +134,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
 
       // Trigger custom reset event
       this.changed = changed;
-      if (!options.silent) this.trigger("reset", this, options);
+      if (!options.silent) this.trigger('reset', this, options);
 
       // Return new values
       return obj;
@@ -160,13 +160,13 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
           l = parts.length;
 
       if (_.isUndefined(key) || _.isNull(key)) return undefined;
-      if (key === "" || parts.length === 0) return result;
+      if (key === '' || parts.length === 0) return result;
 
       for (i = 0; i < l; i++) {
         if (result && result.isComputedProperty && options.raw) return result;
         if (result && result.isComputedProperty) result = result.value();
         if (_.isUndefined(result) || _.isNull(result)) return result;
-        if (parts[i] === "@parent") result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result && result.hasOwnProperty(parts[i])) result = result[parts[i]];
+        if (parts[i] === '@parent') result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result && result.hasOwnProperty(parts[i])) result = result[parts[i]];
       }
 
       if (result && result.isComputedProperty && !options.raw) result = result.value();
@@ -187,7 +187,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
           props = [],
           lineage;
 
-      if (typeof key === "object") {
+      if (typeof key === 'object') {
         attrs = key.isModel ? key.attributes : key;
         options = val;
       } else (attrs = {})[key] = val;
@@ -205,8 +205,8 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
       for (key in attrs) {
         var _val = attrs[key],
             paths = _$["default"].splitPath(key),
-            _attr = paths.pop() || ""; // The key        ex: foo[0].bar --> bar
-        target = this.get(paths.join(".")), // The element    ex: foo.bar.baz --> foo.bar
+            _attr = paths.pop() || ''; // The key        ex: foo[0].bar --> bar
+        target = this.get(paths.join('.')), // The element    ex: foo.bar.baz --> foo.bar
         lineage;
 
         // If target currently doesnt exist, construct its tree

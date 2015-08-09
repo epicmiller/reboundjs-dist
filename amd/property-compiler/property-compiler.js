@@ -55,7 +55,7 @@ define('property-compiler/property-compiler', ['exports', 'module', 'property-co
         }
 
         // Replace any access to a collection with the generic @each placeholder and push dependancy
-        workingpath.push(path.value.replace(/\[.+\]/g, '.@each').replace(/^\./, ''));
+        workingpath.push(path.value.replace(/\[.+\]/g, ".@each").replace(/^\./, ''));
       }
 
       if (token.value === 'pluck') {
@@ -105,7 +105,7 @@ define('property-compiler/property-compiler', ['exports', 'module', 'property-co
       }
     } while (token.start !== token.end);
 
-    console.log('COMPUTED PROPERTY', name, 'registered with these dependancy paths:', finishedPaths);
+    // console.log('COMPUTED PROPERTY', name, 'registered with these dependancy paths:', finishedPaths);
 
     // Save our finished paths directly on the function
     prop.__params = finishedPaths;

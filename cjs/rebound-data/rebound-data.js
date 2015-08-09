@@ -34,16 +34,16 @@ var sharedMethods = {
   // Ex: Would trigger `change:val`, `change:[0].val`, `change:arr[0].val` and `obj.arr[0].val`
   // on each parent as it is propagated up the tree.
   propagateEvent: function propagateEvent(type, model) {
-    if (this.__parent__ === this || type === "dirty") return;
-    if (type.indexOf("change:") === 0 && model.isModel) {
-      if (this.isCollection && ~type.indexOf("change:[")) return;
+    if (this.__parent__ === this || type === 'dirty') return;
+    if (type.indexOf('change:') === 0 && model.isModel) {
+      if (this.isCollection && ~type.indexOf('change:[')) return;
       var key,
-          path = model.__path().replace(this.__parent__.__path(), "").replace(/^\./, ""),
+          path = model.__path().replace(this.__parent__.__path(), '').replace(/^\./, ''),
           changed = model.changedAttributes();
 
       for (key in changed) {
         // TODO: Modifying arguments array is bad. change this
-        arguments[0] = "change:" + path + (path && ".") + key; // jshint ignore:line
+        arguments[0] = 'change:' + path + (path && '.') + key; // jshint ignore:line
         this.__parent__.trigger.apply(this.__parent__, arguments);
       }
       return;
@@ -54,10 +54,10 @@ var sharedMethods = {
   // Set this data object's parent to `parent` and, as long as a data object is
   // not its own parent, propagate every event triggered on `this` up the tree.
   setParent: function setParent(parent) {
-    if (this.__parent__) this.off("all", this.propagateEvent);
+    if (this.__parent__) this.off('all', this.propagateEvent);
     this.__parent__ = parent;
     this._hasAncestry = true;
-    if (parent !== this) this.on("all", this.__parent__.propagateEvent);
+    if (parent !== this) this.on('all', this.__parent__.propagateEvent);
     return parent;
   },
 
@@ -108,7 +108,7 @@ var sharedMethods = {
     if (this.el) {
       _.each(this.el.__listeners, function (handler, eventType) {
         if (this.el.removeEventListener) this.el.removeEventListener(eventType, handler, false);
-        if (this.el.detachEvent) this.el.detachEvent("on" + eventType, handler);
+        if (this.el.detachEvent) this.el.detachEvent('on' + eventType, handler);
       }, this);
       (0, _reboundComponentUtils2["default"])(this.el).walkTheDOM(function (el) {
         if (el.__lazyValue && el.__lazyValue.destroy()) n.__lazyValue.destroy();

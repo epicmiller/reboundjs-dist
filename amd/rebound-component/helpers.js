@@ -19,7 +19,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
 
   window.partials = partials;
   helpers.registerPartial = function (name, func) {
-    if (func && typeof name === "string") {
+    if (func && typeof name === 'string') {
       return partials[name] = func;
     }
   };
@@ -33,28 +33,28 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
     if (_.isString(env)) name = env;
     env && env.helpers || (env = { helpers: helpers });
     // If a reserved helper, return it
-    if (name === "attribute") {
+    if (name === 'attribute') {
       return env.helpers.attribute;
     }
-    if (name === "if") {
+    if (name === 'if') {
       return env.helpers["if"];
     }
-    if (name === "unless") {
+    if (name === 'unless') {
       return env.helpers.unless;
     }
-    if (name === "each") {
+    if (name === 'each') {
       return env.helpers.each;
     }
-    if (name === "partial") {
+    if (name === 'partial') {
       return env.helpers.partial;
     }
-    if (name === "on") {
+    if (name === 'on') {
       return env.helpers.on;
     }
-    if (name === "debugger") {
+    if (name === 'debugger') {
       return env.helpers["debugger"];
     }
-    if (name === "log") {
+    if (name === 'log') {
       return env.helpers.log;
     }
 
@@ -64,15 +64,15 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
 
   helpers.registerHelper = function (name, callback) {
     if (!_.isString(name)) {
-      console.error("Name provided to registerHelper must be a string!");
+      console.error('Name provided to registerHelper must be a string!');
       return;
     }
     if (!_.isFunction(callback)) {
-      console.error("Callback provided to regierHelper must be a function!");
+      console.error('Callback provided to regierHelper must be a function!');
       return;
     }
     if (helpers.lookupHelper(null, null, name)) {
-      console.error("A helper called \"" + name + "\" is already registered!");
+      console.error('A helper called "' + name + '" is already registered!');
       return;
     }
 
@@ -86,12 +86,12 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
   helpers["debugger"] = function (params, hash, options, env) {
     /* jshint -W087 */
     debugger;
-    return "";
+    return '';
   };
 
   helpers.log = function (params, hash, options, env) {
     console.log.apply(console, params);
-    return "";
+    return '';
   };
 
   helpers.on = function (params, hash, options, env) {
@@ -110,10 +110,10 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
     }
     // If a selector is provided, delegate on the helper's element
     else if (len === 3) {
-      callback = params[2];
-      delegate = params[1];
-      element = options.element;
-    }
+        callback = params[2];
+        delegate = params[1];
+        element = options.element;
+      }
 
     // Attach event
     (0, _$["default"])(element).on(eventName, delegate, hash, function (event) {
@@ -141,8 +141,8 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
     }
 
     // Handle string values
-    condition === "true" && (condition = true);
-    condition === "false" && (condition = false);
+    condition === 'true' && (condition = true);
+    condition === 'false' && (condition = false);
 
     return condition;
   }
@@ -153,7 +153,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
 
     // If yield does not exist, this is not a block helper.
     if (!this["yield"]) {
-      return condition ? params[1] : params[2] || "";
+      return condition ? params[1] : params[2] || '';
     }
 
     // Render the apropreate block statement
@@ -162,7 +162,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
     } else if (!condition && templates.inverse && templates.inverse["yield"]) {
       templates.inverse["yield"]();
     } else {
-      return "";
+      return '';
     }
   };
 
@@ -175,10 +175,10 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
   // Given an array, predicate and optional extra variable, finds the index in the array where predicate is true
   function findIndex(arr, predicate, cid) {
     if (arr === null) {
-      throw new TypeError("findIndex called on null or undefined");
+      throw new TypeError('findIndex called on null or undefined');
     }
-    if (typeof predicate !== "function") {
-      throw new TypeError("predicate must be a function");
+    if (typeof predicate !== 'function') {
+      throw new TypeError('predicate must be a function');
     }
     var list = Object(arr);
     var length = list.length >>> 0;
@@ -197,7 +197,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
   helpers.each = function (params, hash, templates) {
 
     if (_.isNull(params[0]) || _.isUndefined(params[0])) {
-      console.warn("Undefined value passed to each helper! Maybe try providing a default value?", params, hash);return null;
+      console.warn('Undefined value passed to each helper! Maybe try providing a default value?', params, hash);return null;
     }
 
     var key,
@@ -210,7 +210,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
         if (value.hasOwnProperty(key)) this.yieldItem(value[key].cid, [value[key]]);
       }
     }
-    return _.uniqueId("rand");
+    return _.uniqueId('rand');
   };
 
   helpers.partial = function (params, hash, options, env) {

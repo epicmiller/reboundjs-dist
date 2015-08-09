@@ -37,7 +37,7 @@ function startsWith(str, test) {
   str = _reboundComponentUtils2["default"].splitPath(str);
   test = _reboundComponentUtils2["default"].splitPath(test);
   while (test[0] && str[0]) {
-    if (str[0] !== test[0] && str[0] !== "@each" && test[0] !== "@each") return false;
+    if (str[0] !== test[0] && str[0] !== '@each' && test[0] !== '@each') return false;
     test.shift();
     str.shift();
   }
@@ -74,15 +74,15 @@ var Component = _reboundDataReboundData.Model.extend({
     var _this = this;
 
     var self = this;
-    this.listenTo(service, "all", function (type, model, value, options) {
+    this.listenTo(service, 'all', function (type, model, value, options) {
       var attr,
           path = model.__path(),
           changed;
-      if (type.indexOf("change:") === 0) {
+      if (type.indexOf('change:') === 0) {
         changed = model.changedAttributes();
         for (attr in changed) {
           // TODO: Modifying arguments array is bad. change this
-          type = "change:" + key + "." + path + (path && ".") + attr; // jshint ignore:line
+          type = 'change:' + key + '.' + path + (path && '.') + attr; // jshint ignore:line
           options.service = key;
           _this.trigger.call(_this, type, model, value, options);
         }
@@ -105,12 +105,19 @@ var Component = _reboundDataReboundData.Model.extend({
     Rebound.Model.prototype.deinitialize.apply(this, arguments);
   },
 
+  // LazyComponents have an onLoad function that calls all the registered callbacks
+  // after it has been hydrated. If we are calling onLoad on an already loaded
+  // component, just call the callback provided.
+  onLoad: function onLoad(cb) {
+    cb(this);
+  },
+
   // Set is overridden on components to accept components as a valid input type.
   // Components set on other Components are mixed in as a shared object. {raw: true}
   // It also marks itself as a consumer of this component
   set: function set(key, val, options) {
     var attrs, attr, serviceOptions;
-    if (typeof key === "object") {
+    if (typeof key === 'object') {
       attrs = key.isModel ? key.attributes : key;
       options = val;
     } else (attrs = {})[key] = val;
@@ -125,6 +132,7 @@ var Component = _reboundDataReboundData.Model.extend({
     for (key in attrs) {
       attr = attrs[key];
       if (attr && attr.isComponent) {
+        if (attr.isLazyComponent && attr._component) attr = attr._component;
         serviceOptions || (serviceOptions = _.defaults(_.clone(options), { raw: true }));
         attr.consumers.push({ key: key, component: this });
         this.services[key] = attr;
@@ -133,6 +141,7 @@ var Component = _reboundDataReboundData.Model.extend({
       }
       Rebound.Model.prototype.set.call(this, key, attr, options);
     }
+
     return this;
   },
 
@@ -141,8 +150,8 @@ var Component = _reboundDataReboundData.Model.extend({
         attr,
         self = this;
     options = options || (options = {});
-    _.bindAll(this, "_callOnComponent", "_listenToService", "_render");
-    this.cid = _.uniqueId("component");
+    _.bindAll(this, '_callOnComponent', '_listenToService', '_render');
+    this.cid = _.uniqueId('component');
     this.env = _reboundComponentHooks2["default"].createChildEnv(_reboundComponentHooks2["default"].createFreshEnv());
     // Call on component is used by the {{on}} helper to call all event callbacks in the scope of the component
     this.env.helpers._callOnComponent = this._callOnComponent;
@@ -151,24 +160,26 @@ var Component = _reboundDataReboundData.Model.extend({
     this.consumers = [];
     this.services = {};
     this.__parent__ = this.__root__ = this;
-    this.listenTo(this, "all", this._onChange);
+    this.listenTo(this, 'all', this._onChange);
 
     // Take our parsed data and add it to our backbone data structure. Does a deep defaults set.
     // In the model, primatives (arrays, objects, etc) are converted to Backbone Objects
     // Functions are compiled to find their dependancies and added as computed properties
     // Set our component's context with the passed data merged with the component's defaults
+    if (options.debug) window.debug = true;
     this.set(this.defaults || {});
+    if (options.debug) window.debug = false;
     this.set(options.data || {});
 
     // Get any additional routes passed in from options
     this.routes = _.defaults(options.routes || {}, this.routes);
     // Ensure that all route functions exist
     _.each(this.routes, function (value, key, routes) {
-      if (typeof value !== "string") {
-        throw "Function name passed to routes in  " + this.__name + " component must be a string!";
+      if (typeof value !== 'string') {
+        throw 'Function name passed to routes in  ' + this.__name + ' component must be a string!';
       }
       if (!this[value]) {
-        throw "Callback function " + value + " does not exist on the  " + this.__name + " component!";
+        throw 'Callback function ' + value + ' does not exist on the  ' + this.__name + ' component!';
       }
     }, this);
 
@@ -190,16 +201,14 @@ var Component = _reboundDataReboundData.Model.extend({
     }
 
     // Our Component is fully created now, but not rendered. Call created callback.
-    if (_.isFunction(this.createdCallback)) {
-      this.createdCallback.call(this);
-    }
+    if (_.isFunction(this.createdCallback)) this.createdCallback.call(this);
 
     this.initialize();
   },
 
   $: function $(selector) {
     if (!this.$el) {
-      return console.error("No DOM manipulation library on the page!");
+      return console.error('No DOM manipulation library on the page!');
     }
     return this.$el.find(selector);
   },
@@ -212,7 +221,25 @@ var Component = _reboundDataReboundData.Model.extend({
     Backbone.Model.prototype.trigger.apply(this, arguments);
   },
 
-  _onAttributeChange: function _onAttributeChange(attrName, oldVal, newVal) {},
+  _onAttributeChange: function _onAttributeChange(attrName, oldVal, newVal) {
+    // Commented out because tracking attribute changes and making sure they dont infinite loop is hard.
+    // TODO: Make work.
+    // try{ newVal = JSON.parse(newVal); } catch (e){ newVal = newVal; }
+    //
+    // // data attributes should be referanced by their camel case name
+    // attrName = attrName.replace(/^data-/g, "").replace(/-([a-z])/g, function (g) { return g[1].toUpperCase(); });
+    //
+    // oldVal = this.get(attrName);
+    //
+    // if(newVal === null){ this.unset(attrName); }
+    //
+    // // If oldVal is a number, and newVal is only numerical, preserve type
+    // if(_.isNumber(oldVal) && _.isString(newVal) && newVal.match(/^[0-9]*$/i)){
+    //   newVal = parseInt(newVal);
+    // }
+    //
+    // else{ this.set(attrName, newVal, {quiet: true}); }
+  },
 
   _onChange: function _onChange(type, model, collection, options) {
     var shortcircuit = { change: 1, sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1, dirty: 1 };
@@ -222,16 +249,16 @@ var Component = _reboundDataReboundData.Model.extend({
     model || (model = {});
     collection || (collection = {});
     options || (options = {});
-    !collection.isData && type.indexOf("change:") === -1 && (options = collection) && (collection = model);
+    !collection.isData && type.indexOf('change:') === -1 && (options = collection) && (collection = model);
     this._toRender || (this._toRender = []);
 
-    if (type === "reset" && options.previousAttributes || type.indexOf("change:") !== -1) {
+    if (type === 'reset' && options.previousAttributes || type.indexOf('change:') !== -1) {
       data = model;
       changed = model.changedAttributes();
-    } else if (type === "add" || type === "remove" || type === "reset" && options.previousModels) {
+    } else if (type === 'add' || type === 'remove' || type === 'reset' && options.previousModels) {
       data = collection;
       changed = {
-        "@each": data
+        '@each': data
       };
     }
 
@@ -250,7 +277,7 @@ var Component = _reboundDataReboundData.Model.extend({
     var context = this;
     var basePath = data.__path();
     // If this event came from within a service, include the service key in the base path
-    if (options.service) basePath = options.service + "." + basePath;
+    if (options.service) basePath = options.service + '.' + basePath;
     var parts = _reboundComponentUtils2["default"].splitPath(basePath);
     var key, obsPath, path, observers;
 
@@ -259,7 +286,7 @@ var Component = _reboundDataReboundData.Model.extend({
     // object's _toRender queue.
     do {
       for (key in changed) {
-        path = (basePath + (basePath && key && ".") + key).replace(context.__path(), "").replace(/\[[^\]]+\]/g, ".@each").replace(/^\./, "");
+        path = (basePath + (basePath && key && '.') + key).replace(context.__path(), '').replace(/\[[^\]]+\]/g, ".@each").replace(/^\./, '');
         for (obsPath in context.__observers) {
           observers = context.__observers[obsPath];
           if (startsWith(obsPath, path)) {
@@ -283,15 +310,15 @@ Component.extend = function (protoProps, staticProps) {
   var parent = this,
       child,
       reservedMethods = {
-    "trigger": 1, "constructor": 1, "get": 1, "set": 1, "has": 1,
-    "extend": 1, "escape": 1, "unset": 1, "clear": 1, "cid": 1,
-    "attributes": 1, "changed": 1, "toJSON": 1, "validationError": 1, "isValid": 1,
-    "isNew": 1, "hasChanged": 1, "changedAttributes": 1, "previous": 1, "previousAttributes": 1
+    'trigger': 1, 'constructor': 1, 'get': 1, 'set': 1, 'has': 1,
+    'extend': 1, 'escape': 1, 'unset': 1, 'clear': 1, 'cid': 1,
+    'attributes': 1, 'changed': 1, 'toJSON': 1, 'validationError': 1, 'isValid': 1,
+    'isNew': 1, 'hasChanged': 1, 'changedAttributes': 1, 'previous': 1, 'previousAttributes': 1
   },
       configProperties = {
-    "routes": 1, "template": 1, "defaults": 1, "outlet": 1, "url": 1,
-    "urlRoot": 1, "idAttribute": 1, "id": 1, "createdCallback": 1, "attachedCallback": 1,
-    "detachedCallback": 1
+    'routes': 1, 'template': 1, 'defaults': 1, 'outlet': 1, 'url': 1,
+    'urlRoot': 1, 'idAttribute': 1, 'id': 1, 'createdCallback': 1, 'attachedCallback': 1,
+    'detachedCallback': 1
   };
 
   protoProps || (protoProps = {});
@@ -300,7 +327,7 @@ Component.extend = function (protoProps, staticProps) {
   // staticProps.services = {};
 
   // If given a constructor, use it, otherwise use the default one defined above
-  if (protoProps && _.has(protoProps, "constructor")) {
+  if (protoProps && _.has(protoProps, 'constructor')) {
     child = protoProps.constructor;
   } else {
     child = function () {
@@ -363,6 +390,7 @@ Component.registerComponent = function registerComponent(name, options) {
 
   proto.createdCallback = function () {
     new component({
+      debug: options.debug,
       template: template,
       outlet: this,
       data: Rebound.seedData,
@@ -387,25 +415,7 @@ Component.registerComponent = function registerComponent(name, options) {
   return document.registerElement(name, { prototype: proto });
 };
 
-_.bindAll(Component, "registerComponent");
+_.bindAll(Component, 'registerComponent');
 
 exports["default"] = Component;
 module.exports = exports["default"];
-
-// Commented out because tracking attribute changes and making sure they dont infinite loop is hard.
-// TODO: Make work.
-// try{ newVal = JSON.parse(newVal); } catch (e){ newVal = newVal; }
-//
-// // data attributes should be referanced by their camel case name
-// attrName = attrName.replace(/^data-/g, "").replace(/-([a-z])/g, function (g) { return g[1].toUpperCase(); });
-//
-// oldVal = this.get(attrName);
-//
-// if(newVal === null){ this.unset(attrName); }
-//
-// // If oldVal is a number, and newVal is only numerical, preserve type
-// if(_.isNumber(oldVal) && _.isString(newVal) && newVal.match(/^[0-9]*$/i)){
-//   newVal = parseInt(newVal);
-// }
-//
-// else{ this.set(attrName, newVal, {quiet: true}); }

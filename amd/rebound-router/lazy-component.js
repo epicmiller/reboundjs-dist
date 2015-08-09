@@ -4,13 +4,16 @@ define("rebound-router/lazy-component", ["exports", "module"], function (exports
   // real service/component (they are the same), and when the service finally
   // loads, its ```hydrate``` method is called. All consumers of the service will
   // have the now fully loaded service set, the LazyService will transfer all of
-  // its consumers over to the fully loaded service, and then destroy itself.
+  // its consumers over to the fully loaded service, and then commit seppiku,
+  // destroying itself.
   "use strict";
 
   function LazyComponent() {
+    var loadCallbacks = [];
     this.isService = true;
     this.isComponent = true;
     this.isModel = true;
+    this.isLazyComponent = true;
     this.attributes = {};
     this.consumers = [];
     this.set = this.on = this.off = function () {
@@ -20,6 +23,7 @@ define("rebound-router/lazy-component", ["exports", "module"], function (exports
       return path ? undefined : this;
     };
     this.hydrate = function (service) {
+      this._component = service;
       _.each(this.consumers, function (consumer) {
         var component = consumer.component,
             key = consumer.key;
@@ -28,7 +32,15 @@ define("rebound-router/lazy-component", ["exports", "module"], function (exports
         if (component.defaults) component.defaults[key] = service;
       });
       service.consumers = this.consumers;
-      delete this.consumers;
+
+      // Call all of our callbacks
+      _.each(loadCallbacks, function (cb) {
+        cb(service);
+      });
+      delete this.loadCallbacks;
+    };
+    this.onLoad = function (cb) {
+      loadCallbacks.push(cb);
     };
   }
 

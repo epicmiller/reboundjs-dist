@@ -12,7 +12,7 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
 
   function pathGenerator(collection) {
     return function () {
-      return collection.__path() + "[" + collection.indexOf(collection._byId[this.cid]) + "]";
+      return collection.__path() + '[' + collection.indexOf(collection._byId[this.cid]) + ']';
     };
   }
 
@@ -24,7 +24,7 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
     model: _Model["default"],
 
     __path: function __path() {
-      return "";
+      return '';
     },
 
     constructor: function constructor(models, options) {
@@ -32,7 +32,7 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
       options || (options = {});
       this.__observers = {};
       this.helpers = {};
-      this.cid = _.uniqueId("collection");
+      this.cid = _.uniqueId('collection');
 
       // Set lineage
       this.setParent(options.parent || this);
@@ -44,13 +44,15 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
       // When a model is removed from its original collection, destroy it
       // TODO: Fix this. Computed properties now somehow allow collection to share a model. They may be removed from one but not the other. That is bad.
       // The clone = false options is the culprit. Find a better way to copy all of the collections custom attributes over to the clone.
-      this.on("remove", function (model, collection, options) {});
+      this.on('remove', function (model, collection, options) {
+        // model.deinitialize();
+      });
     },
 
     get: function get(key, options) {
 
       // If the key is a number or object, default to backbone's collection get
-      if (typeof key == "number" || typeof key == "object") {
+      if (typeof key == 'number' || typeof key == 'object') {
         return Backbone.Collection.prototype.get.call(this, key);
       }
 
@@ -65,7 +67,7 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
       options || (options = {});
 
       if (_.isUndefined(key) || _.isNull(key)) return key;
-      if (key === "" || parts.length === 0) return result;
+      if (key === '' || parts.length === 0) return result;
 
       if (parts.length > 0) {
         for (i = 0; i < l; i++) {
@@ -73,7 +75,7 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
           if (result && result.isComputedProperty && options.raw) return result;
           if (result && result.isComputedProperty) result = result.value();
           if (_.isUndefined(result) || _.isNull(result)) return result;
-          if (parts[i] === "@parent") result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result.hasOwnProperty(parts[i])) result = result[parts[i]];
+          if (parts[i] === '@parent') result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result.hasOwnProperty(parts[i])) result = result[parts[i]];
         }
       }
 
@@ -96,8 +98,8 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
       models || (models = []);
 
       // If models is a string, call set at that path
-      if (_.isString(models)) return this.get(_$["default"].splitPath(models)[0]).set(_$["default"].splitPath(models).splice(1, models.length).join("."), options);
-      if (!_.isObject(models)) return console.error("Collection.set must be passed a Model, Object, array or Models and Objects, or another Collection");
+      if (_.isString(models)) return this.get(_$["default"].splitPath(models)[0]).set(_$["default"].splitPath(models).splice(1, models.length).join('.'), options);
+      if (!_.isObject(models)) return console.error('Collection.set must be passed a Model, Object, array or Models and Objects, or another Collection');
 
       // If another collection, treat like an array
       models = models.isCollection ? models.models : models;
@@ -123,5 +125,3 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
 
   module.exports = Collection;
 });
-
-// model.deinitialize();

@@ -37,12 +37,11 @@ var _reboundComponentComponent2 = _interopRequireDefault(_reboundComponentCompon
 
 var _reboundRouterReboundRouter = require("rebound-router/rebound-router");
 
+// If Backbone doesn't have an ajax method from an external DOM library, use ours
+
 var _reboundRouterReboundRouter2 = _interopRequireDefault(_reboundRouterReboundRouter);
 
-if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";
-
-// If Backbone doesn't have an ajax method from an external DOM library, use ours
-window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || _reboundComponentUtils2["default"].ajax;
+if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || _reboundComponentUtils2["default"].ajax;
 
 // Create Global Rebound Object
 var Rebound = {
@@ -55,19 +54,26 @@ var Rebound = {
   ComputedProperty: _reboundDataReboundData.ComputedProperty,
   Component: _reboundComponentComponent2["default"],
   start: function start(options) {
+    var _this = this;
+
     return new Promise(function (resolve, reject) {
-      function run() {
+      var run = function run() {
         if (document.readyState !== "complete") return;
-        Rebound.router = new _reboundRouterReboundRouter2["default"](options, resolve);
-      }
+        delete _this.router;
+        _this.router = new _reboundRouterReboundRouter2["default"](options, resolve);
+      };
       if (document.readyState === "complete") return run();
       document.addEventListener("readystatechange", run);
     });
+  },
+  stop: function stop() {
+    if (!this.router) return console.error('No running Rebound router found!');
+    this.router.stop();
   }
 };
 
 // Fetch Rebound's Config Object from Rebound's `script` tag
-var Config = document.getElementById("Rebound");
+var Config = document.getElementById('Rebound');
 Config = Config ? Config.innerHTML : false;
 
 // Start the router if a config object is preset
