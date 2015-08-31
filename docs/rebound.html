@@ -6697,7 +6697,7 @@ If event is focus or blur, use capture to allow for event delegation.</p>
   unMarkLinks: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{
     <span class="hljs-keyword">var</span> len = <span class="hljs-keyword">this</span>.length;
     <span class="hljs-keyword">while</span>(len--){
-      <span class="hljs-keyword">var</span> links = <span class="hljs-keyword">this</span>[len].querySelectorAll(<span class="hljs-string">'a[href="/'</span>+Backbone.history.fragment+<span class="hljs-string">'"]'</span>)
+      <span class="hljs-keyword">var</span> links = <span class="hljs-keyword">this</span>[len].querySelectorAll(<span class="hljs-string">'a'</span>)
       <span class="hljs-keyword">for</span>(<span class="hljs-keyword">var</span> i=<span class="hljs-number">0</span>;i&lt;links.length;i++){
         links.item(i).classList.remove(<span class="hljs-string">'active'</span>);
         links.item(i).active = <span class="hljs-literal">false</span>;
