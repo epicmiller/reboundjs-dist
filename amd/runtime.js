@@ -26,8 +26,10 @@ define("runtime", ["exports", "module", "rebound-component/utils", "rebound-comp
 
   var _Router = _interopRequireDefault(_reboundRouterReboundRouter);
 
+  if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";
+
   // If Backbone doesn't have an ajax method from an external DOM library, use ours
-  if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || _utils["default"].ajax;
+  window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || _utils["default"].ajax;
 
   // Create Global Rebound Object
   var Rebound = {
@@ -53,13 +55,13 @@ define("runtime", ["exports", "module", "rebound-component/utils", "rebound-comp
       });
     },
     stop: function stop() {
-      if (!this.router) return console.error('No running Rebound router found!');
+      if (!this.router) return console.error("No running Rebound router found!");
       this.router.stop();
     }
   };
 
   // Fetch Rebound's Config Object from Rebound's `script` tag
-  var Config = document.getElementById('Rebound');
+  var Config = document.getElementById("Rebound");
   Config = Config ? Config.innerHTML : false;
 
   // Start the router if a config object is preset

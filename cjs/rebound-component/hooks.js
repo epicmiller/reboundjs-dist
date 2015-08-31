@@ -66,7 +66,7 @@ var attributes = { abbr: 1, "accept-charset": 1, accept: 1, accesskey: 1, action
 
 _htmlbarsRuntimeHooks2["default"].get = function get(env, scope, path) {
 
-  if (path === 'this') path = '';
+  if (path === "this") path = "";
 
   var setPath = path;
 
@@ -78,7 +78,7 @@ _htmlbarsRuntimeHooks2["default"].get = function get(env, scope, path) {
   // If this path referances a block param, use that as the context instead.
   if (scope.localPresent[key]) {
     value = scope.locals[key];
-    path = rest.join('.');
+    path = rest.join(".");
   } else {
     value = scope.self;
   }
@@ -118,7 +118,7 @@ _htmlbarsRuntimeHooks2["default"].invokeHelper = function invokeHelper(morph, en
 
 function streamHelper(morph, env, scope, visitor, params, hash, helper, templates, context) {
 
-  if (!_.isFunction(helper)) return console.error(scope + ' is not a valid helper!');
+  if (!_.isFunction(helper)) return console.error(scope + " is not a valid helper!");
 
   // Create a lazy value that returns the value of our evaluated helper.
   var lazyValue = new _reboundComponentLazyValue2["default"](function () {
@@ -155,11 +155,7 @@ function streamHelper(morph, env, scope, visitor, params, hash, helper, template
 _htmlbarsRuntimeHooks2["default"].cleanupRenderNode = function () {};
 
 _htmlbarsRuntimeHooks2["default"].destroyRenderNode = function (renderNode) {};
-_htmlbarsRuntimeHooks2["default"].willCleanupTree = function (renderNode) {
-  // for(let i in renderNode.lazyValues)
-  //   if(renderNode.lazyValues[i].isLazyValue)
-  //     renderNode.lazyValues[i].destroy();
-};
+_htmlbarsRuntimeHooks2["default"].willCleanupTree = function (renderNode) {};
 
 /*******************************
         Default Hooks
@@ -236,7 +232,7 @@ _htmlbarsRuntimeHooks2["default"].wrap = function wrap(template) {
 
       // Call our func with merged helpers and hooks
       env.template = _htmlbarsRuntimeRender2["default"]["default"](template, env, scope, options);
-      env.template.uid = _.uniqueId('template');
+      env.template.uid = _.uniqueId("template");
       return env.template;
     }
   };
@@ -260,7 +256,7 @@ _htmlbarsRuntimeHooks2["default"].wrapPartial = function wrapPartial(template) {
 
       // Call our func with merged helpers and hooks
       env.template = _htmlbarsRuntimeRender2["default"]["default"](template, env, scope, options);
-      env.template.uid = _.uniqueId('template');
+      env.template.uid = _.uniqueId("template");
       return env.template;
     }
   };
@@ -353,7 +349,7 @@ _htmlbarsRuntimeHooks2["default"].concat = function concat(env, params) {
     var value = "";
 
     for (i = 0, l = params.length; i < l; i++) {
-      value += params[i] && params[i].isLazyValue ? params[i].value : params[i] || '';
+      value += params[i] && params[i].isLazyValue ? params[i].value : params[i] || "";
     }
 
     return value;
@@ -380,9 +376,9 @@ _htmlbarsRuntimeHooks2["default"].content = function content(morph, env, context
   };
 
   // Two way databinding for textareas
-  if (domElement.tagName === 'TEXTAREA') {
+  if (domElement.tagName === "TEXTAREA") {
     lazyValue.onNotify(updateTextarea);
-    (0, _reboundComponentUtils2["default"])(domElement).on('change keyup', function (event) {
+    (0, _reboundComponentUtils2["default"])(domElement).on("change keyup", function (event) {
       lazyValue.set(lazyValue.path, this.value);
     });
   }
@@ -396,20 +392,20 @@ _htmlbarsRuntimeHooks2["default"].attribute = function attribute(attrMorph, env,
       checkboxChange,
       type = domElement.getAttribute("type"),
       attr,
-      inputTypes = { 'null': true, 'text': true, 'email': true, 'password': true,
-    'search': true, 'url': true, 'tel': true, 'hidden': true,
-    'number': true, 'color': true, 'date': true, 'datetime': true,
-    'datetime-local:': true, 'month': true, 'range': true,
-    'time': true, 'week': true
+      inputTypes = { "null": true, "text": true, "email": true, "password": true,
+    "search": true, "url": true, "tel": true, "hidden": true,
+    "number": true, "color": true, "date": true, "datetime": true,
+    "datetime-local:": true, "month": true, "range": true,
+    "time": true, "week": true
   };
 
   // If is a text input element's value prop with only one variable, wire default events
-  if (domElement.tagName === 'INPUT' && inputTypes[type] && name === 'value') {
+  if (domElement.tagName === "INPUT" && inputTypes[type] && name === "value") {
 
     // If our special input events have not been bound yet, bind them and set flag
     if (!attrMorph.inputObserver) {
 
-      (0, _reboundComponentUtils2["default"])(domElement).on('change input propertychange', function (event) {
+      (0, _reboundComponentUtils2["default"])(domElement).on("change input propertychange", function (event) {
         value.set(value.path, this.value);
       });
 
@@ -420,13 +416,13 @@ _htmlbarsRuntimeHooks2["default"].attribute = function attribute(attrMorph, env,
     _.isUndefined(val) ? domElement.removeAttribute(name) : domElement.setAttribute(name, val);
 
     attr = val;
-    return domElement.value !== String(attr) ? domElement.value = attr || '' : attr;
-  } else if (domElement.tagName === 'INPUT' && (type === 'checkbox' || type === 'radio') && name === 'checked') {
+    return domElement.value !== String(attr) ? domElement.value = attr || "" : attr;
+  } else if (domElement.tagName === "INPUT" && (type === "checkbox" || type === "radio") && name === "checked") {
 
     // If our special input events have not been bound yet, bind them and set flag
     if (!attrMorph.eventsBound) {
 
-      (0, _reboundComponentUtils2["default"])(domElement).on('change propertychange', function (event) {
+      (0, _reboundComponentUtils2["default"])(domElement).on("change propertychange", function (event) {
         value.set(value.path, this.checked ? true : false, { quiet: true });
       });
 
@@ -441,27 +437,27 @@ _htmlbarsRuntimeHooks2["default"].attribute = function attribute(attrMorph, env,
 
   // Special case for link elements with dynamic classes.
   // If the router has assigned it a truthy 'active' property, ensure that the extra class is present on re-render.
-  else if (domElement.tagName === 'A' && name === 'class') {
-      if (_.isUndefined(val)) {
-        domElement.active ? domElement.setAttribute('class', 'active') : domElement.classList.remove('class');
-      } else {
-        domElement.setAttribute(name, val + (domElement.active ? ' active' : ''));
-      }
+  else if (domElement.tagName === "A" && name === "class") {
+    if (_.isUndefined(val)) {
+      domElement.active ? domElement.setAttribute("class", "active") : domElement.classList.remove("class");
     } else {
-      _.isString(val) && (val = val.trim());
-      val || (val = undefined);
-      if (_.isUndefined(val)) {
-        domElement.removeAttribute(name);
-      } else {
-        domElement.setAttribute(name, val);
-      }
+      domElement.setAttribute(name, val + (domElement.active ? " active" : ""));
     }
+  } else {
+    _.isString(val) && (val = val.trim());
+    val || (val = undefined);
+    if (_.isUndefined(val)) {
+      domElement.removeAttribute(name);
+    } else {
+      domElement.setAttribute(name, val);
+    }
+  }
 
-  _htmlbarsRuntimeHooks2["default"].linkRenderNode(attrMorph, env, scope, '@attribute', [value], {});
+  _htmlbarsRuntimeHooks2["default"].linkRenderNode(attrMorph, env, scope, "@attribute", [value], {});
 };
 
 _htmlbarsRuntimeHooks2["default"].partial = function partial(renderNode, env, scope, path) {
-  if (!path) console.error('Partial helper must be passed path!');
+  if (!path) console.error("Partial helper must be passed path!");
   path = path.isLazyValue ? path.value : path;
   var part = this.wrapPartial(_reboundComponentHelpers.partials[path]);
   if (part && part.render) {
@@ -504,9 +500,6 @@ _htmlbarsRuntimeHooks2["default"].component = function (morph, env, scope, tagNa
     componentData[key] = streamProperty(component, key);
   }
 
-  // Set up two way binding between component and original context for non-data attributes
-  // Syncing between models and collections passed are handled in model and collection
-
   var _loop = function () {
     var key = prop;
     if (componentData[key].isLazyValue && attrs[key].isLazyValue) {
@@ -526,13 +519,16 @@ _htmlbarsRuntimeHooks2["default"].component = function (morph, env, scope, tagNa
     }
   };
 
+  // Set up two way binding between component and original context for non-data attributes
+  // Syncing between models and collections passed are handled in model and collection
+
   for (var prop in componentData) {
     _loop();
   }
 
   // TODO: Move this to Component
   // // For each change on our component, update the states of the original context and the element's proeprties.
-  component.listenTo(component, 'change', function (model) {
+  component.listenTo(component, "change", function (model) {
     var json = component.toJSON();
 
     if (_.isString(json)) return; // If is a string, this model is seralizing already
@@ -586,15 +582,15 @@ _htmlbarsRuntimeHooks2["default"].component = function (morph, env, scope, tagNa
   // `<content>` outlets to render templates into.
   (0, _reboundComponentUtils2["default"])(element).walkTheDOM(function (el) {
     if (element === el) return true;
-    if (el.tagName === 'CONTENT') outlet = el;
-    if (el.tagName.indexOf('-') > -1) return false;
+    if (el.tagName === "CONTENT") outlet = el;
+    if (el.tagName.indexOf("-") > -1) return false;
     return true;
   });
 
   // If a `<content>` outlet is present in component's template, and a template
   // is provided, render it into the outlet
   if (templates["default"] && _.isElement(outlet)) {
-    outlet.innerHTML = '';
+    outlet.innerHTML = "";
     outlet.appendChild(_htmlbarsRuntimeRender2["default"]["default"](templates["default"], env, scope, {}).fragment);
   }
 
@@ -604,3 +600,7 @@ _htmlbarsRuntimeHooks2["default"].component = function (morph, env, scope, tagNa
 
 exports["default"] = _htmlbarsRuntimeHooks2["default"];
 module.exports = exports["default"];
+
+// for(let i in renderNode.lazyValues)
+//   if(renderNode.lazyValues[i].isLazyValue)
+//     renderNode.lazyValues[i].destroy();

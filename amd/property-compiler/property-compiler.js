@@ -55,7 +55,7 @@ define('property-compiler/property-compiler', ['exports', 'module', 'property-co
         }
 
         // Replace any access to a collection with the generic @each placeholder and push dependancy
-        workingpath.push(path.value.replace(/\[.+\]/g, ".@each").replace(/^\./, ''));
+        workingpath.push(path.value.replace(/\[.+\]/g, '.@each').replace(/^\./, ''));
       }
 
       if (token.value === 'pluck') {

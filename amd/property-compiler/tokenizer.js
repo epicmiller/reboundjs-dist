@@ -386,8 +386,8 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
 
       // Otherwise, simply generate a flat `switch` statement.
     } else {
-        compareTo(words);
-      }
+      compareTo(words);
+    }
     return new Function("str", f);
   }
 
@@ -446,7 +446,7 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
     if (code < 91) return true;
     if (code < 97) return code === 95;
     if (code < 123) return true;
-    return code >= 0xaa && nonASCIIidentifierStart.test(String.fromCharCode(code));
+    return code >= 170 && nonASCIIidentifierStart.test(String.fromCharCode(code));
   };
 
   // Test whether a given character is part of an identifier.
@@ -458,7 +458,7 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
     if (code < 91) return true;
     if (code < 97) return code === 95;
     if (code < 123) return true;
-    return code >= 0xaa && nonASCIIidentifier.test(String.fromCharCode(code));
+    return code >= 170 && nonASCIIidentifier.test(String.fromCharCode(code));
   };
 
   // ## Tokenizer
@@ -833,8 +833,8 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
           val;
       if (code >= 97) val = code - 97 + 10; // a
       else if (code >= 65) val = code - 65 + 10; // A
-        else if (code >= 48 && code <= 57) val = code - 48; // 0-9
-          else val = Infinity;
+      else if (code >= 48 && code <= 57) val = code - 48; // 0-9
+      else val = Infinity;
       if (val >= radix) break;
       ++tokPos;
       total = total * radix + val;
@@ -925,7 +925,7 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
             case 102:
               out += "\f";break; // 'f' -> '\f'
             case 48:
-              out += "\0";break; // 0 -> '\0'
+              out += "\u0000";break; // 0 -> '\0'
             case 13:
               if (input.charCodeAt(tokPos) === 10) ++tokPos; // '\r\n'
             /* falls through */
