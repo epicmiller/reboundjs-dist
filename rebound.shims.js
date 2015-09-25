@@ -212,6 +212,9 @@ var
   doesNotSupportDOMAttrModified = true,
   dropDomContentLoaded = true,
 
+  // needed for the innerHTML helper
+  notFromInnerHTMLHelper = true,
+
   // optionally defined later on
   onSubtreeModified,
   callDOMAttrModified,
@@ -222,8 +225,7 @@ var
   // will check proto or the expando attribute
   // in order to setup the node once
   patchIfNotAlready,
-  patch,
-  notFromInnerHTMLHelper
+  patch
 ;
 
 if (sPO || hasProto) {
@@ -655,7 +657,7 @@ document[REGISTER_ELEMENT] = function registerElement(type, options) {
   }
 
   if (!validName.test(upperType) || -1 < indexOf.call(invalidNames, upperType)) {
-    throw new Error('The type ' + upperType + ' is invalid ' + validName.test(upperType) + ' ' + indexOf.call(invalidNames, upperType));
+    throw new Error('The type ' + type + ' is invalid');
   }
 
   var

@@ -1,6 +1,6 @@
-//     Underscore.js 1.6.0
+//     Underscore.js 1.8.3
 //     http://underscorejs.org
-//     (c) 2009-2014 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+//     (c) 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
 //     Underscore may be freely distributed under the MIT license.
 
 (function() {
@@ -14,9 +14,6 @@
   // Save the previous value of the `_` variable.
   var previousUnderscore = root._;
 
-  // Establish the object that gets returned to break out of a loop iteration.
-  var breaker = {};
-
   // Save bytes in the minified (but not gzipped) version:
   var ArrayProto = Array.prototype, ObjProto = Object.prototype, FuncProto = Function.prototype;
 
@@ -24,25 +21,19 @@
   var
     push             = ArrayProto.push,
     slice            = ArrayProto.slice,
-    concat           = ArrayProto.concat,
     toString         = ObjProto.toString,
     hasOwnProperty   = ObjProto.hasOwnProperty;
 
   // All **ECMAScript 5** native function implementations that we hope to use
   // are declared here.
   var
-    nativeForEach      = ArrayProto.forEach,
-    nativeMap          = ArrayProto.map,
-    nativeReduce       = ArrayProto.reduce,
-    nativeReduceRight  = ArrayProto.reduceRight,
-    nativeFilter       = ArrayProto.filter,
-    nativeEvery        = ArrayProto.every,
-    nativeSome         = ArrayProto.some,
-    nativeIndexOf      = ArrayProto.indexOf,
-    nativeLastIndexOf  = ArrayProto.lastIndexOf,
     nativeIsArray      = Array.isArray,
     nativeKeys         = Object.keys,
-    nativeBind         = FuncProto.bind;
+    nativeBind         = FuncProto.bind,
+    nativeCreate       = Object.create;
+
+  // Naked function reference for surrogate-prototype-swapping.
+  var Ctor = function(){};
 
   // Create a safe reference to the Underscore object for use below.
   var _ = function(obj) {
@@ -53,8 +44,7 @@
 
   // Export the Underscore object for **Node.js**, with
   // backwards-compatibility for the old `require()` API. If we're in
-  // the browser, add `_` as a global object via a string identifier,
-  // for Closure Compiler "advanced" mode.
+  // the browser, add `_` as a global object.
   if (typeof exports !== 'undefined') {
     if (typeof module !== 'undefined' && module.exports) {
       exports = module.exports = _;
@@ -65,161 +55,217 @@
   }
 
   // Current version.
-  _.VERSION = '1.6.0';
+  _.VERSION = '1.8.3';
+
+  // Internal function that returns an efficient (for current engines) version
+  // of the passed-in callback, to be repeatedly applied in other Underscore
+  // functions.
+  var optimizeCb = function(func, context, argCount) {
+    if (context === void 0) return func;
+    switch (argCount == null ? 3 : argCount) {
+      case 1: return function(value) {
+        return func.call(context, value);
+      };
+      case 2: return function(value, other) {
+        return func.call(context, value, other);
+      };
+      case 3: return function(value, index, collection) {
+        return func.call(context, value, index, collection);
+      };
+      case 4: return function(accumulator, value, index, collection) {
+        return func.call(context, accumulator, value, index, collection);
+      };
+    }
+    return function() {
+      return func.apply(context, arguments);
+    };
+  };
+
+  // A mostly-internal function to generate callbacks that can be applied
+  // to each element in a collection, returning the desired result — either
+  // identity, an arbitrary callback, a property matcher, or a property accessor.
+  var cb = function(value, context, argCount) {
+    if (value == null) return _.identity;
+    if (_.isFunction(value)) return optimizeCb(value, context, argCount);
+    if (_.isObject(value)) return _.matcher(value);
+    return _.property(value);
+  };
+  _.iteratee = function(value, context) {
+    return cb(value, context, Infinity);
+  };
+
+  // An internal function for creating assigner functions.
+  var createAssigner = function(keysFunc, undefinedOnly) {
+    return function(obj) {
+      var length = arguments.length;
+      if (length < 2 || obj == null) return obj;
+      for (var index = 1; index < length; index++) {
+        var source = arguments[index],
+            keys = keysFunc(source),
+            l = keys.length;
+        for (var i = 0; i < l; i++) {
+          var key = keys[i];
+          if (!undefinedOnly || obj[key] === void 0) obj[key] = source[key];
+        }
+      }
+      return obj;
+    };
+  };
+
+  // An internal function for creating a new object that inherits from another.
+  var baseCreate = function(prototype) {
+    if (!_.isObject(prototype)) return {};
+    if (nativeCreate) return nativeCreate(prototype);
+    Ctor.prototype = prototype;
+    var result = new Ctor;
+    Ctor.prototype = null;
+    return result;
+  };
+
+  var property = function(key) {
+    return function(obj) {
+      return obj == null ? void 0 : obj[key];
+    };
+  };
+
+  // Helper for collection methods to determine whether a collection
+  // should be iterated as an array or as an object
+  // Related: http://people.mozilla.org/~jorendorff/es6-draft.html#sec-tolength
+  // Avoids a very nasty iOS 8 JIT bug on ARM-64. #2094
+  var MAX_ARRAY_INDEX = Math.pow(2, 53) - 1;
+  var getLength = property('length');
+  var isArrayLike = function(collection) {
+    var length = getLength(collection);
+    return typeof length == 'number' && length >= 0 && length <= MAX_ARRAY_INDEX;
+  };
 
   // Collection Functions
   // --------------------
 
   // The cornerstone, an `each` implementation, aka `forEach`.
-  // Handles objects with the built-in `forEach`, arrays, and raw objects.
-  // Delegates to **ECMAScript 5**'s native `forEach` if available.
-  var each = _.each = _.forEach = function(obj, iterator, context) {
-    if (obj == null) return obj;
-    if (nativeForEach && obj.forEach === nativeForEach) {
-      obj.forEach(iterator, context);
-    } else if (obj.length === +obj.length) {
-      for (var i = 0, length = obj.length; i < length; i++) {
-        if (iterator.call(context, obj[i], i, obj) === breaker) return;
+  // Handles raw objects in addition to array-likes. Treats all
+  // sparse array-likes as if they were dense.
+  _.each = _.forEach = function(obj, iteratee, context) {
+    iteratee = optimizeCb(iteratee, context);
+    var i, length;
+    if (isArrayLike(obj)) {
+      for (i = 0, length = obj.length; i < length; i++) {
+        iteratee(obj[i], i, obj);
       }
     } else {
       var keys = _.keys(obj);
-      for (var i = 0, length = keys.length; i < length; i++) {
-        if (iterator.call(context, obj[keys[i]], keys[i], obj) === breaker) return;
+      for (i = 0, length = keys.length; i < length; i++) {
+        iteratee(obj[keys[i]], keys[i], obj);
       }
     }
     return obj;
   };
 
-  // Return the results of applying the iterator to each element.
-  // Delegates to **ECMAScript 5**'s native `map` if available.
-  _.map = _.collect = function(obj, iterator, context) {
-    var results = [];
-    if (obj == null) return results;
-    if (nativeMap && obj.map === nativeMap) return obj.map(iterator, context);
-    each(obj, function(value, index, list) {
-      results.push(iterator.call(context, value, index, list));
-    });
+  // Return the results of applying the iteratee to each element.
+  _.map = _.collect = function(obj, iteratee, context) {
+    iteratee = cb(iteratee, context);
+    var keys = !isArrayLike(obj) && _.keys(obj),
+        length = (keys || obj).length,
+        results = Array(length);
+    for (var index = 0; index < length; index++) {
+      var currentKey = keys ? keys[index] : index;
+      results[index] = iteratee(obj[currentKey], currentKey, obj);
+    }
     return results;
   };
 
-  var reduceError = 'Reduce of empty array with no initial value';
+  // Create a reducing function iterating left or right.
+  function createReduce(dir) {
+    // Optimized iterator function as using arguments.length
+    // in the main function will deoptimize the, see #1991.
+    function iterator(obj, iteratee, memo, keys, index, length) {
+      for (; index >= 0 && index < length; index += dir) {
+        var currentKey = keys ? keys[index] : index;
+        memo = iteratee(memo, obj[currentKey], currentKey, obj);
+      }
+      return memo;
+    }
+
+    return function(obj, iteratee, memo, context) {
+      iteratee = optimizeCb(iteratee, context, 4);
+      var keys = !isArrayLike(obj) && _.keys(obj),
+          length = (keys || obj).length,
+          index = dir > 0 ? 0 : length - 1;
+      // Determine the initial value if none is provided.
+      if (arguments.length < 3) {
+        memo = obj[keys ? keys[index] : index];
+        index += dir;
+      }
+      return iterator(obj, iteratee, memo, keys, index, length);
+    };
+  }
 
   // **Reduce** builds up a single result from a list of values, aka `inject`,
-  // or `foldl`. Delegates to **ECMAScript 5**'s native `reduce` if available.
-  _.reduce = _.foldl = _.inject = function(obj, iterator, memo, context) {
-    var initial = arguments.length > 2;
-    if (obj == null) obj = [];
-    if (nativeReduce && obj.reduce === nativeReduce) {
-      if (context) iterator = _.bind(iterator, context);
-      return initial ? obj.reduce(iterator, memo) : obj.reduce(iterator);
-    }
-    each(obj, function(value, index, list) {
-      if (!initial) {
-        memo = value;
-        initial = true;
-      } else {
-        memo = iterator.call(context, memo, value, index, list);
-      }
-    });
-    if (!initial) throw new TypeError(reduceError);
-    return memo;
-  };
+  // or `foldl`.
+  _.reduce = _.foldl = _.inject = createReduce(1);
 
   // The right-associative version of reduce, also known as `foldr`.
-  // Delegates to **ECMAScript 5**'s native `reduceRight` if available.
-  _.reduceRight = _.foldr = function(obj, iterator, memo, context) {
-    var initial = arguments.length > 2;
-    if (obj == null) obj = [];
-    if (nativeReduceRight && obj.reduceRight === nativeReduceRight) {
-      if (context) iterator = _.bind(iterator, context);
-      return initial ? obj.reduceRight(iterator, memo) : obj.reduceRight(iterator);
-    }
-    var length = obj.length;
-    if (length !== +length) {
-      var keys = _.keys(obj);
-      length = keys.length;
-    }
-    each(obj, function(value, index, list) {
-      index = keys ? keys[--length] : --length;
-      if (!initial) {
-        memo = obj[index];
-        initial = true;
-      } else {
-        memo = iterator.call(context, memo, obj[index], index, list);
-      }
-    });
-    if (!initial) throw new TypeError(reduceError);
-    return memo;
-  };
+  _.reduceRight = _.foldr = createReduce(-1);
 
   // Return the first value which passes a truth test. Aliased as `detect`.
   _.find = _.detect = function(obj, predicate, context) {
-    var result;
-    any(obj, function(value, index, list) {
-      if (predicate.call(context, value, index, list)) {
-        result = value;
-        return true;
-      }
-    });
-    return result;
+    var key;
+    if (isArrayLike(obj)) {
+      key = _.findIndex(obj, predicate, context);
+    } else {
+      key = _.findKey(obj, predicate, context);
+    }
+    if (key !== void 0 && key !== -1) return obj[key];
   };
 
   // Return all the elements that pass a truth test.
-  // Delegates to **ECMAScript 5**'s native `filter` if available.
   // Aliased as `select`.
   _.filter = _.select = function(obj, predicate, context) {
     var results = [];
-    if (obj == null) return results;
-    if (nativeFilter && obj.filter === nativeFilter) return obj.filter(predicate, context);
-    each(obj, function(value, index, list) {
-      if (predicate.call(context, value, index, list)) results.push(value);
+    predicate = cb(predicate, context);
+    _.each(obj, function(value, index, list) {
+      if (predicate(value, index, list)) results.push(value);
     });
     return results;
   };
 
   // Return all the elements for which a truth test fails.
   _.reject = function(obj, predicate, context) {
-    return _.filter(obj, function(value, index, list) {
-      return !predicate.call(context, value, index, list);
-    }, context);
+    return _.filter(obj, _.negate(cb(predicate)), context);
   };
 
   // Determine whether all of the elements match a truth test.
-  // Delegates to **ECMAScript 5**'s native `every` if available.
   // Aliased as `all`.
   _.every = _.all = function(obj, predicate, context) {
-    predicate || (predicate = _.identity);
-    var result = true;
-    if (obj == null) return result;
-    if (nativeEvery && obj.every === nativeEvery) return obj.every(predicate, context);
-    each(obj, function(value, index, list) {
-      if (!(result = result && predicate.call(context, value, index, list))) return breaker;
-    });
-    return !!result;
+    predicate = cb(predicate, context);
+    var keys = !isArrayLike(obj) && _.keys(obj),
+        length = (keys || obj).length;
+    for (var index = 0; index < length; index++) {
+      var currentKey = keys ? keys[index] : index;
+      if (!predicate(obj[currentKey], currentKey, obj)) return false;
+    }
+    return true;
   };
 
   // Determine if at least one element in the object matches a truth test.
-  // Delegates to **ECMAScript 5**'s native `some` if available.
   // Aliased as `any`.
-  var any = _.some = _.any = function(obj, predicate, context) {
-    predicate || (predicate = _.identity);
-    var result = false;
-    if (obj == null) return result;
-    if (nativeSome && obj.some === nativeSome) return obj.some(predicate, context);
-    each(obj, function(value, index, list) {
-      if (result || (result = predicate.call(context, value, index, list))) return breaker;
-    });
-    return !!result;
+  _.some = _.any = function(obj, predicate, context) {
+    predicate = cb(predicate, context);
+    var keys = !isArrayLike(obj) && _.keys(obj),
+        length = (keys || obj).length;
+    for (var index = 0; index < length; index++) {
+      var currentKey = keys ? keys[index] : index;
+      if (predicate(obj[currentKey], currentKey, obj)) return true;
+    }
+    return false;
   };
 
-  // Determine if the array or object contains a given value (using `===`).
-  // Aliased as `include`.
-  _.contains = _.include = function(obj, target) {
-    if (obj == null) return false;
-    if (nativeIndexOf && obj.indexOf === nativeIndexOf) return obj.indexOf(target) != -1;
-    return any(obj, function(value) {
-      return value === target;
-    });
+  // Determine if the array or object contains a given item (using `===`).
+  // Aliased as `includes` and `include`.
+  _.contains = _.includes = _.include = function(obj, item, fromIndex, guard) {
+    if (!isArrayLike(obj)) obj = _.values(obj);
+    if (typeof fromIndex != 'number' || guard) fromIndex = 0;
+    return _.indexOf(obj, item, fromIndex) >= 0;
   };
 
   // Invoke a method (with arguments) on every item in a collection.
@@ -227,7 +273,8 @@
     var args = slice.call(arguments, 2);
     var isFunc = _.isFunction(method);
     return _.map(obj, function(value) {
-      return (isFunc ? method : value[method]).apply(value, args);
+      var func = isFunc ? method : value[method];
+      return func == null ? func : func.apply(value, args);
     });
   };
 
@@ -239,60 +286,76 @@
   // Convenience version of a common use case of `filter`: selecting only objects
   // containing specific `key:value` pairs.
   _.where = function(obj, attrs) {
-    return _.filter(obj, _.matches(attrs));
+    return _.filter(obj, _.matcher(attrs));
   };
 
   // Convenience version of a common use case of `find`: getting the first object
   // containing specific `key:value` pairs.
   _.findWhere = function(obj, attrs) {
-    return _.find(obj, _.matches(attrs));
+    return _.find(obj, _.matcher(attrs));
   };
 
-  // Return the maximum element or (element-based computation).
-  // Can't optimize arrays of integers longer than 65,535 elements.
-  // See [WebKit Bug 80797](https://bugs.webkit.org/show_bug.cgi?id=80797)
-  _.max = function(obj, iterator, context) {
-    if (!iterator && _.isArray(obj) && obj[0] === +obj[0] && obj.length < 65535) {
-      return Math.max.apply(Math, obj);
-    }
-    var result = -Infinity, lastComputed = -Infinity;
-    each(obj, function(value, index, list) {
-      var computed = iterator ? iterator.call(context, value, index, list) : value;
-      if (computed > lastComputed) {
-        result = value;
-        lastComputed = computed;
+  // Return the maximum element (or element-based computation).
+  _.max = function(obj, iteratee, context) {
+    var result = -Infinity, lastComputed = -Infinity,
+        value, computed;
+    if (iteratee == null && obj != null) {
+      obj = isArrayLike(obj) ? obj : _.values(obj);
+      for (var i = 0, length = obj.length; i < length; i++) {
+        value = obj[i];
+        if (value > result) {
+          result = value;
+        }
       }
-    });
+    } else {
+      iteratee = cb(iteratee, context);
+      _.each(obj, function(value, index, list) {
+        computed = iteratee(value, index, list);
+        if (computed > lastComputed || computed === -Infinity && result === -Infinity) {
+          result = value;
+          lastComputed = computed;
+        }
+      });
+    }
     return result;
   };
 
   // Return the minimum element (or element-based computation).
-  _.min = function(obj, iterator, context) {
-    if (!iterator && _.isArray(obj) && obj[0] === +obj[0] && obj.length < 65535) {
-      return Math.min.apply(Math, obj);
-    }
-    var result = Infinity, lastComputed = Infinity;
-    each(obj, function(value, index, list) {
-      var computed = iterator ? iterator.call(context, value, index, list) : value;
-      if (computed < lastComputed) {
-        result = value;
-        lastComputed = computed;
+  _.min = function(obj, iteratee, context) {
+    var result = Infinity, lastComputed = Infinity,
+        value, computed;
+    if (iteratee == null && obj != null) {
+      obj = isArrayLike(obj) ? obj : _.values(obj);
+      for (var i = 0, length = obj.length; i < length; i++) {
+        value = obj[i];
+        if (value < result) {
+          result = value;
+        }
       }
-    });
+    } else {
+      iteratee = cb(iteratee, context);
+      _.each(obj, function(value, index, list) {
+        computed = iteratee(value, index, list);
+        if (computed < lastComputed || computed === Infinity && result === Infinity) {
+          result = value;
+          lastComputed = computed;
+        }
+      });
+    }
     return result;
   };
 
-  // Shuffle an array, using the modern version of the
+  // Shuffle a collection, using the modern version of the
   // [Fisher-Yates shuffle](http://en.wikipedia.org/wiki/Fisher–Yates_shuffle).
   _.shuffle = function(obj) {
-    var rand;
-    var index = 0;
-    var shuffled = [];
-    each(obj, function(value) {
-      rand = _.random(index++);
-      shuffled[index - 1] = shuffled[rand];
-      shuffled[rand] = value;
-    });
+    var set = isArrayLike(obj) ? obj : _.values(obj);
+    var length = set.length;
+    var shuffled = Array(length);
+    for (var index = 0, rand; index < length; index++) {
+      rand = _.random(0, index);
+      if (rand !== index) shuffled[index] = shuffled[rand];
+      shuffled[rand] = set[index];
+    }
     return shuffled;
   };
 
@@ -301,27 +364,20 @@
   // The internal `guard` argument allows it to work with `map`.
   _.sample = function(obj, n, guard) {
     if (n == null || guard) {
-      if (obj.length !== +obj.length) obj = _.values(obj);
+      if (!isArrayLike(obj)) obj = _.values(obj);
       return obj[_.random(obj.length - 1)];
     }
     return _.shuffle(obj).slice(0, Math.max(0, n));
   };
 
-  // An internal function to generate lookup iterators.
-  var lookupIterator = function(value) {
-    if (value == null) return _.identity;
-    if (_.isFunction(value)) return value;
-    return _.property(value);
-  };
-
-  // Sort the object's values by a criterion produced by an iterator.
-  _.sortBy = function(obj, iterator, context) {
-    iterator = lookupIterator(iterator);
+  // Sort the object's values by a criterion produced by an iteratee.
+  _.sortBy = function(obj, iteratee, context) {
+    iteratee = cb(iteratee, context);
     return _.pluck(_.map(obj, function(value, index, list) {
       return {
         value: value,
         index: index,
-        criteria: iterator.call(context, value, index, list)
+        criteria: iteratee(value, index, list)
       };
     }).sort(function(left, right) {
       var a = left.criteria;
@@ -336,12 +392,12 @@
 
   // An internal function used for aggregate "group by" operations.
   var group = function(behavior) {
-    return function(obj, iterator, context) {
+    return function(obj, iteratee, context) {
       var result = {};
-      iterator = lookupIterator(iterator);
-      each(obj, function(value, index) {
-        var key = iterator.call(context, value, index, obj);
-        behavior(result, key, value);
+      iteratee = cb(iteratee, context);
+      _.each(obj, function(value, index) {
+        var key = iteratee(value, index, obj);
+        behavior(result, value, key);
       });
       return result;
     };
@@ -349,48 +405,46 @@
 
   // Groups the object's values by a criterion. Pass either a string attribute
   // to group by, or a function that returns the criterion.
-  _.groupBy = group(function(result, key, value) {
-    _.has(result, key) ? result[key].push(value) : result[key] = [value];
+  _.groupBy = group(function(result, value, key) {
+    if (_.has(result, key)) result[key].push(value); else result[key] = [value];
   });
 
   // Indexes the object's values by a criterion, similar to `groupBy`, but for
   // when you know that your index values will be unique.
-  _.indexBy = group(function(result, key, value) {
+  _.indexBy = group(function(result, value, key) {
     result[key] = value;
   });
 
   // Counts instances of an object that group by a certain criterion. Pass
   // either a string attribute to count by, or a function that returns the
   // criterion.
-  _.countBy = group(function(result, key) {
-    _.has(result, key) ? result[key]++ : result[key] = 1;
+  _.countBy = group(function(result, value, key) {
+    if (_.has(result, key)) result[key]++; else result[key] = 1;
   });
-
-  // Use a comparator function to figure out the smallest index at which
-  // an object should be inserted so as to maintain order. Uses binary search.
-  _.sortedIndex = function(array, obj, iterator, context) {
-    iterator = lookupIterator(iterator);
-    var value = iterator.call(context, obj);
-    var low = 0, high = array.length;
-    while (low < high) {
-      var mid = (low + high) >>> 1;
-      iterator.call(context, array[mid]) < value ? low = mid + 1 : high = mid;
-    }
-    return low;
-  };
 
   // Safely create a real, live array from anything iterable.
   _.toArray = function(obj) {
     if (!obj) return [];
     if (_.isArray(obj)) return slice.call(obj);
-    if (obj.length === +obj.length) return _.map(obj, _.identity);
+    if (isArrayLike(obj)) return _.map(obj, _.identity);
     return _.values(obj);
   };
 
   // Return the number of elements in an object.
   _.size = function(obj) {
     if (obj == null) return 0;
-    return (obj.length === +obj.length) ? obj.length : _.keys(obj).length;
+    return isArrayLike(obj) ? obj.length : _.keys(obj).length;
+  };
+
+  // Split a collection into two arrays: one whose elements all satisfy the given
+  // predicate, and one whose elements all do not satisfy the predicate.
+  _.partition = function(obj, predicate, context) {
+    predicate = cb(predicate, context);
+    var pass = [], fail = [];
+    _.each(obj, function(value, key, obj) {
+      (predicate(value, key, obj) ? pass : fail).push(value);
+    });
+    return [pass, fail];
   };
 
   // Array Functions
@@ -401,33 +455,30 @@
   // allows it to work with `_.map`.
   _.first = _.head = _.take = function(array, n, guard) {
     if (array == null) return void 0;
-    if ((n == null) || guard) return array[0];
-    if (n < 0) return [];
-    return slice.call(array, 0, n);
+    if (n == null || guard) return array[0];
+    return _.initial(array, array.length - n);
   };
 
   // Returns everything but the last entry of the array. Especially useful on
   // the arguments object. Passing **n** will return all the values in
-  // the array, excluding the last N. The **guard** check allows it to work with
-  // `_.map`.
+  // the array, excluding the last N.
   _.initial = function(array, n, guard) {
-    return slice.call(array, 0, array.length - ((n == null) || guard ? 1 : n));
+    return slice.call(array, 0, Math.max(0, array.length - (n == null || guard ? 1 : n)));
   };
 
   // Get the last element of an array. Passing **n** will return the last N
-  // values in the array. The **guard** check allows it to work with `_.map`.
+  // values in the array.
   _.last = function(array, n, guard) {
     if (array == null) return void 0;
-    if ((n == null) || guard) return array[array.length - 1];
-    return slice.call(array, Math.max(array.length - n, 0));
+    if (n == null || guard) return array[array.length - 1];
+    return _.rest(array, Math.max(0, array.length - n));
   };
 
   // Returns everything but the first entry of the array. Aliased as `tail` and `drop`.
   // Especially useful on the arguments object. Passing an **n** will return
-  // the rest N values in the array. The **guard**
-  // check allows it to work with `_.map`.
+  // the rest N values in the array.
   _.rest = _.tail = _.drop = function(array, n, guard) {
-    return slice.call(array, (n == null) || guard ? 1 : n);
+    return slice.call(array, n == null || guard ? 1 : n);
   };
 
   // Trim out all falsy values from an array.
@@ -436,23 +487,28 @@
   };
 
   // Internal implementation of a recursive `flatten` function.
-  var flatten = function(input, shallow, output) {
-    if (shallow && _.every(input, _.isArray)) {
-      return concat.apply(output, input);
-    }
-    each(input, function(value) {
-      if (_.isArray(value) || _.isArguments(value)) {
-        shallow ? push.apply(output, value) : flatten(value, shallow, output);
-      } else {
-        output.push(value);
+  var flatten = function(input, shallow, strict, startIndex) {
+    var output = [], idx = 0;
+    for (var i = startIndex || 0, length = getLength(input); i < length; i++) {
+      var value = input[i];
+      if (isArrayLike(value) && (_.isArray(value) || _.isArguments(value))) {
+        //flatten current level of array or arguments object
+        if (!shallow) value = flatten(value, shallow, strict);
+        var j = 0, len = value.length;
+        output.length += len;
+        while (j < len) {
+          output[idx++] = value[j++];
+        }
+      } else if (!strict) {
+        output[idx++] = value;
       }
-    });
+    }
     return output;
   };
 
   // Flatten out an array, either recursively (by default), or just one level.
   _.flatten = function(array, shallow) {
-    return flatten(array, shallow, []);
+    return flatten(array, shallow, false);
   };
 
   // Return a version of the array that does not contain the specified value(s).
@@ -460,79 +516,91 @@
     return _.difference(array, slice.call(arguments, 1));
   };
 
-  // Split an array into two arrays: one whose elements all satisfy the given
-  // predicate, and one whose elements all do not satisfy the predicate.
-  _.partition = function(array, predicate) {
-    var pass = [], fail = [];
-    each(array, function(elem) {
-      (predicate(elem) ? pass : fail).push(elem);
-    });
-    return [pass, fail];
-  };
-
   // Produce a duplicate-free version of the array. If the array has already
   // been sorted, you have the option of using a faster algorithm.
   // Aliased as `unique`.
-  _.uniq = _.unique = function(array, isSorted, iterator, context) {
-    if (_.isFunction(isSorted)) {
-      context = iterator;
-      iterator = isSorted;
+  _.uniq = _.unique = function(array, isSorted, iteratee, context) {
+    if (!_.isBoolean(isSorted)) {
+      context = iteratee;
+      iteratee = isSorted;
       isSorted = false;
     }
-    var initial = iterator ? _.map(array, iterator, context) : array;
-    var results = [];
+    if (iteratee != null) iteratee = cb(iteratee, context);
+    var result = [];
     var seen = [];
-    each(initial, function(value, index) {
-      if (isSorted ? (!index || seen[seen.length - 1] !== value) : !_.contains(seen, value)) {
-        seen.push(value);
-        results.push(array[index]);
+    for (var i = 0, length = getLength(array); i < length; i++) {
+      var value = array[i],
+          computed = iteratee ? iteratee(value, i, array) : value;
+      if (isSorted) {
+        if (!i || seen !== computed) result.push(value);
+        seen = computed;
+      } else if (iteratee) {
+        if (!_.contains(seen, computed)) {
+          seen.push(computed);
+          result.push(value);
+        }
+      } else if (!_.contains(result, value)) {
+        result.push(value);
       }
-    });
-    return results;
+    }
+    return result;
   };
 
   // Produce an array that contains the union: each distinct element from all of
   // the passed-in arrays.
   _.union = function() {
-    return _.uniq(_.flatten(arguments, true));
+    return _.uniq(flatten(arguments, true, true));
   };
 
   // Produce an array that contains every item shared between all the
   // passed-in arrays.
   _.intersection = function(array) {
-    var rest = slice.call(arguments, 1);
-    return _.filter(_.uniq(array), function(item) {
-      return _.every(rest, function(other) {
-        return _.contains(other, item);
-      });
-    });
+    var result = [];
+    var argsLength = arguments.length;
+    for (var i = 0, length = getLength(array); i < length; i++) {
+      var item = array[i];
+      if (_.contains(result, item)) continue;
+      for (var j = 1; j < argsLength; j++) {
+        if (!_.contains(arguments[j], item)) break;
+      }
+      if (j === argsLength) result.push(item);
+    }
+    return result;
   };
 
   // Take the difference between one array and a number of other arrays.
   // Only the elements present in just the first array will remain.
   _.difference = function(array) {
-    var rest = concat.apply(ArrayProto, slice.call(arguments, 1));
-    return _.filter(array, function(value){ return !_.contains(rest, value); });
+    var rest = flatten(arguments, true, true, 1);
+    return _.filter(array, function(value){
+      return !_.contains(rest, value);
+    });
   };
 
   // Zip together multiple lists into a single array -- elements that share
   // an index go together.
   _.zip = function() {
-    var length = _.max(_.pluck(arguments, 'length').concat(0));
-    var results = new Array(length);
-    for (var i = 0; i < length; i++) {
-      results[i] = _.pluck(arguments, '' + i);
+    return _.unzip(arguments);
+  };
+
+  // Complement of _.zip. Unzip accepts an array of arrays and groups
+  // each array's elements on shared indices
+  _.unzip = function(array) {
+    var length = array && _.max(array, getLength).length || 0;
+    var result = Array(length);
+
+    for (var index = 0; index < length; index++) {
+      result[index] = _.pluck(array, index);
     }
-    return results;
+    return result;
   };
 
   // Converts lists into objects. Pass either a single array of `[key, value]`
   // pairs, or two parallel arrays of the same length -- one of keys, and one of
   // the corresponding values.
   _.object = function(list, values) {
-    if (list == null) return {};
     var result = {};
-    for (var i = 0, length = list.length; i < length; i++) {
+    for (var i = 0, length = getLength(list); i < length; i++) {
       if (values) {
         result[list[i]] = values[i];
       } else {
@@ -542,57 +610,83 @@
     return result;
   };
 
-  // If the browser doesn't supply us with indexOf (I'm looking at you, **MSIE**),
-  // we need this function. Return the position of the first occurrence of an
-  // item in an array, or -1 if the item is not included in the array.
-  // Delegates to **ECMAScript 5**'s native `indexOf` if available.
-  // If the array is large and already in sort order, pass `true`
-  // for **isSorted** to use binary search.
-  _.indexOf = function(array, item, isSorted) {
-    if (array == null) return -1;
-    var i = 0, length = array.length;
-    if (isSorted) {
-      if (typeof isSorted == 'number') {
-        i = (isSorted < 0 ? Math.max(0, length + isSorted) : isSorted);
-      } else {
-        i = _.sortedIndex(array, item);
-        return array[i] === item ? i : -1;
+  // Generator function to create the findIndex and findLastIndex functions
+  function createPredicateIndexFinder(dir) {
+    return function(array, predicate, context) {
+      predicate = cb(predicate, context);
+      var length = getLength(array);
+      var index = dir > 0 ? 0 : length - 1;
+      for (; index >= 0 && index < length; index += dir) {
+        if (predicate(array[index], index, array)) return index;
       }
+      return -1;
+    };
+  }
+
+  // Returns the first index on an array-like that passes a predicate test
+  _.findIndex = createPredicateIndexFinder(1);
+  _.findLastIndex = createPredicateIndexFinder(-1);
+
+  // Use a comparator function to figure out the smallest index at which
+  // an object should be inserted so as to maintain order. Uses binary search.
+  _.sortedIndex = function(array, obj, iteratee, context) {
+    iteratee = cb(iteratee, context, 1);
+    var value = iteratee(obj);
+    var low = 0, high = getLength(array);
+    while (low < high) {
+      var mid = Math.floor((low + high) / 2);
+      if (iteratee(array[mid]) < value) low = mid + 1; else high = mid;
     }
-    if (nativeIndexOf && array.indexOf === nativeIndexOf) return array.indexOf(item, isSorted);
-    for (; i < length; i++) if (array[i] === item) return i;
-    return -1;
+    return low;
   };
 
-  // Delegates to **ECMAScript 5**'s native `lastIndexOf` if available.
-  _.lastIndexOf = function(array, item, from) {
-    if (array == null) return -1;
-    var hasIndex = from != null;
-    if (nativeLastIndexOf && array.lastIndexOf === nativeLastIndexOf) {
-      return hasIndex ? array.lastIndexOf(item, from) : array.lastIndexOf(item);
-    }
-    var i = (hasIndex ? from : array.length);
-    while (i--) if (array[i] === item) return i;
-    return -1;
-  };
+  // Generator function to create the indexOf and lastIndexOf functions
+  function createIndexFinder(dir, predicateFind, sortedIndex) {
+    return function(array, item, idx) {
+      var i = 0, length = getLength(array);
+      if (typeof idx == 'number') {
+        if (dir > 0) {
+            i = idx >= 0 ? idx : Math.max(idx + length, i);
+        } else {
+            length = idx >= 0 ? Math.min(idx + 1, length) : idx + length + 1;
+        }
+      } else if (sortedIndex && idx && length) {
+        idx = sortedIndex(array, item);
+        return array[idx] === item ? idx : -1;
+      }
+      if (item !== item) {
+        idx = predicateFind(slice.call(array, i, length), _.isNaN);
+        return idx >= 0 ? idx + i : -1;
+      }
+      for (idx = dir > 0 ? i : length - 1; idx >= 0 && idx < length; idx += dir) {
+        if (array[idx] === item) return idx;
+      }
+      return -1;
+    };
+  }
+
+  // Return the position of the first occurrence of an item in an array,
+  // or -1 if the item is not included in the array.
+  // If the array is large and already in sort order, pass `true`
+  // for **isSorted** to use binary search.
+  _.indexOf = createIndexFinder(1, _.findIndex, _.sortedIndex);
+  _.lastIndexOf = createIndexFinder(-1, _.findLastIndex);
 
   // Generate an integer Array containing an arithmetic progression. A port of
   // the native Python `range()` function. See
   // [the Python documentation](http://docs.python.org/library/functions.html#range).
   _.range = function(start, stop, step) {
-    if (arguments.length <= 1) {
+    if (stop == null) {
       stop = start || 0;
       start = 0;
     }
-    step = arguments[2] || 1;
+    step = step || 1;
 
     var length = Math.max(Math.ceil((stop - start) / step), 0);
-    var idx = 0;
-    var range = new Array(length);
+    var range = Array(length);
 
-    while(idx < length) {
-      range[idx++] = start;
-      start += step;
+    for (var idx = 0; idx < length; idx++, start += step) {
+      range[idx] = start;
     }
 
     return range;
@@ -601,26 +695,27 @@
   // Function (ahem) Functions
   // ------------------
 
-  // Reusable constructor function for prototype setting.
-  var ctor = function(){};
+  // Determines whether to execute a function as a constructor
+  // or a normal function with the provided arguments
+  var executeBound = function(sourceFunc, boundFunc, context, callingContext, args) {
+    if (!(callingContext instanceof boundFunc)) return sourceFunc.apply(context, args);
+    var self = baseCreate(sourceFunc.prototype);
+    var result = sourceFunc.apply(self, args);
+    if (_.isObject(result)) return result;
+    return self;
+  };
 
   // Create a function bound to a given object (assigning `this`, and arguments,
   // optionally). Delegates to **ECMAScript 5**'s native `Function.bind` if
   // available.
   _.bind = function(func, context) {
-    var args, bound;
     if (nativeBind && func.bind === nativeBind) return nativeBind.apply(func, slice.call(arguments, 1));
-    if (!_.isFunction(func)) throw new TypeError;
-    args = slice.call(arguments, 2);
-    return bound = function() {
-      if (!(this instanceof bound)) return func.apply(context, args.concat(slice.call(arguments)));
-      ctor.prototype = func.prototype;
-      var self = new ctor;
-      ctor.prototype = null;
-      var result = func.apply(self, args.concat(slice.call(arguments)));
-      if (Object(result) === result) return result;
-      return self;
+    if (!_.isFunction(func)) throw new TypeError('Bind must be called on a function');
+    var args = slice.call(arguments, 2);
+    var bound = function() {
+      return executeBound(func, bound, context, this, args.concat(slice.call(arguments)));
     };
+    return bound;
   };
 
   // Partially apply a function by creating a version that has had some of its
@@ -628,49 +723,55 @@
   // as a placeholder, allowing any combination of arguments to be pre-filled.
   _.partial = function(func) {
     var boundArgs = slice.call(arguments, 1);
-    return function() {
-      var position = 0;
-      var args = boundArgs.slice();
-      for (var i = 0, length = args.length; i < length; i++) {
-        if (args[i] === _) args[i] = arguments[position++];
+    var bound = function() {
+      var position = 0, length = boundArgs.length;
+      var args = Array(length);
+      for (var i = 0; i < length; i++) {
+        args[i] = boundArgs[i] === _ ? arguments[position++] : boundArgs[i];
       }
       while (position < arguments.length) args.push(arguments[position++]);
-      return func.apply(this, args);
+      return executeBound(func, bound, this, this, args);
     };
+    return bound;
   };
 
   // Bind a number of an object's methods to that object. Remaining arguments
   // are the method names to be bound. Useful for ensuring that all callbacks
   // defined on an object belong to it.
   _.bindAll = function(obj) {
-    var funcs = slice.call(arguments, 1);
-    if (funcs.length === 0) throw new Error('bindAll must be passed function names');
-    each(funcs, function(f) { obj[f] = _.bind(obj[f], obj); });
+    var i, length = arguments.length, key;
+    if (length <= 1) throw new Error('bindAll must be passed function names');
+    for (i = 1; i < length; i++) {
+      key = arguments[i];
+      obj[key] = _.bind(obj[key], obj);
+    }
     return obj;
   };
 
   // Memoize an expensive function by storing its results.
   _.memoize = function(func, hasher) {
-    var memo = {};
-    hasher || (hasher = _.identity);
-    return function() {
-      var key = hasher.apply(this, arguments);
-      return _.has(memo, key) ? memo[key] : (memo[key] = func.apply(this, arguments));
+    var memoize = function(key) {
+      var cache = memoize.cache;
+      var address = '' + (hasher ? hasher.apply(this, arguments) : key);
+      if (!_.has(cache, address)) cache[address] = func.apply(this, arguments);
+      return cache[address];
     };
+    memoize.cache = {};
+    return memoize;
   };
 
   // Delays a function for the given number of milliseconds, and then calls
   // it with the arguments supplied.
   _.delay = function(func, wait) {
     var args = slice.call(arguments, 2);
-    return setTimeout(function(){ return func.apply(null, args); }, wait);
+    return setTimeout(function(){
+      return func.apply(null, args);
+    }, wait);
   };
 
   // Defers a function, scheduling it to run after the current call stack has
   // cleared.
-  _.defer = function(func) {
-    return _.delay.apply(_, [func, 1].concat(slice.call(arguments, 1)));
-  };
+  _.defer = _.partial(_.delay, _, 1);
 
   // Returns a function, that, when invoked, will only be triggered at most once
   // during a given window of time. Normally, the throttled function will run
@@ -681,12 +782,12 @@
     var context, args, result;
     var timeout = null;
     var previous = 0;
-    options || (options = {});
+    if (!options) options = {};
     var later = function() {
       previous = options.leading === false ? 0 : _.now();
       timeout = null;
       result = func.apply(context, args);
-      context = args = null;
+      if (!timeout) context = args = null;
     };
     return function() {
       var now = _.now();
@@ -694,12 +795,14 @@
       var remaining = wait - (now - previous);
       context = this;
       args = arguments;
-      if (remaining <= 0) {
-        clearTimeout(timeout);
-        timeout = null;
+      if (remaining <= 0 || remaining > wait) {
+        if (timeout) {
+          clearTimeout(timeout);
+          timeout = null;
+        }
         previous = now;
         result = func.apply(context, args);
-        context = args = null;
+        if (!timeout) context = args = null;
       } else if (!timeout && options.trailing !== false) {
         timeout = setTimeout(later, remaining);
       }
@@ -716,13 +819,14 @@
 
     var later = function() {
       var last = _.now() - timestamp;
-      if (last < wait) {
+
+      if (last < wait && last >= 0) {
         timeout = setTimeout(later, wait - last);
       } else {
         timeout = null;
         if (!immediate) {
           result = func.apply(context, args);
-          context = args = null;
+          if (!timeout) context = args = null;
         }
       }
     };
@@ -732,28 +836,13 @@
       args = arguments;
       timestamp = _.now();
       var callNow = immediate && !timeout;
-      if (!timeout) {
-        timeout = setTimeout(later, wait);
-      }
+      if (!timeout) timeout = setTimeout(later, wait);
       if (callNow) {
         result = func.apply(context, args);
         context = args = null;
       }
 
       return result;
-    };
-  };
-
-  // Returns a function that will be executed at most one time, no matter how
-  // often you call it. Useful for lazy initialization.
-  _.once = function(func) {
-    var ran = false, memo;
-    return function() {
-      if (ran) return memo;
-      ran = true;
-      memo = func.apply(this, arguments);
-      func = null;
-      return memo;
     };
   };
 
@@ -764,20 +853,27 @@
     return _.partial(wrapper, func);
   };
 
-  // Returns a function that is the composition of a list of functions, each
-  // consuming the return value of the function that follows.
-  _.compose = function() {
-    var funcs = arguments;
+  // Returns a negated version of the passed-in predicate.
+  _.negate = function(predicate) {
     return function() {
-      var args = arguments;
-      for (var i = funcs.length - 1; i >= 0; i--) {
-        args = [funcs[i].apply(this, args)];
-      }
-      return args[0];
+      return !predicate.apply(this, arguments);
     };
   };
 
-  // Returns a function that will only be executed after being called N times.
+  // Returns a function that is the composition of a list of functions, each
+  // consuming the return value of the function that follows.
+  _.compose = function() {
+    var args = arguments;
+    var start = args.length - 1;
+    return function() {
+      var i = start;
+      var result = args[start].apply(this, arguments);
+      while (i--) result = args[i].call(this, result);
+      return result;
+    };
+  };
+
+  // Returns a function that will only be executed on and after the Nth call.
   _.after = function(times, func) {
     return function() {
       if (--times < 1) {
@@ -786,16 +882,66 @@
     };
   };
 
+  // Returns a function that will only be executed up to (but not including) the Nth call.
+  _.before = function(times, func) {
+    var memo;
+    return function() {
+      if (--times > 0) {
+        memo = func.apply(this, arguments);
+      }
+      if (times <= 1) func = null;
+      return memo;
+    };
+  };
+
+  // Returns a function that will be executed at most one time, no matter how
+  // often you call it. Useful for lazy initialization.
+  _.once = _.partial(_.before, 2);
+
   // Object Functions
   // ----------------
 
-  // Retrieve the names of an object's properties.
+  // Keys in IE < 9 that won't be iterated by `for key in ...` and thus missed.
+  var hasEnumBug = !{toString: null}.propertyIsEnumerable('toString');
+  var nonEnumerableProps = ['valueOf', 'isPrototypeOf', 'toString',
+                      'propertyIsEnumerable', 'hasOwnProperty', 'toLocaleString'];
+
+  function collectNonEnumProps(obj, keys) {
+    var nonEnumIdx = nonEnumerableProps.length;
+    var constructor = obj.constructor;
+    var proto = (_.isFunction(constructor) && constructor.prototype) || ObjProto;
+
+    // Constructor is a special case.
+    var prop = 'constructor';
+    if (_.has(obj, prop) && !_.contains(keys, prop)) keys.push(prop);
+
+    while (nonEnumIdx--) {
+      prop = nonEnumerableProps[nonEnumIdx];
+      if (prop in obj && obj[prop] !== proto[prop] && !_.contains(keys, prop)) {
+        keys.push(prop);
+      }
+    }
+  }
+
+  // Retrieve the names of an object's own properties.
   // Delegates to **ECMAScript 5**'s native `Object.keys`
   _.keys = function(obj) {
     if (!_.isObject(obj)) return [];
     if (nativeKeys) return nativeKeys(obj);
     var keys = [];
     for (var key in obj) if (_.has(obj, key)) keys.push(key);
+    // Ahem, IE < 9.
+    if (hasEnumBug) collectNonEnumProps(obj, keys);
+    return keys;
+  };
+
+  // Retrieve all the property names of an object.
+  _.allKeys = function(obj) {
+    if (!_.isObject(obj)) return [];
+    var keys = [];
+    for (var key in obj) keys.push(key);
+    // Ahem, IE < 9.
+    if (hasEnumBug) collectNonEnumProps(obj, keys);
     return keys;
   };
 
@@ -803,18 +949,33 @@
   _.values = function(obj) {
     var keys = _.keys(obj);
     var length = keys.length;
-    var values = new Array(length);
+    var values = Array(length);
     for (var i = 0; i < length; i++) {
       values[i] = obj[keys[i]];
     }
     return values;
   };
 
+  // Returns the results of applying the iteratee to each element of the object
+  // In contrast to _.map it returns an object
+  _.mapObject = function(obj, iteratee, context) {
+    iteratee = cb(iteratee, context);
+    var keys =  _.keys(obj),
+          length = keys.length,
+          results = {},
+          currentKey;
+      for (var index = 0; index < length; index++) {
+        currentKey = keys[index];
+        results[currentKey] = iteratee(obj[currentKey], currentKey, obj);
+      }
+      return results;
+  };
+
   // Convert an object into a list of `[key, value]` pairs.
   _.pairs = function(obj) {
     var keys = _.keys(obj);
     var length = keys.length;
-    var pairs = new Array(length);
+    var pairs = Array(length);
     for (var i = 0; i < length; i++) {
       pairs[i] = [keys[i], obj[keys[i]]];
     }
@@ -842,47 +1003,65 @@
   };
 
   // Extend a given object with all the properties in passed-in object(s).
-  _.extend = function(obj) {
-    each(slice.call(arguments, 1), function(source) {
-      if (source) {
-        for (var prop in source) {
-          obj[prop] = source[prop];
-        }
-      }
-    });
-    return obj;
+  _.extend = createAssigner(_.allKeys);
+
+  // Assigns a given object with all the own properties in the passed-in object(s)
+  // (https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object/assign)
+  _.extendOwn = _.assign = createAssigner(_.keys);
+
+  // Returns the first key on an object that passes a predicate test
+  _.findKey = function(obj, predicate, context) {
+    predicate = cb(predicate, context);
+    var keys = _.keys(obj), key;
+    for (var i = 0, length = keys.length; i < length; i++) {
+      key = keys[i];
+      if (predicate(obj[key], key, obj)) return key;
+    }
   };
 
   // Return a copy of the object only containing the whitelisted properties.
-  _.pick = function(obj) {
-    var copy = {};
-    var keys = concat.apply(ArrayProto, slice.call(arguments, 1));
-    each(keys, function(key) {
-      if (key in obj) copy[key] = obj[key];
-    });
-    return copy;
+  _.pick = function(object, oiteratee, context) {
+    var result = {}, obj = object, iteratee, keys;
+    if (obj == null) return result;
+    if (_.isFunction(oiteratee)) {
+      keys = _.allKeys(obj);
+      iteratee = optimizeCb(oiteratee, context);
+    } else {
+      keys = flatten(arguments, false, false, 1);
+      iteratee = function(value, key, obj) { return key in obj; };
+      obj = Object(obj);
+    }
+    for (var i = 0, length = keys.length; i < length; i++) {
+      var key = keys[i];
+      var value = obj[key];
+      if (iteratee(value, key, obj)) result[key] = value;
+    }
+    return result;
   };
 
    // Return a copy of the object without the blacklisted properties.
-  _.omit = function(obj) {
-    var copy = {};
-    var keys = concat.apply(ArrayProto, slice.call(arguments, 1));
-    for (var key in obj) {
-      if (!_.contains(keys, key)) copy[key] = obj[key];
+  _.omit = function(obj, iteratee, context) {
+    if (_.isFunction(iteratee)) {
+      iteratee = _.negate(iteratee);
+    } else {
+      var keys = _.map(flatten(arguments, false, false, 1), String);
+      iteratee = function(value, key) {
+        return !_.contains(keys, key);
+      };
     }
-    return copy;
+    return _.pick(obj, iteratee, context);
   };
 
   // Fill in a given object with default properties.
-  _.defaults = function(obj) {
-    each(slice.call(arguments, 1), function(source) {
-      if (source) {
-        for (var prop in source) {
-          if (obj[prop] === void 0) obj[prop] = source[prop];
-        }
-      }
-    });
-    return obj;
+  _.defaults = createAssigner(_.allKeys, true);
+
+  // Creates an object that inherits from the given prototype object.
+  // If additional properties are provided then they will be added to the
+  // created object.
+  _.create = function(prototype, props) {
+    var result = baseCreate(prototype);
+    if (props) _.extendOwn(result, props);
+    return result;
   };
 
   // Create a (shallow-cloned) duplicate of an object.
@@ -899,11 +1078,24 @@
     return obj;
   };
 
+  // Returns whether an object has a given set of `key:value` pairs.
+  _.isMatch = function(object, attrs) {
+    var keys = _.keys(attrs), length = keys.length;
+    if (object == null) return !length;
+    var obj = Object(object);
+    for (var i = 0; i < length; i++) {
+      var key = keys[i];
+      if (attrs[key] !== obj[key] || !(key in obj)) return false;
+    }
+    return true;
+  };
+
+
   // Internal recursive comparison function for `isEqual`.
   var eq = function(a, b, aStack, bStack) {
     // Identical objects are equal. `0 === -0`, but they aren't identical.
     // See the [Harmony `egal` proposal](http://wiki.ecmascript.org/doku.php?id=harmony:egal).
-    if (a === b) return a !== 0 || 1 / a == 1 / b;
+    if (a === b) return a !== 0 || 1 / a === 1 / b;
     // A strict comparison is necessary because `null == undefined`.
     if (a == null || b == null) return a === b;
     // Unwrap any wrapped objects.
@@ -911,98 +1103,98 @@
     if (b instanceof _) b = b._wrapped;
     // Compare `[[Class]]` names.
     var className = toString.call(a);
-    if (className != toString.call(b)) return false;
+    if (className !== toString.call(b)) return false;
     switch (className) {
-      // Strings, numbers, dates, and booleans are compared by value.
+      // Strings, numbers, regular expressions, dates, and booleans are compared by value.
+      case '[object RegExp]':
+      // RegExps are coerced to strings for comparison (Note: '' + /a/i === '/a/i')
       case '[object String]':
         // Primitives and their corresponding object wrappers are equivalent; thus, `"5"` is
         // equivalent to `new String("5")`.
-        return a == String(b);
+        return '' + a === '' + b;
       case '[object Number]':
-        // `NaN`s are equivalent, but non-reflexive. An `egal` comparison is performed for
-        // other numeric values.
-        return a != +a ? b != +b : (a == 0 ? 1 / a == 1 / b : a == +b);
+        // `NaN`s are equivalent, but non-reflexive.
+        // Object(NaN) is equivalent to NaN
+        if (+a !== +a) return +b !== +b;
+        // An `egal` comparison is performed for other numeric values.
+        return +a === 0 ? 1 / +a === 1 / b : +a === +b;
       case '[object Date]':
       case '[object Boolean]':
         // Coerce dates and booleans to numeric primitive values. Dates are compared by their
         // millisecond representations. Note that invalid dates with millisecond representations
         // of `NaN` are not equivalent.
-        return +a == +b;
-      // RegExps are compared by their source patterns and flags.
-      case '[object RegExp]':
-        return a.source == b.source &&
-               a.global == b.global &&
-               a.multiline == b.multiline &&
-               a.ignoreCase == b.ignoreCase;
+        return +a === +b;
     }
-    if (typeof a != 'object' || typeof b != 'object') return false;
+
+    var areArrays = className === '[object Array]';
+    if (!areArrays) {
+      if (typeof a != 'object' || typeof b != 'object') return false;
+
+      // Objects with different constructors are not equivalent, but `Object`s or `Array`s
+      // from different frames are.
+      var aCtor = a.constructor, bCtor = b.constructor;
+      if (aCtor !== bCtor && !(_.isFunction(aCtor) && aCtor instanceof aCtor &&
+                               _.isFunction(bCtor) && bCtor instanceof bCtor)
+                          && ('constructor' in a && 'constructor' in b)) {
+        return false;
+      }
+    }
     // Assume equality for cyclic structures. The algorithm for detecting cyclic
     // structures is adapted from ES 5.1 section 15.12.3, abstract operation `JO`.
+
+    // Initializing stack of traversed objects.
+    // It's done here since we only need them for objects and arrays comparison.
+    aStack = aStack || [];
+    bStack = bStack || [];
     var length = aStack.length;
     while (length--) {
       // Linear search. Performance is inversely proportional to the number of
       // unique nested structures.
-      if (aStack[length] == a) return bStack[length] == b;
+      if (aStack[length] === a) return bStack[length] === b;
     }
-    // Objects with different constructors are not equivalent, but `Object`s
-    // from different frames are.
-    var aCtor = a.constructor, bCtor = b.constructor;
-    if (aCtor !== bCtor && !(_.isFunction(aCtor) && (aCtor instanceof aCtor) &&
-                             _.isFunction(bCtor) && (bCtor instanceof bCtor))
-                        && ('constructor' in a && 'constructor' in b)) {
-      return false;
-    }
+
     // Add the first object to the stack of traversed objects.
     aStack.push(a);
     bStack.push(b);
-    var size = 0, result = true;
+
     // Recursively compare objects and arrays.
-    if (className == '[object Array]') {
+    if (areArrays) {
       // Compare array lengths to determine if a deep comparison is necessary.
-      size = a.length;
-      result = size == b.length;
-      if (result) {
-        // Deep compare the contents, ignoring non-numeric properties.
-        while (size--) {
-          if (!(result = eq(a[size], b[size], aStack, bStack))) break;
-        }
+      length = a.length;
+      if (length !== b.length) return false;
+      // Deep compare the contents, ignoring non-numeric properties.
+      while (length--) {
+        if (!eq(a[length], b[length], aStack, bStack)) return false;
       }
     } else {
       // Deep compare objects.
-      for (var key in a) {
-        if (_.has(a, key)) {
-          // Count the expected number of properties.
-          size++;
-          // Deep compare each member.
-          if (!(result = _.has(b, key) && eq(a[key], b[key], aStack, bStack))) break;
-        }
-      }
-      // Ensure that both objects contain the same number of properties.
-      if (result) {
-        for (key in b) {
-          if (_.has(b, key) && !(size--)) break;
-        }
-        result = !size;
+      var keys = _.keys(a), key;
+      length = keys.length;
+      // Ensure that both objects contain the same number of properties before comparing deep equality.
+      if (_.keys(b).length !== length) return false;
+      while (length--) {
+        // Deep compare each member
+        key = keys[length];
+        if (!(_.has(b, key) && eq(a[key], b[key], aStack, bStack))) return false;
       }
     }
     // Remove the first object from the stack of traversed objects.
     aStack.pop();
     bStack.pop();
-    return result;
+    return true;
   };
 
   // Perform a deep comparison to check if two objects are equal.
   _.isEqual = function(a, b) {
-    return eq(a, b, [], []);
+    return eq(a, b);
   };
 
   // Is a given array, string, or object empty?
   // An "empty" object has no enumerable own-properties.
   _.isEmpty = function(obj) {
     if (obj == null) return true;
-    if (_.isArray(obj) || _.isString(obj)) return obj.length === 0;
-    for (var key in obj) if (_.has(obj, key)) return false;
-    return true;
+    if (isArrayLike(obj) && (_.isArray(obj) || _.isString(obj) || _.isArguments(obj))) return obj.length === 0;
+    return _.keys(obj).length === 0;
   };
 
   // Is a given value a DOM element?
@@ -1013,33 +1205,35 @@
   // Is a given value an array?
   // Delegates to ECMA5's native Array.isArray
   _.isArray = nativeIsArray || function(obj) {
-    return toString.call(obj) == '[object Array]';
+    return toString.call(obj) === '[object Array]';
   };
 
   // Is a given variable an object?
   _.isObject = function(obj) {
-    return obj === Object(obj);
+    var type = typeof obj;
+    return type === 'function' || type === 'object' && !!obj;
   };
 
-  // Add some isType methods: isArguments, isFunction, isString, isNumber, isDate, isRegExp.
-  each(['Arguments', 'Function', 'String', 'Number', 'Date', 'RegExp'], function(name) {
+  // Add some isType methods: isArguments, isFunction, isString, isNumber, isDate, isRegExp, isError.
+  _.each(['Arguments', 'Function', 'String', 'Number', 'Date', 'RegExp', 'Error'], function(name) {
     _['is' + name] = function(obj) {
-      return toString.call(obj) == '[object ' + name + ']';
+      return toString.call(obj) === '[object ' + name + ']';
     };
   });
 
-  // Define a fallback version of the method in browsers (ahem, IE), where
+  // Define a fallback version of the method in browsers (ahem, IE < 9), where
   // there isn't any inspectable "Arguments" type.
   if (!_.isArguments(arguments)) {
     _.isArguments = function(obj) {
-      return !!(obj && _.has(obj, 'callee'));
+      return _.has(obj, 'callee');
     };
   }
 
-  // Optimize `isFunction` if appropriate.
-  if (typeof (/./) !== 'function') {
+  // Optimize `isFunction` if appropriate. Work around some typeof bugs in old v8,
+  // IE 11 (#1621), and in Safari 8 (#1929).
+  if (typeof /./ != 'function' && typeof Int8Array != 'object') {
     _.isFunction = function(obj) {
-      return typeof obj === 'function';
+      return typeof obj == 'function' || false;
     };
   }
 
@@ -1050,12 +1244,12 @@
 
   // Is the given value `NaN`? (NaN is the only number which does not equal itself).
   _.isNaN = function(obj) {
-    return _.isNumber(obj) && obj != +obj;
+    return _.isNumber(obj) && obj !== +obj;
   };
 
   // Is a given value a boolean?
   _.isBoolean = function(obj) {
-    return obj === true || obj === false || toString.call(obj) == '[object Boolean]';
+    return obj === true || obj === false || toString.call(obj) === '[object Boolean]';
   };
 
   // Is a given value equal to null?
@@ -1071,7 +1265,7 @@
   // Shortcut function for checking if an object has a given property directly
   // on itself (in other words, not on a prototype).
   _.has = function(obj, key) {
-    return hasOwnProperty.call(obj, key);
+    return obj != null && hasOwnProperty.call(obj, key);
   };
 
   // Utility Functions
@@ -1084,39 +1278,43 @@
     return this;
   };
 
-  // Keep the identity function around for default iterators.
+  // Keep the identity function around for default iteratees.
   _.identity = function(value) {
     return value;
   };
 
+  // Predicate-generating functions. Often useful outside of Underscore.
   _.constant = function(value) {
-    return function () {
+    return function() {
       return value;
     };
   };
 
-  _.property = function(key) {
-    return function(obj) {
+  _.noop = function(){};
+
+  _.property = property;
+
+  // Generates a function for a given object that returns a given property.
+  _.propertyOf = function(obj) {
+    return obj == null ? function(){} : function(key) {
       return obj[key];
     };
   };
 
-  // Returns a predicate for checking whether an object has a given set of `key:value` pairs.
-  _.matches = function(attrs) {
+  // Returns a predicate for checking whether an object has a given set of
+  // `key:value` pairs.
+  _.matcher = _.matches = function(attrs) {
+    attrs = _.extendOwn({}, attrs);
     return function(obj) {
-      if (obj === attrs) return true; //avoid comparing an object to itself.
-      for (var key in attrs) {
-        if (attrs[key] !== obj[key])
-          return false;
-      }
-      return true;
-    }
+      return _.isMatch(obj, attrs);
+    };
   };
 
   // Run a function **n** times.
-  _.times = function(n, iterator, context) {
+  _.times = function(n, iteratee, context) {
     var accum = Array(Math.max(0, n));
-    for (var i = 0; i < n; i++) accum[i] = iterator.call(context, i);
+    iteratee = optimizeCb(iteratee, context, 1);
+    for (var i = 0; i < n; i++) accum[i] = iteratee(i);
     return accum;
   };
 
@@ -1130,54 +1328,46 @@
   };
 
   // A (possibly faster) way to get the current timestamp as an integer.
-  _.now = Date.now || function() { return new Date().getTime(); };
-
-  // List of HTML entities for escaping.
-  var entityMap = {
-    escape: {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#x27;'
-    }
+  _.now = Date.now || function() {
+    return new Date().getTime();
   };
-  entityMap.unescape = _.invert(entityMap.escape);
 
-  // Regexes containing the keys and values listed immediately above.
-  var entityRegexes = {
-    escape:   new RegExp('[' + _.keys(entityMap.escape).join('') + ']', 'g'),
-    unescape: new RegExp('(' + _.keys(entityMap.unescape).join('|') + ')', 'g')
+   // List of HTML entities for escaping.
+  var escapeMap = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#x27;',
+    '`': '&#x60;'
   };
+  var unescapeMap = _.invert(escapeMap);
 
   // Functions for escaping and unescaping strings to/from HTML interpolation.
-  _.each(['escape', 'unescape'], function(method) {
-    _[method] = function(string) {
-      if (string == null) return '';
-      return ('' + string).replace(entityRegexes[method], function(match) {
-        return entityMap[method][match];
-      });
+  var createEscaper = function(map) {
+    var escaper = function(match) {
+      return map[match];
     };
-  });
+    // Regexes for identifying a key that needs to be escaped
+    var source = '(?:' + _.keys(map).join('|') + ')';
+    var testRegexp = RegExp(source);
+    var replaceRegexp = RegExp(source, 'g');
+    return function(string) {
+      string = string == null ? '' : '' + string;
+      return testRegexp.test(string) ? string.replace(replaceRegexp, escaper) : string;
+    };
+  };
+  _.escape = createEscaper(escapeMap);
+  _.unescape = createEscaper(unescapeMap);
 
   // If the value of the named `property` is a function then invoke it with the
   // `object` as context; otherwise, return it.
-  _.result = function(object, property) {
-    if (object == null) return void 0;
-    var value = object[property];
+  _.result = function(object, property, fallback) {
+    var value = object == null ? void 0 : object[property];
+    if (value === void 0) {
+      value = fallback;
+    }
     return _.isFunction(value) ? value.call(object) : value;
-  };
-
-  // Add your own custom functions to the Underscore object.
-  _.mixin = function(obj) {
-    each(_.functions(obj), function(name) {
-      var func = _[name] = obj[name];
-      _.prototype[name] = function() {
-        var args = [this._wrapped];
-        push.apply(args, arguments);
-        return result.call(this, func.apply(_, args));
-      };
-    });
   };
 
   // Generate a unique integer id (unique within the entire client session).
@@ -1208,22 +1398,26 @@
     '\\':     '\\',
     '\r':     'r',
     '\n':     'n',
-    '\t':     't',
     '\u2028': 'u2028',
     '\u2029': 'u2029'
   };
 
-  var escaper = /\\|'|\r|\n|\t|\u2028|\u2029/g;
+  var escaper = /\\|'|\r|\n|\u2028|\u2029/g;
+
+  var escapeChar = function(match) {
+    return '\\' + escapes[match];
+  };
 
   // JavaScript micro-templating, similar to John Resig's implementation.
   // Underscore templating handles arbitrary delimiters, preserves whitespace,
   // and correctly escapes quotes within interpolated code.
-  _.template = function(text, data, settings) {
-    var render;
+  // NB: `oldSettings` only exists for backwards compatibility.
+  _.template = function(text, settings, oldSettings) {
+    if (!settings && oldSettings) settings = oldSettings;
     settings = _.defaults({}, settings, _.templateSettings);
 
     // Combine delimiters into one regular expression via alternation.
-    var matcher = new RegExp([
+    var matcher = RegExp([
       (settings.escape || noMatch).source,
       (settings.interpolate || noMatch).source,
       (settings.evaluate || noMatch).source
@@ -1233,19 +1427,18 @@
     var index = 0;
     var source = "__p+='";
     text.replace(matcher, function(match, escape, interpolate, evaluate, offset) {
-      source += text.slice(index, offset)
-        .replace(escaper, function(match) { return '\\' + escapes[match]; });
+      source += text.slice(index, offset).replace(escaper, escapeChar);
+      index = offset + match.length;
 
       if (escape) {
         source += "'+\n((__t=(" + escape + "))==null?'':_.escape(__t))+\n'";
-      }
-      if (interpolate) {
+      } else if (interpolate) {
         source += "'+\n((__t=(" + interpolate + "))==null?'':__t)+\n'";
-      }
-      if (evaluate) {
+      } else if (evaluate) {
         source += "';\n" + evaluate + "\n__p+='";
       }
-      index = offset + match.length;
+
+      // Adobe VMs need the match returned to produce the correct offest.
       return match;
     });
     source += "';\n";
@@ -1255,29 +1448,31 @@
 
     source = "var __t,__p='',__j=Array.prototype.join," +
       "print=function(){__p+=__j.call(arguments,'');};\n" +
-      source + "return __p;\n";
+      source + 'return __p;\n';
 
     try {
-      render = new Function(settings.variable || 'obj', '_', source);
+      var render = new Function(settings.variable || 'obj', '_', source);
     } catch (e) {
       e.source = source;
       throw e;
     }
 
-    if (data) return render(data, _);
     var template = function(data) {
       return render.call(this, data, _);
     };
 
-    // Provide the compiled function source as a convenience for precompilation.
-    template.source = 'function(' + (settings.variable || 'obj') + '){\n' + source + '}';
+    // Provide the compiled source as a convenience for precompilation.
+    var argument = settings.variable || 'obj';
+    template.source = 'function(' + argument + '){\n' + source + '}';
 
     return template;
   };
 
-  // Add a "chain" function, which will delegate to the wrapper.
+  // Add a "chain" function. Start chaining a wrapped Underscore object.
   _.chain = function(obj) {
-    return _(obj).chain();
+    var instance = _(obj);
+    instance._chain = true;
+    return instance;
   };
 
   // OOP
@@ -1287,46 +1482,56 @@
   // underscore functions. Wrapped objects may be chained.
 
   // Helper function to continue chaining intermediate results.
-  var result = function(obj) {
-    return this._chain ? _(obj).chain() : obj;
+  var result = function(instance, obj) {
+    return instance._chain ? _(obj).chain() : obj;
+  };
+
+  // Add your own custom functions to the Underscore object.
+  _.mixin = function(obj) {
+    _.each(_.functions(obj), function(name) {
+      var func = _[name] = obj[name];
+      _.prototype[name] = function() {
+        var args = [this._wrapped];
+        push.apply(args, arguments);
+        return result(this, func.apply(_, args));
+      };
+    });
   };
 
   // Add all of the Underscore functions to the wrapper object.
   _.mixin(_);
 
   // Add all mutator Array functions to the wrapper.
-  each(['pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift'], function(name) {
+  _.each(['pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift'], function(name) {
     var method = ArrayProto[name];
     _.prototype[name] = function() {
       var obj = this._wrapped;
       method.apply(obj, arguments);
-      if ((name == 'shift' || name == 'splice') && obj.length === 0) delete obj[0];
-      return result.call(this, obj);
+      if ((name === 'shift' || name === 'splice') && obj.length === 0) delete obj[0];
+      return result(this, obj);
     };
   });
 
   // Add all accessor Array functions to the wrapper.
-  each(['concat', 'join', 'slice'], function(name) {
+  _.each(['concat', 'join', 'slice'], function(name) {
     var method = ArrayProto[name];
     _.prototype[name] = function() {
-      return result.call(this, method.apply(this._wrapped, arguments));
+      return result(this, method.apply(this._wrapped, arguments));
     };
   });
 
-  _.extend(_.prototype, {
+  // Extracts the result from a wrapped and chained object.
+  _.prototype.value = function() {
+    return this._wrapped;
+  };
 
-    // Start chaining a wrapped Underscore object.
-    chain: function() {
-      this._chain = true;
-      return this;
-    },
+  // Provide unwrapping proxy for some methods used in engine operations
+  // such as arithmetic and JSON stringification.
+  _.prototype.valueOf = _.prototype.toJSON = _.prototype.value;
 
-    // Extracts the result from a wrapped and chained object.
-    value: function() {
-      return this._wrapped;
-    }
-
-  });
+  _.prototype.toString = function() {
+    return '' + this._wrapped;
+  };
 
   // AMD registration happens at the end for compatibility with AMD loaders
   // that may not enforce next-turn semantics on modules. Even though general
@@ -1340,7 +1545,7 @@
       return _;
     });
   }
-}).call(this);
+}.call(this));
 
 /*! jQuery v2.1.1 | (c) 2005, 2014 jQuery Foundation, Inc. | jquery.org/license */
 !function(a,b){"object"==typeof module&&"object"==typeof module.exports?module.exports=a.document?b(a,!0):function(a){if(!a.document)throw new Error("jQuery requires a window with a document");return b(a)}:b(a)}("undefined"!=typeof window?window:this,function(a,b){var c=[],d=c.slice,e=c.concat,f=c.push,g=c.indexOf,h={},i=h.toString,j=h.hasOwnProperty,k={},l=a.document,m="2.1.1",n=function(a,b){return new n.fn.init(a,b)},o=/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g,p=/^-ms-/,q=/-([\da-z])/gi,r=function(a,b){return b.toUpperCase()};n.fn=n.prototype={jquery:m,constructor:n,selector:"",length:0,toArray:function(){return d.call(this)},get:function(a){return null!=a?0>a?this[a+this.length]:this[a]:d.call(this)},pushStack:function(a){var b=n.merge(this.constructor(),a);return b.prevObject=this,b.context=this.context,b},each:function(a,b){return n.each(this,a,b)},map:function(a){return this.pushStack(n.map(this,function(b,c){return a.call(b,c,b)}))},slice:function(){return this.pushStack(d.apply(this,arguments))},first:function(){return this.eq(0)},last:function(){return this.eq(-1)},eq:function(a){var b=this.length,c=+a+(0>a?b:0);return this.pushStack(c>=0&&b>c?[this[c]]:[])},end:function(){return this.prevObject||this.constructor(null)},push:f,sort:c.sort,splice:c.splice},n.extend=n.fn.extend=function(){var a,b,c,d,e,f,g=arguments[0]||{},h=1,i=arguments.length,j=!1;for("boolean"==typeof g&&(j=g,g=arguments[h]||{},h++),"object"==typeof g||n.isFunction(g)||(g={}),h===i&&(g=this,h--);i>h;h++)if(null!=(a=arguments[h]))for(b in a)c=g[b],d=a[b],g!==d&&(j&&d&&(n.isPlainObject(d)||(e=n.isArray(d)))?(e?(e=!1,f=c&&n.isArray(c)?c:[]):f=c&&n.isPlainObject(c)?c:{},g[b]=n.extend(j,f,d)):void 0!==d&&(g[b]=d));return g},n.extend({expando:"jQuery"+(m+Math.random()).replace(/\D/g,""),isReady:!0,error:function(a){throw new Error(a)},noop:function(){},isFunction:function(a){return"function"===n.type(a)},isArray:Array.isArray,isWindow:function(a){return null!=a&&a===a.window},isNumeric:function(a){return!n.isArray(a)&&a-parseFloat(a)>=0},isPlainObject:function(a){return"object"!==n.type(a)||a.nodeType||n.isWindow(a)?!1:a.constructor&&!j.call(a.constructor.prototype,"isPrototypeOf")?!1:!0},isEmptyObject:function(a){var b;for(b in a)return!1;return!0},type:function(a){return null==a?a+"":"object"==typeof a||"function"==typeof a?h[i.call(a)]||"object":typeof a},globalEval:function(a){var b,c=eval;a=n.trim(a),a&&(1===a.indexOf("use strict")?(b=l.createElement("script"),b.text=a,l.head.appendChild(b).parentNode.removeChild(b)):c(a))},camelCase:function(a){return a.replace(p,"ms-").replace(q,r)},nodeName:function(a,b){return a.nodeName&&a.nodeName.toLowerCase()===b.toLowerCase()},each:function(a,b,c){var d,e=0,f=a.length,g=s(a);if(c){if(g){for(;f>e;e++)if(d=b.apply(a[e],c),d===!1)break}else for(e in a)if(d=b.apply(a[e],c),d===!1)break}else if(g){for(;f>e;e++)if(d=b.call(a[e],e,a[e]),d===!1)break}else for(e in a)if(d=b.call(a[e],e,a[e]),d===!1)break;return a},trim:function(a){return null==a?"":(a+"").replace(o,"")},makeArray:function(a,b){var c=b||[];return null!=a&&(s(Object(a))?n.merge(c,"string"==typeof a?[a]:a):f.call(c,a)),c},inArray:function(a,b,c){return null==b?-1:g.call(b,a,c)},merge:function(a,b){for(var c=+b.length,d=0,e=a.length;c>d;d++)a[e++]=b[d];return a.length=e,a},grep:function(a,b,c){for(var d,e=[],f=0,g=a.length,h=!c;g>f;f++)d=!b(a[f],f),d!==h&&e.push(a[f]);return e},map:function(a,b,c){var d,f=0,g=a.length,h=s(a),i=[];if(h)for(;g>f;f++)d=b(a[f],f,c),null!=d&&i.push(d);else for(f in a)d=b(a[f],f,c),null!=d&&i.push(d);return e.apply([],i)},guid:1,proxy:function(a,b){var c,e,f;return"string"==typeof b&&(c=a[b],b=a,a=c),n.isFunction(a)?(e=d.call(arguments,2),f=function(){return a.apply(b||this,e.concat(d.call(arguments)))},f.guid=a.guid=a.guid||n.guid++,f):void 0},now:Date.now,support:k}),n.each("Boolean Number String Function Array Date RegExp Object Error".split(" "),function(a,b){h["[object "+b+"]"]=b.toLowerCase()});function s(a){var b=a.length,c=n.type(a);return"function"===c||n.isWindow(a)?!1:1===a.nodeType&&b?!0:"array"===c||0===b||"number"==typeof b&&b>0&&b-1 in a}var t=function(a){var b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u="sizzle"+-new Date,v=a.document,w=0,x=0,y=gb(),z=gb(),A=gb(),B=function(a,b){return a===b&&(l=!0),0},C="undefined",D=1<<31,E={}.hasOwnProperty,F=[],G=F.pop,H=F.push,I=F.push,J=F.slice,K=F.indexOf||function(a){for(var b=0,c=this.length;c>b;b++)if(this[b]===a)return b;return-1},L="checked|selected|async|autofocus|autoplay|controls|defer|disabled|hidden|ismap|loop|multiple|open|readonly|required|scoped",M="[\\x20\\t\\r\\n\\f]",N="(?:\\\\.|[\\w-]|[^\\x00-\\xa0])+",O=N.replace("w","w#"),P="\\["+M+"*("+N+")(?:"+M+"*([*^$|!~]?=)"+M+"*(?:'((?:\\\\.|[^\\\\'])*)'|\"((?:\\\\.|[^\\\\\"])*)\"|("+O+"))|)"+M+"*\\]",Q=":("+N+")(?:\\((('((?:\\\\.|[^\\\\'])*)'|\"((?:\\\\.|[^\\\\\"])*)\")|((?:\\\\.|[^\\\\()[\\]]|"+P+")*)|.*)\\)|)",R=new RegExp("^"+M+"+|((?:^|[^\\\\])(?:\\\\.)*)"+M+"+$","g"),S=new RegExp("^"+M+"*,"+M+"*"),T=new RegExp("^"+M+"*([>+~]|"+M+")"+M+"*"),U=new RegExp("="+M+"*([^\\]'\"]*?)"+M+"*\\]","g"),V=new RegExp(Q),W=new RegExp("^"+O+"$"),X={ID:new RegExp("^#("+N+")"),CLASS:new RegExp("^\\.("+N+")"),TAG:new RegExp("^("+N.replace("w","w*")+")"),ATTR:new RegExp("^"+P),PSEUDO:new RegExp("^"+Q),CHILD:new RegExp("^:(only|first|last|nth|nth-last)-(child|of-type)(?:\\("+M+"*(even|odd|(([+-]|)(\\d*)n|)"+M+"*(?:([+-]|)"+M+"*(\\d+)|))"+M+"*\\)|)","i"),bool:new RegExp("^(?:"+L+")$","i"),needsContext:new RegExp("^"+M+"*[>+~]|:(even|odd|eq|gt|lt|nth|first|last)(?:\\("+M+"*((?:-\\d)?\\d*)"+M+"*\\)|)(?=[^-]|$)","i")},Y=/^(?:input|select|textarea|button)$/i,Z=/^h\d$/i,$=/^[^{]+\{\s*\[native \w/,_=/^(?:#([\w-]+)|(\w+)|\.([\w-]+))$/,ab=/[+~]/,bb=/'|\\/g,cb=new RegExp("\\\\([\\da-f]{1,6}"+M+"?|("+M+")|.)","ig"),db=function(a,b,c){var d="0x"+b-65536;return d!==d||c?b:0>d?String.fromCharCode(d+65536):String.fromCharCode(d>>10|55296,1023&d|56320)};try{I.apply(F=J.call(v.childNodes),v.childNodes),F[v.childNodes.length].nodeType}catch(eb){I={apply:F.length?function(a,b){H.apply(a,J.call(b))}:function(a,b){var c=a.length,d=0;while(a[c++]=b[d++]);a.length=c-1}}}function fb(a,b,d,e){var f,h,j,k,l,o,r,s,w,x;if((b?b.ownerDocument||b:v)!==n&&m(b),b=b||n,d=d||[],!a||"string"!=typeof a)return d;if(1!==(k=b.nodeType)&&9!==k)return[];if(p&&!e){if(f=_.exec(a))if(j=f[1]){if(9===k){if(h=b.getElementById(j),!h||!h.parentNode)return d;if(h.id===j)return d.push(h),d}else if(b.ownerDocument&&(h=b.ownerDocument.getElementById(j))&&t(b,h)&&h.id===j)return d.push(h),d}else{if(f[2])return I.apply(d,b.getElementsByTagName(a)),d;if((j=f[3])&&c.getElementsByClassName&&b.getElementsByClassName)return I.apply(d,b.getElementsByClassName(j)),d}if(c.qsa&&(!q||!q.test(a))){if(s=r=u,w=b,x=9===k&&a,1===k&&"object"!==b.nodeName.toLowerCase()){o=g(a),(r=b.getAttribute("id"))?s=r.replace(bb,"\\$&"):b.setAttribute("id",s),s="[id='"+s+"'] ",l=o.length;while(l--)o[l]=s+qb(o[l]);w=ab.test(a)&&ob(b.parentNode)||b,x=o.join(",")}if(x)try{return I.apply(d,w.querySelectorAll(x)),d}catch(y){}finally{r||b.removeAttribute("id")}}}return i(a.replace(R,"$1"),b,d,e)}function gb(){var a=[];function b(c,e){return a.push(c+" ")>d.cacheLength&&delete b[a.shift()],b[c+" "]=e}return b}function hb(a){return a[u]=!0,a}function ib(a){var b=n.createElement("div");try{return!!a(b)}catch(c){return!1}finally{b.parentNode&&b.parentNode.removeChild(b),b=null}}function jb(a,b){var c=a.split("|"),e=a.length;while(e--)d.attrHandle[c[e]]=b}function kb(a,b){var c=b&&a,d=c&&1===a.nodeType&&1===b.nodeType&&(~b.sourceIndex||D)-(~a.sourceIndex||D);if(d)return d;if(c)while(c=c.nextSibling)if(c===b)return-1;return a?1:-1}function lb(a){return function(b){var c=b.nodeName.toLowerCase();return"input"===c&&b.type===a}}function mb(a){return function(b){var c=b.nodeName.toLowerCase();return("input"===c||"button"===c)&&b.type===a}}function nb(a){return hb(function(b){return b=+b,hb(function(c,d){var e,f=a([],c.length,b),g=f.length;while(g--)c[e=f[g]]&&(c[e]=!(d[e]=c[e]))})})}function ob(a){return a&&typeof a.getElementsByTagName!==C&&a}c=fb.support={},f=fb.isXML=function(a){var b=a&&(a.ownerDocument||a).documentElement;return b?"HTML"!==b.nodeName:!1},m=fb.setDocument=function(a){var b,e=a?a.ownerDocument||a:v,g=e.defaultView;return e!==n&&9===e.nodeType&&e.documentElement?(n=e,o=e.documentElement,p=!f(e),g&&g!==g.top&&(g.addEventListener?g.addEventListener("unload",function(){m()},!1):g.attachEvent&&g.attachEvent("onunload",function(){m()})),c.attributes=ib(function(a){return a.className="i",!a.getAttribute("className")}),c.getElementsByTagName=ib(function(a){return a.appendChild(e.createComment("")),!a.getElementsByTagName("*").length}),c.getElementsByClassName=$.test(e.getElementsByClassName)&&ib(function(a){return a.innerHTML="<div class='a'></div><div class='a i'></div>",a.firstChild.className="i",2===a.getElementsByClassName("i").length}),c.getById=ib(function(a){return o.appendChild(a).id=u,!e.getElementsByName||!e.getElementsByName(u).length}),c.getById?(d.find.ID=function(a,b){if(typeof b.getElementById!==C&&p){var c=b.getElementById(a);return c&&c.parentNode?[c]:[]}},d.filter.ID=function(a){var b=a.replace(cb,db);return function(a){return a.getAttribute("id")===b}}):(delete d.find.ID,d.filter.ID=function(a){var b=a.replace(cb,db);return function(a){var c=typeof a.getAttributeNode!==C&&a.getAttributeNode("id");return c&&c.value===b}}),d.find.TAG=c.getElementsByTagName?function(a,b){return typeof b.getElementsByTagName!==C?b.getElementsByTagName(a):void 0}:function(a,b){var c,d=[],e=0,f=b.getElementsByTagName(a);if("*"===a){while(c=f[e++])1===c.nodeType&&d.push(c);return d}return f},d.find.CLASS=c.getElementsByClassName&&function(a,b){return typeof b.getElementsByClassName!==C&&p?b.getElementsByClassName(a):void 0},r=[],q=[],(c.qsa=$.test(e.querySelectorAll))&&(ib(function(a){a.innerHTML="<select msallowclip=''><option selected=''></option></select>",a.querySelectorAll("[msallowclip^='']").length&&q.push("[*^$]="+M+"*(?:''|\"\")"),a.querySelectorAll("[selected]").length||q.push("\\["+M+"*(?:value|"+L+")"),a.querySelectorAll(":checked").length||q.push(":checked")}),ib(function(a){var b=e.createElement("input");b.setAttribute("type","hidden"),a.appendChild(b).setAttribute("name","D"),a.querySelectorAll("[name=d]").length&&q.push("name"+M+"*[*^$|!~]?="),a.querySelectorAll(":enabled").length||q.push(":enabled",":disabled"),a.querySelectorAll("*,:x"),q.push(",.*:")})),(c.matchesSelector=$.test(s=o.matches||o.webkitMatchesSelector||o.mozMatchesSelector||o.oMatchesSelector||o.msMatchesSelector))&&ib(function(a){c.disconnectedMatch=s.call(a,"div"),s.call(a,"[s!='']:x"),r.push("!=",Q)}),q=q.length&&new RegExp(q.join("|")),r=r.length&&new RegExp(r.join("|")),b=$.test(o.compareDocumentPosition),t=b||$.test(o.contains)?function(a,b){var c=9===a.nodeType?a.documentElement:a,d=b&&b.parentNode;return a===d||!(!d||1!==d.nodeType||!(c.contains?c.contains(d):a.compareDocumentPosition&&16&a.compareDocumentPosition(d)))}:function(a,b){if(b)while(b=b.parentNode)if(b===a)return!0;return!1},B=b?function(a,b){if(a===b)return l=!0,0;var d=!a.compareDocumentPosition-!b.compareDocumentPosition;return d?d:(d=(a.ownerDocument||a)===(b.ownerDocument||b)?a.compareDocumentPosition(b):1,1&d||!c.sortDetached&&b.compareDocumentPosition(a)===d?a===e||a.ownerDocument===v&&t(v,a)?-1:b===e||b.ownerDocument===v&&t(v,b)?1:k?K.call(k,a)-K.call(k,b):0:4&d?-1:1)}:function(a,b){if(a===b)return l=!0,0;var c,d=0,f=a.parentNode,g=b.parentNode,h=[a],i=[b];if(!f||!g)return a===e?-1:b===e?1:f?-1:g?1:k?K.call(k,a)-K.call(k,b):0;if(f===g)return kb(a,b);c=a;while(c=c.parentNode)h.unshift(c);c=b;while(c=c.parentNode)i.unshift(c);while(h[d]===i[d])d++;return d?kb(h[d],i[d]):h[d]===v?-1:i[d]===v?1:0},e):n},fb.matches=function(a,b){return fb(a,null,null,b)},fb.matchesSelector=function(a,b){if((a.ownerDocument||a)!==n&&m(a),b=b.replace(U,"='$1']"),!(!c.matchesSelector||!p||r&&r.test(b)||q&&q.test(b)))try{var d=s.call(a,b);if(d||c.disconnectedMatch||a.document&&11!==a.document.nodeType)return d}catch(e){}return fb(b,n,null,[a]).length>0},fb.contains=function(a,b){return(a.ownerDocument||a)!==n&&m(a),t(a,b)},fb.attr=function(a,b){(a.ownerDocument||a)!==n&&m(a);var e=d.attrHandle[b.toLowerCase()],f=e&&E.call(d.attrHandle,b.toLowerCase())?e(a,b,!p):void 0;return void 0!==f?f:c.attributes||!p?a.getAttribute(b):(f=a.getAttributeNode(b))&&f.specified?f.value:null},fb.error=function(a){throw new Error("Syntax error, unrecognized expression: "+a)},fb.uniqueSort=function(a){var b,d=[],e=0,f=0;if(l=!c.detectDuplicates,k=!c.sortStable&&a.slice(0),a.sort(B),l){while(b=a[f++])b===a[f]&&(e=d.push(f));while(e--)a.splice(d[e],1)}return k=null,a},e=fb.getText=function(a){var b,c="",d=0,f=a.nodeType;if(f){if(1===f||9===f||11===f){if("string"==typeof a.textContent)return a.textContent;for(a=a.firstChild;a;a=a.nextSibling)c+=e(a)}else if(3===f||4===f)return a.nodeValue}else while(b=a[d++])c+=e(b);return c},d=fb.selectors={cacheLength:50,createPseudo:hb,match:X,attrHandle:{},find:{},relative:{">":{dir:"parentNode",first:!0}," ":{dir:"parentNode"},"+":{dir:"previousSibling",first:!0},"~":{dir:"previousSibling"}},preFilter:{ATTR:function(a){return a[1]=a[1].replace(cb,db),a[3]=(a[3]||a[4]||a[5]||"").replace(cb,db),"~="===a[2]&&(a[3]=" "+a[3]+" "),a.slice(0,4)},CHILD:function(a){return a[1]=a[1].toLowerCase(),"nth"===a[1].slice(0,3)?(a[3]||fb.error(a[0]),a[4]=+(a[4]?a[5]+(a[6]||1):2*("even"===a[3]||"odd"===a[3])),a[5]=+(a[7]+a[8]||"odd"===a[3])):a[3]&&fb.error(a[0]),a},PSEUDO:function(a){var b,c=!a[6]&&a[2];return X.CHILD.test(a[0])?null:(a[3]?a[2]=a[4]||a[5]||"":c&&V.test(c)&&(b=g(c,!0))&&(b=c.indexOf(")",c.length-b)-c.length)&&(a[0]=a[0].slice(0,b),a[2]=c.slice(0,b)),a.slice(0,3))}},filter:{TAG:function(a){var b=a.replace(cb,db).toLowerCase();return"*"===a?function(){return!0}:function(a){return a.nodeName&&a.nodeName.toLowerCase()===b}},CLASS:function(a){var b=y[a+" "];return b||(b=new RegExp("(^|"+M+")"+a+"("+M+"|$)"))&&y(a,function(a){return b.test("string"==typeof a.className&&a.className||typeof a.getAttribute!==C&&a.getAttribute("class")||"")})},ATTR:function(a,b,c){return function(d){var e=fb.attr(d,a);return null==e?"!="===b:b?(e+="","="===b?e===c:"!="===b?e!==c:"^="===b?c&&0===e.indexOf(c):"*="===b?c&&e.indexOf(c)>-1:"$="===b?c&&e.slice(-c.length)===c:"~="===b?(" "+e+" ").indexOf(c)>-1:"|="===b?e===c||e.slice(0,c.length+1)===c+"-":!1):!0}},CHILD:function(a,b,c,d,e){var f="nth"!==a.slice(0,3),g="last"!==a.slice(-4),h="of-type"===b;return 1===d&&0===e?function(a){return!!a.parentNode}:function(b,c,i){var j,k,l,m,n,o,p=f!==g?"nextSibling":"previousSibling",q=b.parentNode,r=h&&b.nodeName.toLowerCase(),s=!i&&!h;if(q){if(f){while(p){l=b;while(l=l[p])if(h?l.nodeName.toLowerCase()===r:1===l.nodeType)return!1;o=p="only"===a&&!o&&"nextSibling"}return!0}if(o=[g?q.firstChild:q.lastChild],g&&s){k=q[u]||(q[u]={}),j=k[a]||[],n=j[0]===w&&j[1],m=j[0]===w&&j[2],l=n&&q.childNodes[n];while(l=++n&&l&&l[p]||(m=n=0)||o.pop())if(1===l.nodeType&&++m&&l===b){k[a]=[w,n,m];break}}else if(s&&(j=(b[u]||(b[u]={}))[a])&&j[0]===w)m=j[1];else while(l=++n&&l&&l[p]||(m=n=0)||o.pop())if((h?l.nodeName.toLowerCase()===r:1===l.nodeType)&&++m&&(s&&((l[u]||(l[u]={}))[a]=[w,m]),l===b))break;return m-=e,m===d||m%d===0&&m/d>=0}}},PSEUDO:function(a,b){var c,e=d.pseudos[a]||d.setFilters[a.toLowerCase()]||fb.error("unsupported pseudo: "+a);return e[u]?e(b):e.length>1?(c=[a,a,"",b],d.setFilters.hasOwnProperty(a.toLowerCase())?hb(function(a,c){var d,f=e(a,b),g=f.length;while(g--)d=K.call(a,f[g]),a[d]=!(c[d]=f[g])}):function(a){return e(a,0,c)}):e}},pseudos:{not:hb(function(a){var b=[],c=[],d=h(a.replace(R,"$1"));return d[u]?hb(function(a,b,c,e){var f,g=d(a,null,e,[]),h=a.length;while(h--)(f=g[h])&&(a[h]=!(b[h]=f))}):function(a,e,f){return b[0]=a,d(b,null,f,c),!c.pop()}}),has:hb(function(a){return function(b){return fb(a,b).length>0}}),contains:hb(function(a){return function(b){return(b.textContent||b.innerText||e(b)).indexOf(a)>-1}}),lang:hb(function(a){return W.test(a||"")||fb.error("unsupported lang: "+a),a=a.replace(cb,db).toLowerCase(),function(b){var c;do if(c=p?b.lang:b.getAttribute("xml:lang")||b.getAttribute("lang"))return c=c.toLowerCase(),c===a||0===c.indexOf(a+"-");while((b=b.parentNode)&&1===b.nodeType);return!1}}),target:function(b){var c=a.location&&a.location.hash;return c&&c.slice(1)===b.id},root:function(a){return a===o},focus:function(a){return a===n.activeElement&&(!n.hasFocus||n.hasFocus())&&!!(a.type||a.href||~a.tabIndex)},enabled:function(a){return a.disabled===!1},disabled:function(a){return a.disabled===!0},checked:function(a){var b=a.nodeName.toLowerCase();return"input"===b&&!!a.checked||"option"===b&&!!a.selected},selected:function(a){return a.parentNode&&a.parentNode.selectedIndex,a.selected===!0},empty:function(a){for(a=a.firstChild;a;a=a.nextSibling)if(a.nodeType<6)return!1;return!0},parent:function(a){return!d.pseudos.empty(a)},header:function(a){return Z.test(a.nodeName)},input:function(a){return Y.test(a.nodeName)},button:function(a){var b=a.nodeName.toLowerCase();return"input"===b&&"button"===a.type||"button"===b},text:function(a){var b;return"input"===a.nodeName.toLowerCase()&&"text"===a.type&&(null==(b=a.getAttribute("type"))||"text"===b.toLowerCase())},first:nb(function(){return[0]}),last:nb(function(a,b){return[b-1]}),eq:nb(function(a,b,c){return[0>c?c+b:c]}),even:nb(function(a,b){for(var c=0;b>c;c+=2)a.push(c);return a}),odd:nb(function(a,b){for(var c=1;b>c;c+=2)a.push(c);return a}),lt:nb(function(a,b,c){for(var d=0>c?c+b:c;--d>=0;)a.push(d);return a}),gt:nb(function(a,b,c){for(var d=0>c?c+b:c;++d<b;)a.push(d);return a})}},d.pseudos.nth=d.pseudos.eq;for(b in{radio:!0,checkbox:!0,file:!0,password:!0,image:!0})d.pseudos[b]=lb(b);for(b in{submit:!0,reset:!0})d.pseudos[b]=mb(b);function pb(){}pb.prototype=d.filters=d.pseudos,d.setFilters=new pb,g=fb.tokenize=function(a,b){var c,e,f,g,h,i,j,k=z[a+" "];if(k)return b?0:k.slice(0);h=a,i=[],j=d.preFilter;while(h){(!c||(e=S.exec(h)))&&(e&&(h=h.slice(e[0].length)||h),i.push(f=[])),c=!1,(e=T.exec(h))&&(c=e.shift(),f.push({value:c,type:e[0].replace(R," ")}),h=h.slice(c.length));for(g in d.filter)!(e=X[g].exec(h))||j[g]&&!(e=j[g](e))||(c=e.shift(),f.push({value:c,type:g,matches:e}),h=h.slice(c.length));if(!c)break}return b?h.length:h?fb.error(a):z(a,i).slice(0)};function qb(a){for(var b=0,c=a.length,d="";c>b;b++)d+=a[b].value;return d}function rb(a,b,c){var d=b.dir,e=c&&"parentNode"===d,f=x++;return b.first?function(b,c,f){while(b=b[d])if(1===b.nodeType||e)return a(b,c,f)}:function(b,c,g){var h,i,j=[w,f];if(g){while(b=b[d])if((1===b.nodeType||e)&&a(b,c,g))return!0}else while(b=b[d])if(1===b.nodeType||e){if(i=b[u]||(b[u]={}),(h=i[d])&&h[0]===w&&h[1]===f)return j[2]=h[2];if(i[d]=j,j[2]=a(b,c,g))return!0}}}function sb(a){return a.length>1?function(b,c,d){var e=a.length;while(e--)if(!a[e](b,c,d))return!1;return!0}:a[0]}function tb(a,b,c){for(var d=0,e=b.length;e>d;d++)fb(a,b[d],c);return c}function ub(a,b,c,d,e){for(var f,g=[],h=0,i=a.length,j=null!=b;i>h;h++)(f=a[h])&&(!c||c(f,d,e))&&(g.push(f),j&&b.push(h));return g}function vb(a,b,c,d,e,f){return d&&!d[u]&&(d=vb(d)),e&&!e[u]&&(e=vb(e,f)),hb(function(f,g,h,i){var j,k,l,m=[],n=[],o=g.length,p=f||tb(b||"*",h.nodeType?[h]:h,[]),q=!a||!f&&b?p:ub(p,m,a,h,i),r=c?e||(f?a:o||d)?[]:g:q;if(c&&c(q,r,h,i),d){j=ub(r,n),d(j,[],h,i),k=j.length;while(k--)(l=j[k])&&(r[n[k]]=!(q[n[k]]=l))}if(f){if(e||a){if(e){j=[],k=r.length;while(k--)(l=r[k])&&j.push(q[k]=l);e(null,r=[],j,i)}k=r.length;while(k--)(l=r[k])&&(j=e?K.call(f,l):m[k])>-1&&(f[j]=!(g[j]=l))}}else r=ub(r===g?r.splice(o,r.length):r),e?e(null,g,r,i):I.apply(g,r)})}function wb(a){for(var b,c,e,f=a.length,g=d.relative[a[0].type],h=g||d.relative[" "],i=g?1:0,k=rb(function(a){return a===b},h,!0),l=rb(function(a){return K.call(b,a)>-1},h,!0),m=[function(a,c,d){return!g&&(d||c!==j)||((b=c).nodeType?k(a,c,d):l(a,c,d))}];f>i;i++)if(c=d.relative[a[i].type])m=[rb(sb(m),c)];else{if(c=d.filter[a[i].type].apply(null,a[i].matches),c[u]){for(e=++i;f>e;e++)if(d.relative[a[e].type])break;return vb(i>1&&sb(m),i>1&&qb(a.slice(0,i-1).concat({value:" "===a[i-2].type?"*":""})).replace(R,"$1"),c,e>i&&wb(a.slice(i,e)),f>e&&wb(a=a.slice(e)),f>e&&qb(a))}m.push(c)}return sb(m)}function xb(a,b){var c=b.length>0,e=a.length>0,f=function(f,g,h,i,k){var l,m,o,p=0,q="0",r=f&&[],s=[],t=j,u=f||e&&d.find.TAG("*",k),v=w+=null==t?1:Math.random()||.1,x=u.length;for(k&&(j=g!==n&&g);q!==x&&null!=(l=u[q]);q++){if(e&&l){m=0;while(o=a[m++])if(o(l,g,h)){i.push(l);break}k&&(w=v)}c&&((l=!o&&l)&&p--,f&&r.push(l))}if(p+=q,c&&q!==p){m=0;while(o=b[m++])o(r,s,g,h);if(f){if(p>0)while(q--)r[q]||s[q]||(s[q]=G.call(i));s=ub(s)}I.apply(i,s),k&&!f&&s.length>0&&p+b.length>1&&fb.uniqueSort(i)}return k&&(w=v,j=t),r};return c?hb(f):f}return h=fb.compile=function(a,b){var c,d=[],e=[],f=A[a+" "];if(!f){b||(b=g(a)),c=b.length;while(c--)f=wb(b[c]),f[u]?d.push(f):e.push(f);f=A(a,xb(e,d)),f.selector=a}return f},i=fb.select=function(a,b,e,f){var i,j,k,l,m,n="function"==typeof a&&a,o=!f&&g(a=n.selector||a);if(e=e||[],1===o.length){if(j=o[0]=o[0].slice(0),j.length>2&&"ID"===(k=j[0]).type&&c.getById&&9===b.nodeType&&p&&d.relative[j[1].type]){if(b=(d.find.ID(k.matches[0].replace(cb,db),b)||[])[0],!b)return e;n&&(b=b.parentNode),a=a.slice(j.shift().value.length)}i=X.needsContext.test(a)?0:j.length;while(i--){if(k=j[i],d.relative[l=k.type])break;if((m=d.find[l])&&(f=m(k.matches[0].replace(cb,db),ab.test(j[0].type)&&ob(b.parentNode)||b))){if(j.splice(i,1),a=f.length&&qb(j),!a)return I.apply(e,f),e;break}}}return(n||h(a,o))(f,b,!p,e,ab.test(a)&&ob(b.parentNode)||b),e},c.sortStable=u.split("").sort(B).join("")===u,c.detectDuplicates=!!l,m(),c.sortDetached=ib(function(a){return 1&a.compareDocumentPosition(n.createElement("div"))}),ib(function(a){return a.innerHTML="<a href='#'></a>","#"===a.firstChild.getAttribute("href")})||jb("type|href|height|width",function(a,b,c){return c?void 0:a.getAttribute(b,"type"===b.toLowerCase()?1:2)}),c.attributes&&ib(function(a){return a.innerHTML="<input/>",a.firstChild.setAttribute("value",""),""===a.firstChild.getAttribute("value")})||jb("value",function(a,b,c){return c||"input"!==a.nodeName.toLowerCase()?void 0:a.defaultValue}),ib(function(a){return null==a.getAttribute("disabled")})||jb(L,function(a,b,c){var d;return c?void 0:a[b]===!0?b.toLowerCase():(d=a.getAttributeNode(b))&&d.specified?d.value:null}),fb}(a);n.find=t,n.expr=t.selectors,n.expr[":"]=n.expr.pseudos,n.unique=t.uniqueSort,n.text=t.getText,n.isXMLDoc=t.isXML,n.contains=t.contains;var u=n.expr.match.needsContext,v=/^<(\w+)\s*\/?>(?:<\/\1>|)$/,w=/^.[^:#\[\.,]*$/;function x(a,b,c){if(n.isFunction(b))return n.grep(a,function(a,d){return!!b.call(a,d,a)!==c});if(b.nodeType)return n.grep(a,function(a){return a===b!==c});if("string"==typeof b){if(w.test(b))return n.filter(b,a,c);b=n.filter(b,a)}return n.grep(a,function(a){return g.call(b,a)>=0!==c})}n.filter=function(a,b,c){var d=b[0];return c&&(a=":not("+a+")"),1===b.length&&1===d.nodeType?n.find.matchesSelector(d,a)?[d]:[]:n.find.matches(a,n.grep(b,function(a){return 1===a.nodeType}))},n.fn.extend({find:function(a){var b,c=this.length,d=[],e=this;if("string"!=typeof a)return this.pushStack(n(a).filter(function(){for(b=0;c>b;b++)if(n.contains(e[b],this))return!0}));for(b=0;c>b;b++)n.find(a,e[b],d);return d=this.pushStack(c>1?n.unique(d):d),d.selector=this.selector?this.selector+" "+a:a,d},filter:function(a){return this.pushStack(x(this,a||[],!1))},not:function(a){return this.pushStack(x(this,a||[],!0))},is:function(a){return!!x(this,"string"==typeof a&&u.test(a)?n(a):a||[],!1).length}});var y,z=/^(?:\s*(<[\w\W]+>)[^>]*|#([\w-]*))$/,A=n.fn.init=function(a,b){var c,d;if(!a)return this;if("string"==typeof a){if(c="<"===a[0]&&">"===a[a.length-1]&&a.length>=3?[null,a,null]:z.exec(a),!c||!c[1]&&b)return!b||b.jquery?(b||y).find(a):this.constructor(b).find(a);if(c[1]){if(b=b instanceof n?b[0]:b,n.merge(this,n.parseHTML(c[1],b&&b.nodeType?b.ownerDocument||b:l,!0)),v.test(c[1])&&n.isPlainObject(b))for(c in b)n.isFunction(this[c])?this[c](b[c]):this.attr(c,b[c]);return this}return d=l.getElementById(c[2]),d&&d.parentNode&&(this.length=1,this[0]=d),this.context=l,this.selector=a,this}return a.nodeType?(this.context=this[0]=a,this.length=1,this):n.isFunction(a)?"undefined"!=typeof y.ready?y.ready(a):a(n):(void 0!==a.selector&&(this.selector=a.selector,this.context=a.context),n.makeArray(a,this))};A.prototype=n.fn,y=n(l);var B=/^(?:parents|prev(?:Until|All))/,C={children:!0,contents:!0,next:!0,prev:!0};n.extend({dir:function(a,b,c){var d=[],e=void 0!==c;while((a=a[b])&&9!==a.nodeType)if(1===a.nodeType){if(e&&n(a).is(c))break;d.push(a)}return d},sibling:function(a,b){for(var c=[];a;a=a.nextSibling)1===a.nodeType&&a!==b&&c.push(a);return c}}),n.fn.extend({has:function(a){var b=n(a,this),c=b.length;return this.filter(function(){for(var a=0;c>a;a++)if(n.contains(this,b[a]))return!0})},closest:function(a,b){for(var c,d=0,e=this.length,f=[],g=u.test(a)||"string"!=typeof a?n(a,b||this.context):0;e>d;d++)for(c=this[d];c&&c!==b;c=c.parentNode)if(c.nodeType<11&&(g?g.index(c)>-1:1===c.nodeType&&n.find.matchesSelector(c,a))){f.push(c);break}return this.pushStack(f.length>1?n.unique(f):f)},index:function(a){return a?"string"==typeof a?g.call(n(a),this[0]):g.call(this,a.jquery?a[0]:a):this[0]&&this[0].parentNode?this.first().prevAll().length:-1},add:function(a,b){return this.pushStack(n.unique(n.merge(this.get(),n(a,b))))},addBack:function(a){return this.add(null==a?this.prevObject:this.prevObject.filter(a))}});function D(a,b){while((a=a[b])&&1!==a.nodeType);return a}n.each({parent:function(a){var b=a.parentNode;return b&&11!==b.nodeType?b:null},parents:function(a){return n.dir(a,"parentNode")},parentsUntil:function(a,b,c){return n.dir(a,"parentNode",c)},next:function(a){return D(a,"nextSibling")},prev:function(a){return D(a,"previousSibling")},nextAll:function(a){return n.dir(a,"nextSibling")},prevAll:function(a){return n.dir(a,"previousSibling")},nextUntil:function(a,b,c){return n.dir(a,"nextSibling",c)},prevUntil:function(a,b,c){return n.dir(a,"previousSibling",c)},siblings:function(a){return n.sibling((a.parentNode||{}).firstChild,a)},children:function(a){return n.sibling(a.firstChild)},contents:function(a){return a.contentDocument||n.merge([],a.childNodes)}},function(a,b){n.fn[a]=function(c,d){var e=n.map(this,b,c);return"Until"!==a.slice(-5)&&(d=c),d&&"string"==typeof d&&(e=n.filter(d,e)),this.length>1&&(C[a]||n.unique(e),B.test(a)&&e.reverse()),this.pushStack(e)}});var E=/\S+/g,F={};function G(a){var b=F[a]={};return n.each(a.match(E)||[],function(a,c){b[c]=!0}),b}n.Callbacks=function(a){a="string"==typeof a?F[a]||G(a):n.extend({},a);var b,c,d,e,f,g,h=[],i=!a.once&&[],j=function(l){for(b=a.memory&&l,c=!0,g=e||0,e=0,f=h.length,d=!0;h&&f>g;g++)if(h[g].apply(l[0],l[1])===!1&&a.stopOnFalse){b=!1;break}d=!1,h&&(i?i.length&&j(i.shift()):b?h=[]:k.disable())},k={add:function(){if(h){var c=h.length;!function g(b){n.each(b,function(b,c){var d=n.type(c);"function"===d?a.unique&&k.has(c)||h.push(c):c&&c.length&&"string"!==d&&g(c)})}(arguments),d?f=h.length:b&&(e=c,j(b))}return this},remove:function(){return h&&n.each(arguments,function(a,b){var c;while((c=n.inArray(b,h,c))>-1)h.splice(c,1),d&&(f>=c&&f--,g>=c&&g--)}),this},has:function(a){return a?n.inArray(a,h)>-1:!(!h||!h.length)},empty:function(){return h=[],f=0,this},disable:function(){return h=i=b=void 0,this},disabled:function(){return!h},lock:function(){return i=void 0,b||k.disable(),this},locked:function(){return!i},fireWith:function(a,b){return!h||c&&!i||(b=b||[],b=[a,b.slice?b.slice():b],d?i.push(b):j(b)),this},fire:function(){return k.fireWith(this,arguments),this},fired:function(){return!!c}};return k},n.extend({Deferred:function(a){var b=[["resolve","done",n.Callbacks("once memory"),"resolved"],["reject","fail",n.Callbacks("once memory"),"rejected"],["notify","progress",n.Callbacks("memory")]],c="pending",d={state:function(){return c},always:function(){return e.done(arguments).fail(arguments),this},then:function(){var a=arguments;return n.Deferred(function(c){n.each(b,function(b,f){var g=n.isFunction(a[b])&&a[b];e[f[1]](function(){var a=g&&g.apply(this,arguments);a&&n.isFunction(a.promise)?a.promise().done(c.resolve).fail(c.reject).progress(c.notify):c[f[0]+"With"](this===d?c.promise():this,g?[a]:arguments)})}),a=null}).promise()},promise:function(a){return null!=a?n.extend(a,d):d}},e={};return d.pipe=d.then,n.each(b,function(a,f){var g=f[2],h=f[3];d[f[1]]=g.add,h&&g.add(function(){c=h},b[1^a][2].disable,b[2][2].lock),e[f[0]]=function(){return e[f[0]+"With"](this===e?d:this,arguments),this},e[f[0]+"With"]=g.fireWith}),d.promise(e),a&&a.call(e,e),e},when:function(a){var b=0,c=d.call(arguments),e=c.length,f=1!==e||a&&n.isFunction(a.promise)?e:0,g=1===f?a:n.Deferred(),h=function(a,b,c){return function(e){b[a]=this,c[a]=arguments.length>1?d.call(arguments):e,c===i?g.notifyWith(b,c):--f||g.resolveWith(b,c)}},i,j,k;if(e>1)for(i=new Array(e),j=new Array(e),k=new Array(e);e>b;b++)c[b]&&n.isFunction(c[b].promise)?c[b].promise().done(h(b,k,c)).fail(g.reject).progress(h(b,j,i)):--f;return f||g.resolveWith(k,c),g.promise()}});var H;n.fn.ready=function(a){return n.ready.promise().done(a),this},n.extend({isReady:!1,readyWait:1,holdReady:function(a){a?n.readyWait++:n.ready(!0)},ready:function(a){(a===!0?--n.readyWait:n.isReady)||(n.isReady=!0,a!==!0&&--n.readyWait>0||(H.resolveWith(l,[n]),n.fn.triggerHandler&&(n(l).triggerHandler("ready"),n(l).off("ready"))))}});function I(){l.removeEventListener("DOMContentLoaded",I,!1),a.removeEventListener("load",I,!1),n.ready()}n.ready.promise=function(b){return H||(H=n.Deferred(),"complete"===l.readyState?setTimeout(n.ready):(l.addEventListener("DOMContentLoaded",I,!1),a.addEventListener("load",I,!1))),H.promise(b)},n.ready.promise();var J=n.access=function(a,b,c,d,e,f,g){var h=0,i=a.length,j=null==c;if("object"===n.type(c)){e=!0;for(h in c)n.access(a,b,h,c[h],!0,f,g)}else if(void 0!==d&&(e=!0,n.isFunction(d)||(g=!0),j&&(g?(b.call(a,d),b=null):(j=b,b=function(a,b,c){return j.call(n(a),c)})),b))for(;i>h;h++)b(a[h],c,g?d:d.call(a[h],h,b(a[h],c)));return e?a:j?b.call(a):i?b(a[0],c):f};n.acceptData=function(a){return 1===a.nodeType||9===a.nodeType||!+a.nodeType};function K(){Object.defineProperty(this.cache={},0,{get:function(){return{}}}),this.expando=n.expando+Math.random()}K.uid=1,K.accepts=n.acceptData,K.prototype={key:function(a){if(!K.accepts(a))return 0;var b={},c=a[this.expando];if(!c){c=K.uid++;try{b[this.expando]={value:c},Object.defineProperties(a,b)}catch(d){b[this.expando]=c,n.extend(a,b)}}return this.cache[c]||(this.cache[c]={}),c},set:function(a,b,c){var d,e=this.key(a),f=this.cache[e];if("string"==typeof b)f[b]=c;else if(n.isEmptyObject(f))n.extend(this.cache[e],b);else for(d in b)f[d]=b[d];return f},get:function(a,b){var c=this.cache[this.key(a)];return void 0===b?c:c[b]},access:function(a,b,c){var d;return void 0===b||b&&"string"==typeof b&&void 0===c?(d=this.get(a,b),void 0!==d?d:this.get(a,n.camelCase(b))):(this.set(a,b,c),void 0!==c?c:b)},remove:function(a,b){var c,d,e,f=this.key(a),g=this.cache[f];if(void 0===b)this.cache[f]={};else{n.isArray(b)?d=b.concat(b.map(n.camelCase)):(e=n.camelCase(b),b in g?d=[b,e]:(d=e,d=d in g?[d]:d.match(E)||[])),c=d.length;while(c--)delete g[d[c]]}},hasData:function(a){return!n.isEmptyObject(this.cache[a[this.expando]]||{})},discard:function(a){a[this.expando]&&delete this.cache[a[this.expando]]}};var L=new K,M=new K,N=/^(?:\{[\w\W]*\}|\[[\w\W]*\])$/,O=/([A-Z])/g;function P(a,b,c){var d;if(void 0===c&&1===a.nodeType)if(d="data-"+b.replace(O,"-$1").toLowerCase(),c=a.getAttribute(d),"string"==typeof c){try{c="true"===c?!0:"false"===c?!1:"null"===c?null:+c+""===c?+c:N.test(c)?n.parseJSON(c):c}catch(e){}M.set(a,b,c)}else c=void 0;return c}n.extend({hasData:function(a){return M.hasData(a)||L.hasData(a)},data:function(a,b,c){return M.access(a,b,c)},removeData:function(a,b){M.remove(a,b)
@@ -1534,12 +1739,33 @@
       generate: function() { return ""; }
     };
 
-    function $$route$recognizer$$parse(route, names, types) {
+    function $$route$recognizer$$parse(route, names, specificity) {
       // normalize route as not starting with a "/". Recognition will
       // also normalize.
       if (route.charAt(0) === "/") { route = route.substr(1); }
 
       var segments = route.split("/"), results = [];
+
+      // A routes has specificity determined by the order that its different segments
+      // appear in. This system mirrors how the magnitude of numbers written as strings
+      // works.
+      // Consider a number written as: "abc". An example would be "200". Any other number written
+      // "xyz" will be smaller than "abc" so long as `a > z`. For instance, "199" is smaller
+      // then "200", even though "y" and "z" (which are both 9) are larger than "0" (the value
+      // of (`b` and `c`). This is because the leading symbol, "2", is larger than the other
+      // leading symbol, "1".
+      // The rule is that symbols to the left carry more weight than symbols to the right
+      // when a number is written out as a string. In the above strings, the leading digit
+      // represents how many 100's are in the number, and it carries more weight than the middle
+      // number which represents how many 10's are in the number.
+      // This system of number magnitude works well for route specificity, too. A route written as
+      // `a/b/c` will be more specific than `x/y/z` as long as `a` is more specific than
+      // `x`, irrespective of the other parts.
+      // Because of this similarity, we assign each type of segment a number value written as a
+      // string. We can find the specificity of compound routes by concatenating these strings
+      // together, from left to right. After we have looped through all of the segments,
+      // we convert the string to a number.
+      specificity.val = '';
 
       for (var i=0, l=segments.length; i<l; i++) {
         var segment = segments[i], match;
@@ -1547,18 +1773,21 @@
         if (match = segment.match(/^:([^\/]+)$/)) {
           results.push(new $$route$recognizer$$DynamicSegment(match[1]));
           names.push(match[1]);
-          types.dynamics++;
+          specificity.val += '3';
         } else if (match = segment.match(/^\*([^\/]+)$/)) {
           results.push(new $$route$recognizer$$StarSegment(match[1]));
+          specificity.val += '2';
           names.push(match[1]);
-          types.stars++;
         } else if(segment === "") {
           results.push(new $$route$recognizer$$EpsilonSegment());
+          specificity.val += '1';
         } else {
           results.push(new $$route$recognizer$$StaticSegment(segment));
-          types.statics++;
+          specificity.val += '4';
         }
       }
+
+      specificity.val = +specificity.val;
 
       return results;
     }
@@ -1677,29 +1906,10 @@
     }
     END IF **/
 
-    // This is a somewhat naive strategy, but should work in a lot of cases
-    // A better strategy would properly resolve /posts/:id/new and /posts/edit/:id.
-    //
-    // This strategy generally prefers more static and less dynamic matching.
-    // Specifically, it
-    //
-    //  * prefers fewer stars to more, then
-    //  * prefers using stars for less of the match to more, then
-    //  * prefers fewer dynamic segments to more, then
-    //  * prefers more static segments to more
+    // Sort the routes by specificity
     function $$route$recognizer$$sortSolutions(states) {
       return states.sort(function(a, b) {
-        if (a.types.stars !== b.types.stars) { return a.types.stars - b.types.stars; }
-
-        if (a.types.stars) {
-          if (a.types.statics !== b.types.statics) { return b.types.statics - a.types.statics; }
-          if (a.types.dynamics !== b.types.dynamics) { return b.types.dynamics - a.types.dynamics; }
-        }
-
-        if (a.types.dynamics !== b.types.dynamics) { return a.types.dynamics - b.types.dynamics; }
-        if (a.types.statics !== b.types.statics) { return b.types.statics - a.types.statics; }
-
-        return 0;
+        return b.specificity.val - a.specificity.val;
       });
     }
 
@@ -1777,7 +1987,7 @@
     $$route$recognizer$$RouteRecognizer.prototype = {
       add: function(routes, options) {
         var currentState = this.rootState, regex = "^",
-            types = { statics: 0, dynamics: 0, stars: 0 },
+            specificity = {},
             handlers = [], allSegments = [], name;
 
         var isEmpty = true;
@@ -1785,7 +1995,7 @@
         for (var i=0, l=routes.length; i<l; i++) {
           var route = routes[i], names = [];
 
-          var segments = $$route$recognizer$$parse(route.path, names, types);
+          var segments = $$route$recognizer$$parse(route.path, names, specificity);
 
           allSegments = allSegments.concat(segments);
 
@@ -1816,7 +2026,7 @@
 
         currentState.handlers = handlers;
         currentState.regex = new RegExp(regex + "$");
-        currentState.types = types;
+        currentState.specificity = specificity;
 
         if (name = options && options.as) {
           this.names[name] = {
@@ -1980,13 +2190,13 @@
 
     $$route$recognizer$$RouteRecognizer.prototype.map = $$route$recognizer$dsl$$default;
 
-    $$route$recognizer$$RouteRecognizer.VERSION = '0.1.5';
+    $$route$recognizer$$RouteRecognizer.VERSION = '0.1.9';
 
     var $$route$recognizer$$default = $$route$recognizer$$RouteRecognizer;
 
     /* global define:true module:true window: true */
     if (typeof define === 'function' && define['amd']) {
-      define(function() { return $$route$recognizer$$default; });
+      define('route-recognizer', function() { return $$route$recognizer$$default; });
     } else if (typeof module !== 'undefined' && module['exports']) {
       module['exports'] = $$route$recognizer$$default;
     } else if (typeof this !== 'undefined') {
@@ -2976,6 +3186,9 @@ var
   doesNotSupportDOMAttrModified = true,
   dropDomContentLoaded = true,
 
+  // needed for the innerHTML helper
+  notFromInnerHTMLHelper = true,
+
   // optionally defined later on
   onSubtreeModified,
   callDOMAttrModified,
@@ -2986,8 +3199,7 @@ var
   // will check proto or the expando attribute
   // in order to setup the node once
   patchIfNotAlready,
-  patch,
-  notFromInnerHTMLHelper
+  patch
 ;
 
 if (sPO || hasProto) {
@@ -3419,7 +3631,7 @@ document[REGISTER_ELEMENT] = function registerElement(type, options) {
   }
 
   if (!validName.test(upperType) || -1 < indexOf.call(invalidNames, upperType)) {
-    throw new Error('The type ' + upperType + ' is invalid ' + validName.test(upperType) + ' ' + indexOf.call(invalidNames, upperType));
+    throw new Error('The type ' + type + ' is invalid');
   }
 
   var
@@ -10206,8 +10418,6 @@ define('htmlbars-runtime/hooks', ['exports', './render', '../morph-range/morph-l
   }
 
   function isStableTemplate(template, lastYielded) {
-    console.log(!lastYielded.shadowTemplate && template === lastYielded.template);
-
     return !lastYielded.shadowTemplate && template === lastYielded.template;
   }
 
@@ -12645,7 +12855,7 @@ define('property-compiler/property-compiler', ['exports', 'module', 'property-co
         }
 
         // Replace any access to a collection with the generic @each placeholder and push dependancy
-        workingpath.push(path.value.replace(/\[.+\]/g, '.@each').replace(/^\./, ''));
+        workingpath.push(path.value.replace(/\[.+\]/g, ".@each").replace(/^\./, ''));
       }
 
       if (token.value === 'pluck') {
@@ -12725,7 +12935,7 @@ define("rebound-compiler/compile", ["exports", "module", "rebound-compiler/parse
   var _Component = _interopRequireDefault(_reboundComponentComponent);
 
   function compile(str) {
-    var options = arguments[1] === undefined ? {} : arguments[1];
+    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
     /* jshint evil: true */
     // Parse the template and compile our template function
@@ -12765,7 +12975,7 @@ define("rebound-compiler/compile", ["exports", "module", "rebound-compiler/parse
   var _Component = _interopRequireDefault(_reboundComponentComponent);
 
   function compile(str) {
-    var options = arguments[1] === undefined ? {} : arguments[1];
+    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
     /* jshint evil: true */
     // Parse the template and compile our template function
@@ -12800,7 +13010,7 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
 
   function pathGenerator(collection) {
     return function () {
-      return collection.__path() + "[" + collection.indexOf(collection._byId[this.cid]) + "]";
+      return collection.__path() + '[' + collection.indexOf(collection._byId[this.cid]) + ']';
     };
   }
 
@@ -12812,7 +13022,7 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
     model: _Model["default"],
 
     __path: function __path() {
-      return "";
+      return '';
     },
 
     constructor: function constructor(models, options) {
@@ -12820,7 +13030,7 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
       options || (options = {});
       this.__observers = {};
       this.helpers = {};
-      this.cid = _.uniqueId("collection");
+      this.cid = _.uniqueId('collection');
 
       // Set lineage
       this.setParent(options.parent || this);
@@ -12832,13 +13042,15 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
       // When a model is removed from its original collection, destroy it
       // TODO: Fix this. Computed properties now somehow allow collection to share a model. They may be removed from one but not the other. That is bad.
       // The clone = false options is the culprit. Find a better way to copy all of the collections custom attributes over to the clone.
-      this.on("remove", function (model, collection, options) {});
+      this.on('remove', function (model, collection, options) {
+        // model.deinitialize();
+      });
     },
 
     get: function get(key, options) {
 
       // If the key is a number or object, default to backbone's collection get
-      if (typeof key == "number" || typeof key == "object") {
+      if (typeof key == 'number' || typeof key == 'object') {
         return Backbone.Collection.prototype.get.call(this, key);
       }
 
@@ -12853,7 +13065,7 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
       options || (options = {});
 
       if (_.isUndefined(key) || _.isNull(key)) return key;
-      if (key === "" || parts.length === 0) return result;
+      if (key === '' || parts.length === 0) return result;
 
       if (parts.length > 0) {
         for (i = 0; i < l; i++) {
@@ -12861,7 +13073,7 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
           if (result && result.isComputedProperty && options.raw) return result;
           if (result && result.isComputedProperty) result = result.value();
           if (_.isUndefined(result) || _.isNull(result)) return result;
-          if (parts[i] === "@parent") result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result.hasOwnProperty(parts[i])) result = result[parts[i]];
+          if (parts[i] === '@parent') result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result.hasOwnProperty(parts[i])) result = result[parts[i]];
         }
       }
 
@@ -12884,8 +13096,8 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
       models || (models = []);
 
       // If models is a string, call set at that path
-      if (_.isString(models)) return this.get(_$["default"].splitPath(models)[0]).set(_$["default"].splitPath(models).splice(1, models.length).join("."), options);
-      if (!_.isObject(models)) return console.error("Collection.set must be passed a Model, Object, array or Models and Objects, or another Collection");
+      if (_.isString(models)) return this.get(_$["default"].splitPath(models)[0]).set(_$["default"].splitPath(models).splice(1, models.length).join('.'), options);
+      if (!_.isObject(models)) return console.error('Collection.set must be passed a Model, Object, array or Models and Objects, or another Collection');
 
       // If another collection, treat like an array
       models = models.isCollection ? models.models : models;
@@ -12911,8 +13123,6 @@ define("rebound-data/collection", ["exports", "module", "rebound-data/model", "r
 
   module.exports = Collection;
 });
-
-// model.deinitialize();
 define("rebound-component/component", ["exports", "module", "dom-helper", "htmlbars-runtime/render", "rebound-component/hooks", "rebound-component/helpers", "rebound-component/utils", "rebound-data/rebound-data"], function (exports, module, _domHelper, _htmlbarsRuntimeRender, _reboundComponentHooks, _reboundComponentHelpers, _reboundComponentUtils, _reboundDataReboundData) {
   // Rebound Component
   // ----------------
@@ -12937,7 +13147,7 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
     str = _$["default"].splitPath(str);
     test = _$["default"].splitPath(test);
     while (test[0] && str[0]) {
-      if (str[0] !== test[0] && str[0] !== "@each" && test[0] !== "@each") return false;
+      if (str[0] !== test[0] && str[0] !== '@each' && test[0] !== '@each') return false;
       test.shift();
       str.shift();
     }
@@ -12974,15 +13184,15 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
       var _this = this;
 
       var self = this;
-      this.listenTo(service, "all", function (type, model, value, options) {
+      this.listenTo(service, 'all', function (type, model, value, options) {
         var attr,
             path = model.__path(),
             changed;
-        if (type.indexOf("change:") === 0) {
+        if (type.indexOf('change:') === 0) {
           changed = model.changedAttributes();
           for (attr in changed) {
             // TODO: Modifying arguments array is bad. change this
-            type = "change:" + key + "." + path + (path && ".") + attr; // jshint ignore:line
+            type = 'change:' + key + '.' + path + (path && '.') + attr; // jshint ignore:line
             options.service = key;
             _this.trigger.call(_this, type, model, value, options);
           }
@@ -13017,7 +13227,7 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
     // It also marks itself as a consumer of this component
     set: function set(key, val, options) {
       var attrs, attr, serviceOptions;
-      if (typeof key === "object") {
+      if (typeof key === 'object') {
         attrs = key.isModel ? key.attributes : key;
         options = val;
       } else (attrs = {})[key] = val;
@@ -13050,8 +13260,8 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
           attr,
           self = this;
       options = options || (options = {});
-      _.bindAll(this, "_callOnComponent", "_listenToService", "_render");
-      this.cid = _.uniqueId("component");
+      _.bindAll(this, '_callOnComponent', '_listenToService', '_render');
+      this.cid = _.uniqueId('component');
       this.env = _hooks["default"].createChildEnv(_hooks["default"].createFreshEnv());
       // Call on component is used by the {{on}} helper to call all event callbacks in the scope of the component
       this.env.helpers._callOnComponent = this._callOnComponent;
@@ -13060,7 +13270,7 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
       this.consumers = [];
       this.services = {};
       this.__parent__ = this.__root__ = this;
-      this.listenTo(this, "all", this._onChange);
+      this.listenTo(this, 'all', this._onChange);
 
       // Take our parsed data and add it to our backbone data structure. Does a deep defaults set.
       // In the model, primatives (arrays, objects, etc) are converted to Backbone Objects
@@ -13075,11 +13285,11 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
       this.routes = _.defaults(options.routes || {}, this.routes);
       // Ensure that all route functions exist
       _.each(this.routes, function (value, key, routes) {
-        if (typeof value !== "string") {
-          throw "Function name passed to routes in  " + this.__name + " component must be a string!";
+        if (typeof value !== 'string') {
+          throw 'Function name passed to routes in  ' + this.__name + ' component must be a string!';
         }
         if (!this[value]) {
-          throw "Callback function " + value + " does not exist on the  " + this.__name + " component!";
+          throw 'Callback function ' + value + ' does not exist on the  ' + this.__name + ' component!';
         }
       }, this);
 
@@ -13108,7 +13318,7 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
 
     $: function $(selector) {
       if (!this.$el) {
-        return console.error("No DOM manipulation library on the page!");
+        return console.error('No DOM manipulation library on the page!');
       }
       return this.$el.find(selector);
     },
@@ -13121,7 +13331,25 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
       Backbone.Model.prototype.trigger.apply(this, arguments);
     },
 
-    _onAttributeChange: function _onAttributeChange(attrName, oldVal, newVal) {},
+    _onAttributeChange: function _onAttributeChange(attrName, oldVal, newVal) {
+      // Commented out because tracking attribute changes and making sure they dont infinite loop is hard.
+      // TODO: Make work.
+      // try{ newVal = JSON.parse(newVal); } catch (e){ newVal = newVal; }
+      //
+      // // data attributes should be referanced by their camel case name
+      // attrName = attrName.replace(/^data-/g, "").replace(/-([a-z])/g, function (g) { return g[1].toUpperCase(); });
+      //
+      // oldVal = this.get(attrName);
+      //
+      // if(newVal === null){ this.unset(attrName); }
+      //
+      // // If oldVal is a number, and newVal is only numerical, preserve type
+      // if(_.isNumber(oldVal) && _.isString(newVal) && newVal.match(/^[0-9]*$/i)){
+      //   newVal = parseInt(newVal);
+      // }
+      //
+      // else{ this.set(attrName, newVal, {quiet: true}); }
+    },
 
     _onChange: function _onChange(type, model, collection, options) {
       var shortcircuit = { change: 1, sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1, dirty: 1 };
@@ -13131,16 +13359,16 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
       model || (model = {});
       collection || (collection = {});
       options || (options = {});
-      !collection.isData && type.indexOf("change:") === -1 && (options = collection) && (collection = model);
+      !collection.isData && type.indexOf('change:') === -1 && (options = collection) && (collection = model);
       this._toRender || (this._toRender = []);
 
-      if (type === "reset" && options.previousAttributes || type.indexOf("change:") !== -1) {
+      if (type === 'reset' && options.previousAttributes || type.indexOf('change:') !== -1) {
         data = model;
         changed = model.changedAttributes();
-      } else if (type === "add" || type === "remove" || type === "reset" && options.previousModels) {
+      } else if (type === 'add' || type === 'remove' || type === 'reset' && options.previousModels) {
         data = collection;
         changed = {
-          "@each": data
+          '@each': data
         };
       }
 
@@ -13159,7 +13387,7 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
       var context = this;
       var basePath = data.__path();
       // If this event came from within a service, include the service key in the base path
-      if (options.service) basePath = options.service + "." + basePath;
+      if (options.service) basePath = options.service + '.' + basePath;
       var parts = _$["default"].splitPath(basePath);
       var key, obsPath, path, observers;
 
@@ -13168,12 +13396,12 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
       // object's _toRender queue.
       do {
         for (key in changed) {
-          path = (basePath + (basePath && key && ".") + key).replace(context.__path(), "").replace(/\[[^\]]+\]/g, ".@each").replace(/^\./, "");
+          path = (basePath + (basePath && key && '.') + key).replace(context.__path(), '').replace(/\[[^\]]+\]/g, ".@each").replace(/^\./, '');
           for (obsPath in context.__observers) {
             observers = context.__observers[obsPath];
             if (startsWith(obsPath, path)) {
               // If this is a collection event, trigger everything, otherwise only trigger property change callbacks
-              if (data.isCollection) push.call(this._toRender, observers.collection);
+              if (_.isArray(changed[key])) push.call(this._toRender, observers.collection);
               push.call(this._toRender, observers.model);
             }
           }
@@ -13192,15 +13420,15 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
     var parent = this,
         child,
         reservedMethods = {
-      "trigger": 1, "constructor": 1, "get": 1, "set": 1, "has": 1,
-      "extend": 1, "escape": 1, "unset": 1, "clear": 1, "cid": 1,
-      "attributes": 1, "changed": 1, "toJSON": 1, "validationError": 1, "isValid": 1,
-      "isNew": 1, "hasChanged": 1, "changedAttributes": 1, "previous": 1, "previousAttributes": 1
+      'trigger': 1, 'constructor': 1, 'get': 1, 'set': 1, 'has': 1,
+      'extend': 1, 'escape': 1, 'unset': 1, 'clear': 1, 'cid': 1,
+      'attributes': 1, 'changed': 1, 'toJSON': 1, 'validationError': 1, 'isValid': 1,
+      'isNew': 1, 'hasChanged': 1, 'changedAttributes': 1, 'previous': 1, 'previousAttributes': 1
     },
         configProperties = {
-      "routes": 1, "template": 1, "defaults": 1, "outlet": 1, "url": 1,
-      "urlRoot": 1, "idAttribute": 1, "id": 1, "createdCallback": 1, "attachedCallback": 1,
-      "detachedCallback": 1
+      'routes': 1, 'template': 1, 'defaults': 1, 'outlet': 1, 'url': 1,
+      'urlRoot': 1, 'idAttribute': 1, 'id': 1, 'createdCallback': 1, 'attachedCallback': 1,
+      'detachedCallback': 1
     };
 
     protoProps || (protoProps = {});
@@ -13209,7 +13437,7 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
     // staticProps.services = {};
 
     // If given a constructor, use it, otherwise use the default one defined above
-    if (protoProps && _.has(protoProps, "constructor")) {
+    if (protoProps && _.has(protoProps, 'constructor')) {
       child = protoProps.constructor;
     } else {
       child = function () {
@@ -13297,28 +13525,10 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
     return document.registerElement(name, { prototype: proto });
   };
 
-  _.bindAll(Component, "registerComponent");
+  _.bindAll(Component, 'registerComponent');
 
   module.exports = Component;
 });
-
-// Commented out because tracking attribute changes and making sure they dont infinite loop is hard.
-// TODO: Make work.
-// try{ newVal = JSON.parse(newVal); } catch (e){ newVal = newVal; }
-//
-// // data attributes should be referanced by their camel case name
-// attrName = attrName.replace(/^data-/g, "").replace(/-([a-z])/g, function (g) { return g[1].toUpperCase(); });
-//
-// oldVal = this.get(attrName);
-//
-// if(newVal === null){ this.unset(attrName); }
-//
-// // If oldVal is a number, and newVal is only numerical, preserve type
-// if(_.isNumber(oldVal) && _.isString(newVal) && newVal.match(/^[0-9]*$/i)){
-//   newVal = parseInt(newVal);
-// }
-//
-// else{ this.set(attrName, newVal, {quiet: true}); }
 define("rebound-router/lazy-component", ["exports", "module"], function (exports, module) {
   // Services keep track of their consumers. LazyComponent are placeholders
   // for services that haven't loaded yet. A LazyComponent mimics the api of a
@@ -13395,10 +13605,8 @@ define("runtime", ["exports", "module", "rebound-component/utils", "rebound-comp
 
   var _Router = _interopRequireDefault(_reboundRouterReboundRouter);
 
-  if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";
-
   // If Backbone doesn't have an ajax method from an external DOM library, use ours
-  window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || _utils["default"].ajax;
+  if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || _utils["default"].ajax;
 
   // Create Global Rebound Object
   var Rebound = {
@@ -13424,13 +13632,13 @@ define("runtime", ["exports", "module", "rebound-component/utils", "rebound-comp
       });
     },
     stop: function stop() {
-      if (!this.router) return console.error("No running Rebound router found!");
+      if (!this.router) return console.error('No running Rebound router found!');
       this.router.stop();
     }
   };
 
   // Fetch Rebound's Config Object from Rebound's `script` tag
-  var Config = document.getElementById("Rebound");
+  var Config = document.getElementById('Rebound');
   Config = Config ? Config.innerHTML : false;
 
   // Start the router if a config object is preset
@@ -13826,8 +14034,8 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
 
       // Otherwise, simply generate a flat `switch` statement.
     } else {
-      compareTo(words);
-    }
+        compareTo(words);
+      }
     return new Function("str", f);
   }
 
@@ -13886,7 +14094,7 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
     if (code < 91) return true;
     if (code < 97) return code === 95;
     if (code < 123) return true;
-    return code >= 170 && nonASCIIidentifierStart.test(String.fromCharCode(code));
+    return code >= 0xaa && nonASCIIidentifierStart.test(String.fromCharCode(code));
   };
 
   // Test whether a given character is part of an identifier.
@@ -13898,7 +14106,7 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
     if (code < 91) return true;
     if (code < 97) return code === 95;
     if (code < 123) return true;
-    return code >= 170 && nonASCIIidentifier.test(String.fromCharCode(code));
+    return code >= 0xaa && nonASCIIidentifier.test(String.fromCharCode(code));
   };
 
   // ## Tokenizer
@@ -14273,8 +14481,8 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
           val;
       if (code >= 97) val = code - 97 + 10; // a
       else if (code >= 65) val = code - 65 + 10; // A
-      else if (code >= 48 && code <= 57) val = code - 48; // 0-9
-      else val = Infinity;
+        else if (code >= 48 && code <= 57) val = code - 48; // 0-9
+          else val = Infinity;
       if (val >= radix) break;
       ++tokPos;
       total = total * radix + val;
@@ -14365,7 +14573,7 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
             case 102:
               out += "\f";break; // 'f' -> '\f'
             case 48:
-              out += "\u0000";break; // 0 -> '\0'
+              out += "\0";break; // 0 -> '\0'
             case 13:
               if (input.charCodeAt(tokPos) === 10) ++tokPos; // '\r\n'
             /* falls through */
@@ -14468,7 +14676,7 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
 
   // Remove the contents of the component's `style` tag.
   function getStyle(str) {
-    return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
+    return str.indexOf("<style>") > -1 && str.indexOf("</style>") > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, "$2").replace(/"/g, "\\\"") : "";
   }
 
   function stripLinkTags(str) {
@@ -14478,7 +14686,7 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
 
   // Remove the contents of the component's `template` tag.
   function getTemplate(str) {
-    var start = str.indexOf('<template>');
+    var start = str.indexOf("<template>");
     var end = str.lastIndexOf('</template>');
 
     // Get only the content between the template tags, or set to an empty string.
@@ -14489,22 +14697,22 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
 
   // Get the component's name from its `name` attribute.
   function getName(str) {
-    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
+    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, "$2").trim();
   }
 
   // Minify the string passed in by replacing all whitespace.
   function minify(str) {
-    return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
+    return str.replace(/\s+/g, " ").replace(/\n|(>) (<)/g, "$1$2");
   }
 
   // Strip javascript comments
   function removeComments(str) {
-    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
+    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, "$1");
   }
 
   // TODO: This is messy, clean it up!
   function getDependancies(template) {
-    var base = arguments[1] === undefined ? '' : arguments[1];
+    var base = arguments.length <= 1 || arguments[1] === undefined ? '' : arguments[1];
 
     var imports = [],
         partials = [],
@@ -14512,7 +14720,7 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
         match,
         importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
         partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
-        start = template.indexOf('<template>'),
+        start = template.indexOf("<template>"),
         end = template.lastIndexOf('</template>');
     if (start > -1 && end > -1) template = template.substring(start + 10, end);
 
@@ -14537,7 +14745,7 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
   }
 
   function parse(str) {
-    var options = arguments[1] === undefined ? {} : arguments[1];
+    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
     // If the element tag is present
     if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {
@@ -14580,7 +14788,7 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
 
   // Remove the contents of the component's `style` tag.
   function getStyle(str) {
-    return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
+    return str.indexOf("<style>") > -1 && str.indexOf("</style>") > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, "$2").replace(/"/g, "\\\"") : "";
   }
 
   function stripLinkTags(str) {
@@ -14590,7 +14798,7 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
 
   // Remove the contents of the component's `template` tag.
   function getTemplate(str) {
-    var start = str.indexOf('<template>');
+    var start = str.indexOf("<template>");
     var end = str.lastIndexOf('</template>');
 
     // Get only the content between the template tags, or set to an empty string.
@@ -14601,22 +14809,22 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
 
   // Get the component's name from its `name` attribute.
   function getName(str) {
-    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
+    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, "$2").trim();
   }
 
   // Minify the string passed in by replacing all whitespace.
   function minify(str) {
-    return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
+    return str.replace(/\s+/g, " ").replace(/\n|(>) (<)/g, "$1$2");
   }
 
   // Strip javascript comments
   function removeComments(str) {
-    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
+    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, "$1");
   }
 
   // TODO: This is messy, clean it up!
   function getDependancies(template) {
-    var base = arguments[1] === undefined ? '' : arguments[1];
+    var base = arguments.length <= 1 || arguments[1] === undefined ? '' : arguments[1];
 
     var imports = [],
         partials = [],
@@ -14624,7 +14832,7 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
         match,
         importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
         partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
-        start = template.indexOf('<template>'),
+        start = template.indexOf("<template>"),
         end = template.lastIndexOf('</template>');
     if (start > -1 && end > -1) template = template.substring(start + 10, end);
 
@@ -14649,7 +14857,7 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
   }
 
   function parse(str) {
-    var options = arguments[1] === undefined ? {} : arguments[1];
+    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
     // If the element tag is present
     if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {
@@ -14694,7 +14902,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
 
   window.partials = partials;
   helpers.registerPartial = function (name, func) {
-    if (func && typeof name === "string") {
+    if (func && typeof name === 'string') {
       return partials[name] = func;
     }
   };
@@ -14708,28 +14916,28 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
     if (_.isString(env)) name = env;
     env && env.helpers || (env = { helpers: helpers });
     // If a reserved helper, return it
-    if (name === "attribute") {
+    if (name === 'attribute') {
       return env.helpers.attribute;
     }
-    if (name === "if") {
+    if (name === 'if') {
       return env.helpers["if"];
     }
-    if (name === "unless") {
+    if (name === 'unless') {
       return env.helpers.unless;
     }
-    if (name === "each") {
+    if (name === 'each') {
       return env.helpers.each;
     }
-    if (name === "partial") {
+    if (name === 'partial') {
       return env.helpers.partial;
     }
-    if (name === "on") {
+    if (name === 'on') {
       return env.helpers.on;
     }
-    if (name === "debugger") {
+    if (name === 'debugger') {
       return env.helpers["debugger"];
     }
-    if (name === "log") {
+    if (name === 'log') {
       return env.helpers.log;
     }
 
@@ -14739,15 +14947,15 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
 
   helpers.registerHelper = function (name, callback) {
     if (!_.isString(name)) {
-      console.error("Name provided to registerHelper must be a string!");
+      console.error('Name provided to registerHelper must be a string!');
       return;
     }
     if (!_.isFunction(callback)) {
-      console.error("Callback provided to regierHelper must be a function!");
+      console.error('Callback provided to regierHelper must be a function!');
       return;
     }
     if (helpers.lookupHelper(null, null, name)) {
-      console.error("A helper called \"" + name + "\" is already registered!");
+      console.error('A helper called "' + name + '" is already registered!');
       return;
     }
 
@@ -14761,12 +14969,12 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
   helpers["debugger"] = function (params, hash, options, env) {
     /* jshint -W087 */
     debugger;
-    return "";
+    return '';
   };
 
   helpers.log = function (params, hash, options, env) {
     console.log.apply(console, params);
-    return "";
+    return '';
   };
 
   helpers.on = function (params, hash, options, env) {
@@ -14785,10 +14993,10 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
     }
     // If a selector is provided, delegate on the helper's element
     else if (len === 3) {
-      callback = params[2];
-      delegate = params[1];
-      element = options.element;
-    }
+        callback = params[2];
+        delegate = params[1];
+        element = options.element;
+      }
 
     // Attach event
     (0, _$["default"])(element).on(eventName, delegate, hash, function (event) {
@@ -14816,8 +15024,8 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
     }
 
     // Handle string values
-    condition === "true" && (condition = true);
-    condition === "false" && (condition = false);
+    condition === 'true' && (condition = true);
+    condition === 'false' && (condition = false);
 
     return condition;
   }
@@ -14828,7 +15036,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
 
     // If yield does not exist, this is not a block helper.
     if (!this["yield"]) {
-      return condition ? params[1] : params[2] || "";
+      return condition ? params[1] : params[2] || '';
     }
 
     // Render the apropreate block statement
@@ -14837,7 +15045,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
     } else if (!condition && templates.inverse && templates.inverse["yield"]) {
       templates.inverse["yield"]();
     } else {
-      return "";
+      return '';
     }
   };
 
@@ -14850,10 +15058,10 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
   // Given an array, predicate and optional extra variable, finds the index in the array where predicate is true
   function findIndex(arr, predicate, cid) {
     if (arr === null) {
-      throw new TypeError("findIndex called on null or undefined");
+      throw new TypeError('findIndex called on null or undefined');
     }
-    if (typeof predicate !== "function") {
-      throw new TypeError("predicate must be a function");
+    if (typeof predicate !== 'function') {
+      throw new TypeError('predicate must be a function');
     }
     var list = Object(arr);
     var length = list.length >>> 0;
@@ -14872,7 +15080,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
   helpers.each = function (params, hash, templates) {
 
     if (_.isNull(params[0]) || _.isUndefined(params[0])) {
-      console.warn("Undefined value passed to each helper! Maybe try providing a default value?", params, hash);return null;
+      console.warn('Undefined value passed to each helper! Maybe try providing a default value?', params, hash);return null;
     }
 
     var key,
@@ -14885,7 +15093,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
         if (value.hasOwnProperty(key)) this.yieldItem(value[key].cid, [value[key], key]);
       }
     }
-    return _.uniqueId("rand");
+    return _.uniqueId('rand');
   };
 
   helpers.partial = function (params, hash, options, env) {
@@ -14913,7 +15121,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
   // Returns true if str starts with test
   function startsWith(str, test) {
     if (str === test) return true;
-    return str.substring(0, test.length + 1) === test + ".";
+    return str.substring(0, test.length + 1) === test + '.';
   }
 
   // Called after callstack is exausted to call all of this computed property's
@@ -14930,9 +15138,9 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
 
   var ComputedProperty = function ComputedProperty(getter, setter, options) {
 
-    if (!_.isFunction(getter) && !_.isFunction(setter)) return console.error("ComputedProperty constructor must be passed a functions!", prop, "Found instead.");
+    if (!_.isFunction(getter) && !_.isFunction(setter)) return console.error('ComputedProperty constructor must be passed a functions!', prop, 'Found instead.');
     options = options || {};
-    this.cid = _.uniqueId("computedPropety");
+    this.cid = _.uniqueId('computedPropety');
     this.name = options.name;
     this.returnType = null;
     this.__observers = {};
@@ -14940,7 +15148,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
     this.waiting = {};
     this.isChanging = false;
     this.isDirty = true;
-    _.bindAll(this, "onModify", "markDirty");
+    _.bindAll(this, 'onModify', 'markDirty');
 
     if (getter) this.getter = getter;
     if (setter) this.setter = setter;
@@ -14971,7 +15179,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
     isComputedProperty: true,
     isData: true,
     __path: function __path() {
-      return "";
+      return '';
     },
 
     getter: function getter() {
@@ -14984,7 +15192,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
     markDirty: function markDirty() {
       if (this.isDirty) return;
       this.isDirty = true;
-      this.trigger("dirty", this);
+      this.trigger('dirty', this);
     },
 
     // Attached to listen to all events where this Computed Property's dependancies
@@ -15011,13 +15219,13 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
       },
           path,
           vector;
-      vector = path = collection.__path().replace(/\.?\[.*\]/ig, ".@each");
+      vector = path = collection.__path().replace(/\.?\[.*\]/ig, '.@each');
 
       // If a reset event on a Model, check for computed properties that depend
       // on each changed attribute's full path.
-      if (type === "reset" && options.previousAttributes) {
+      if (type === 'reset' && options.previousAttributes) {
         _.each(options.previousAttributes, function (value, key) {
-          vector = path + (path && ".") + key;
+          vector = path + (path && '.') + key;
           _.each(this.__computedDeps, function (dependants, dependancy) {
             startsWith(vector, dependancy) && push.call(this._toCall, dependants);
           }, this);
@@ -15026,27 +15234,27 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
 
       // If a reset event on a Collction, check for computed properties that depend
       // on anything inside that collection.
-      else if (type === "reset" && options.previousModels) {
-        _.each(this.__computedDeps, function (dependants, dependancy) {
-          startsWith(dependancy, vector) && push.call(this._toCall, dependants);
-        }, this);
-      }
+      else if (type === 'reset' && options.previousModels) {
+          _.each(this.__computedDeps, function (dependants, dependancy) {
+            startsWith(dependancy, vector) && push.call(this._toCall, dependants);
+          }, this);
+        }
 
-      // If an add or remove event, check for computed properties that depend on
-      // anything inside that collection or that contains that collection.
-      else if (type === "add" || type === "remove") {
-        _.each(this.__computedDeps, function (dependants, dependancy) {
-          if (startsWith(dependancy, vector) || startsWith(vector, dependancy)) push.call(this._toCall, dependants);
-        }, this);
-      }
+        // If an add or remove event, check for computed properties that depend on
+        // anything inside that collection or that contains that collection.
+        else if (type === 'add' || type === 'remove') {
+            _.each(this.__computedDeps, function (dependants, dependancy) {
+              if (startsWith(dependancy, vector) || startsWith(vector, dependancy)) push.call(this._toCall, dependants);
+            }, this);
+          }
 
-      // If a change event, trigger anything that depends on that changed path.
-      else if (type.indexOf("change:") === 0) {
-        vector = type.replace("change:", "").replace(/\.?\[.*\]/ig, ".@each");
-        _.each(this.__computedDeps, function (dependants, dependancy) {
-          startsWith(vector, dependancy) && push.call(this._toCall, dependants);
-        }, this);
-      }
+          // If a change event, trigger anything that depends on that changed path.
+          else if (type.indexOf('change:') === 0) {
+              vector = type.replace('change:', '').replace(/\.?\[.*\]/ig, '.@each');
+              _.each(this.__computedDeps, function (dependants, dependancy) {
+                startsWith(vector, dependancy) && push.call(this._toCall, dependants);
+              }, this);
+            }
 
       var i,
           len = this._toCall.length;
@@ -15065,17 +15273,17 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
     // the original object.
     onModify: function onModify(type, model, collection, options) {
       var shortcircuit = { sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1 };
-      if (!this.tracking || shortcircuit[type] || ~type.indexOf("change:")) return;
+      if (!this.tracking || shortcircuit[type] || ~type.indexOf('change:')) return;
       model || (model = {});
       collection || (collection = {});
       options || (options = {});
       !collection.isData && _.isObject(collection) && (options = collection) && (collection = model);
       var src = this;
-      var path = collection.__path().replace(src.__path(), "").replace(/^\./, "");
+      var path = collection.__path().replace(src.__path(), '').replace(/^\./, '');
       var dest = this.tracking.get(path);
 
       if (_.isUndefined(dest)) return;
-      if (type === "change") dest.set && dest.set(model.changedAttributes());else if (type === "reset") dest.reset && dest.reset(model);else if (type === "add") dest.add && dest.add(model);else if (type === "remove") dest.remove && dest.remove(model);
+      if (type === 'change') dest.set && dest.set(model.changedAttributes());else if (type === 'reset') dest.reset && dest.reset(model);else if (type === 'add') dest.add && dest.add(model);else if (type === 'remove') dest.remove && dest.remove(model);
       // TODO: Add sort
     },
 
@@ -15090,19 +15298,19 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
       _.each(this.deps, function (path) {
         var dep = root.get(path, { raw: true });
         if (!dep || !dep.isComputedProperty) return;
-        dep.on("dirty", this.markDirty);
+        dep.on('dirty', this.markDirty);
       }, this);
 
       _.each(this.deps, function (path) {
         // Find actual path from relative paths
         var split = _$["default"].splitPath(path);
-        while (split[0] === "@parent") {
+        while (split[0] === '@parent') {
           context = context.__parent__;
           split.shift();
         }
 
-        path = context.__path().replace(/\.?\[.*\]/ig, ".@each");
-        path = path + (path && ".") + split.join(".");
+        path = context.__path().replace(/\.?\[.*\]/ig, '.@each');
+        path = path + (path && '.') + split.join('.');
 
         // Add ourselves as dependants
         root.__computedDeps[path] || (root.__computedDeps[path] = []);
@@ -15110,7 +15318,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
       }, this);
 
       // Ensure we only have one listener per Model at a time.
-      context.off("all", this.onRecompute).on("all", this.onRecompute);
+      context.off('all', this.onRecompute).on('all', this.onRecompute);
     },
 
     unwire: function unwire() {
@@ -15120,10 +15328,10 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
       _.each(this.deps, function (path) {
         var dep = root.get(path, { raw: true });
         if (!dep || !dep.isComputedProperty) return;
-        dep.off("dirty", this.markDirty);
+        dep.off('dirty', this.markDirty);
       }, this);
 
-      context.off("all", this.onRecompute);
+      context.off('all', this.onRecompute);
     },
 
     // Call this computed property like you would with Function.call()
@@ -15169,7 +15377,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
 
       if (!this.isChanging) return;
 
-      if (this.returnType !== "value") this.stopListening(value, "all", this.onModify);
+      if (this.returnType !== 'value') this.stopListening(value, 'all', this.onModify);
 
       result = this.getter.apply(context, params);
 
@@ -15178,28 +15386,28 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
 
       // If result is undefined, reset our cache item
       if (_.isUndefined(result) || _.isNull(result)) {
-        this.returnType = "value";
+        this.returnType = 'value';
         this.isCollection = this.isModel = false;
         this.set(undefined);
       }
       // Set result and return types, bind events
       else if (result.isCollection) {
-        this.returnType = "collection";
-        this.isCollection = true;
-        this.isModel = false;
-        this.set(result);
-        this.track(result);
-      } else if (result.isModel) {
-        this.returnType = "model";
-        this.isCollection = false;
-        this.isModel = true;
-        this.reset(result);
-        this.track(result);
-      } else {
-        this.returnType = "value";
-        this.isCollection = this.isModel = false;
-        this.reset(result);
-      }
+          this.returnType = 'collection';
+          this.isCollection = true;
+          this.isModel = false;
+          this.set(result);
+          this.track(result);
+        } else if (result.isModel) {
+          this.returnType = 'model';
+          this.isCollection = false;
+          this.isModel = true;
+          this.reset(result);
+          this.track(result);
+        } else {
+          this.returnType = 'value';
+          this.isCollection = this.isModel = false;
+          this.reset(result);
+        }
 
       return this.value();
     },
@@ -15215,14 +15423,14 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
       object._cid || (object._cid = object.cid);
       target.cid = object.cid;
       this.tracking = object;
-      this.listenTo(target, "all", this.onModify);
+      this.listenTo(target, 'all', this.onModify);
     },
 
     // Get from the Computed Property's cache
     get: function get(key, options) {
       var value = this.value();
       options || (options = {});
-      if (this.returnType === "value") return console.error("Called get on the `" + this.name + "` computed property which returns a primitive value.");
+      if (this.returnType === 'value') return console.error('Called get on the `' + this.name + '` computed property which returns a primitive value.');
       return value.get(key, options);
     },
 
@@ -15237,30 +15445,30 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
       var value = this.value();
 
       // Noralize the data passed in
-      if (this.returnType === "model") {
-        if (typeof key === "object") {
+      if (this.returnType === 'model') {
+        if (typeof key === 'object') {
           attrs = key.isModel ? key.attributes : key;
           options = val;
         } else {
           (attrs = {})[key] = val;
         }
       }
-      if (this.returnType !== "model") options = val || {};
+      if (this.returnType !== 'model') options = val || {};
       attrs = attrs && attrs.isComputedProperty ? attrs.value() : attrs;
 
       // If a new value, set it and trigger events
       this.setter && this.setter.call(this.__root__, attrs);
-      if (this.returnType === "value" && this.cache.value !== attrs) {
+      if (this.returnType === 'value' && this.cache.value !== attrs) {
         this.cache.value = attrs;
         if (!options.quiet) {
           // If set was called not through computedProperty.call(), this is a fresh new event burst.
           if (!this.isDirty && !this.isChanging) this.__parent__.changed = {};
           this.__parent__.changed[this.name] = attrs;
-          this.trigger("change", this.__parent__);
-          this.trigger("change:" + this.name, this.__parent__, attrs);
+          this.trigger('change', this.__parent__);
+          this.trigger('change:' + this.name, this.__parent__, attrs);
           delete this.__parent__.changed[this.name];
         }
-      } else if (this.returnType !== "value" && options.reset) key = value.reset(attrs, options);else if (this.returnType !== "value") key = value.set(attrs, options);
+      } else if (this.returnType !== 'value' && options.reset) key = value.reset(attrs, options);else if (this.returnType !== 'value') key = value.set(attrs, options);
       this.isDirty = this.isChanging = false;
 
       // Call all reamining computed properties waiting for this value to resolve.
@@ -15313,10 +15521,10 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
 
   var DEFAULT_404_PAGE = "<div style=\"display: block;text-align: center;font-size: 22px;\">\n  <h1 style=\"margin-top: 60px;\">\n    Oops! We couldn't find this page.\n  </h1>\n  <a href=\"#\" onclick=\"window.history.back();return false;\" style=\"display: block;text-decoration: none;margin-top: 30px;\">\n    Take me back\n  </a>\n</div>";
 
-  var ERROR_ROUTE_NAME = "error";
-  var SUCCESS = "success";
-  var ERROR = "error";
-  var LOADING = "loading";
+  var ERROR_ROUTE_NAME = 'error';
+  var SUCCESS = 'success';
+  var ERROR = 'error';
+  var LOADING = 'loading';
 
   // Overload Backbone's loadUrl so it returns the value of the routed callback
   // instead of undefined and prefixes all fragment tests with the current app name
@@ -15338,13 +15546,13 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
   var ReboundRouter = Backbone.Router.extend({
 
     status: SUCCESS, // loading, success or error
-    _currentRoute: "", // The route path that triggered the current page
-    _previousRoute: "",
+    _currentRoute: '', // The route path that triggered the current page
+    _previousRoute: '',
 
     // By default there is one route. The wildcard route fetches the required
     // page assets based on user-defined naming convention.
     routes: {
-      "*route": "wildcardRoute"
+      '*route': 'wildcardRoute'
     },
 
     // Called when no matching routes are found. Extracts root route and fetches it's resources
@@ -15356,7 +15564,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       // Fetch Resources
       document.body.classList.add("loading");
       return this._fetchResource(route, this.config.container).then(function (res) {
-        document.body.classList.remove("loading");
+        document.body.classList.remove('loading');
         return res;
       });
     },
@@ -15364,7 +15572,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
     // Modify navigate to default to `trigger=true` and to return the value of
     // `Backbone.history.navigate` inside of a promise.
     navigate: function navigate(fragment) {
-      var options = arguments[1] === undefined ? {} : arguments[1];
+      var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
       options.trigger === undefined && (options.trigger = true);
       var $container = (0, _$["default"])(this.config.containers).unMarkLinks();
@@ -15391,7 +15599,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       if (!_.isRegExp(_route)) _route = this._routeToRegExp(_route);
       if (_.isFunction(name)) {
         callback = name;
-        name = "";
+        name = '';
       }
 
       if (!callback) callback = this[name];
@@ -15399,9 +15607,9 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
         var args = _this._extractParameters(_route, fragment);
         var resp = _this.execute(callback, args, name);
         if (resp !== false) {
-          _this.trigger.apply(_this, ["route:" + name].concat(args));
-          _this.trigger("route", name, args);
-          Backbone.history.trigger("route", _this, name, args);
+          _this.trigger.apply(_this, ['route:' + name].concat(args));
+          _this.trigger('route', name, args);
+          Backbone.history.trigger('route', _this, name, args);
         }
         return resp;
       });
@@ -15410,8 +15618,8 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
 
     // On startup, save our config object and start the router
     initialize: function initialize() {
-      var options = arguments[0] === undefined ? {} : arguments[0];
-      var callback = arguments[1] === undefined ? function () {} : arguments[1];
+      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+      var callback = arguments.length <= 1 || arguments[1] === undefined ? function () {} : arguments[1];
 
       // Let all of our components always have referance to our router
       Rebound.Component.prototype.router = this;
@@ -15422,7 +15630,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       this.config.containers = [];
 
       // Get a unique instance id for this router
-      this.uid = _.uniqueId("router");
+      this.uid = _.uniqueId('router');
 
       // Allow user to override error route
       this.config.errorRoute && (ERROR_ROUTE_NAME = this.config.errorRoute);
@@ -15434,13 +15642,13 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       }, this);
 
       // Use the user provided container, or default to the closest `<main>` tag
-      this.config.container = (0, _$["default"])(this.config.container || "main")[0];
+      this.config.container = (0, _$["default"])(this.config.container || 'main')[0];
       this.config.containers.push(this.config.container);
       Rebound.services.page = new _LazyComponent["default"]();
 
       // Install our global components
       _.each(this.config.services, function (selector, route) {
-        var container = (0, _$["default"])(selector)[0] || document.createElement("span");
+        var container = (0, _$["default"])(selector)[0] || document.createElement('span');
         this.config.containers.push(container);
         Rebound.services[route] = new _LazyComponent["default"]();
         this._fetchResource(route, container)["catch"](function () {});
@@ -15459,7 +15667,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
     },
 
     stop: function stop() {
-      (0, _$["default"])(this.config.container).off("click");
+      (0, _$["default"])(this.config.container).off('click');
       Backbone.history.stop();
       this._uninstallResource();
       Backbone.history.handlers = [];
@@ -15473,14 +15681,14 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
 
       // Navigate to route for any link with a relative href
       var remoteUrl = /^([a-z]+:)|^(\/\/)|^([^\/]+\.)/;
-      (0, _$["default"])(container).on("click", "a", function (e) {
-        var path = e.target.getAttribute("href");
+      (0, _$["default"])(container).on('click', 'a', function (e) {
+        var path = e.target.getAttribute('href');
 
         // If path is not an remote url, ends in .[a-z], or blank, try and navigate to that route.
-        if (path && path !== "#" && !remoteUrl.test(path)) e.preventDefault();
+        if (path && path !== '#' && !remoteUrl.test(path)) e.preventDefault();
 
         // If this is not our current route, navigate to the new route
-        if (path !== "/" + Backbone.history.fragment) {
+        if (path !== '/' + Backbone.history.fragment) {
           _this2.navigate(path, { trigger: true });
         }
       });
@@ -15493,12 +15701,12 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       var _this3 = this;
 
       var routes = this.current ? this.current.data.routes || {} : {};
-      routes[this._previousRoute] = "";
+      routes[this._previousRoute] = '';
 
       // Unset Previous Application's Routes. For each route in the page app, remove
       // the handler from our route object and delete our referance to the route's callback
       _.each(routes, function (value, key) {
-        if (key[0] === "/") key = new RegExp(key.split("/")[1], key.split("/")[2]);
+        if (key[0] === '/') key = new RegExp(key.split('/')[1], key.split('/')[2]);
         var regExp = key instanceof RegExp ? key.toString() : _this3._routeToRegExp(key).toString();
         Backbone.history.handlers = _.filter(Backbone.history.handlers, function (obj) {
           return obj.route.toString() !== regExp;
@@ -15518,7 +15726,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       // Disable old css if it exists
       setTimeout(function () {
         if (_this3.status === ERROR) return;
-        document.getElementById(oldPageName + "-css").setAttribute("disabled", true);
+        document.getElementById(oldPageName + '-css').setAttribute('disabled', true);
       }, 500);
     },
 
@@ -15532,30 +15740,30 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
           routes = [];
       var isService = container !== this.config.container;
 
-      if (!container) throw "No container found on the page! Please specify a container that exists in your Rebound config.";
+      if (!container) throw 'No container found on the page! Please specify a container that exists in your Rebound config.';
 
-      container.classList.remove("error", "loading");
+      container.classList.remove('error', 'loading');
 
       if (!isService && this.current) this._uninstallResource();
 
       // Load New PageApp, give it it's name so we know what css to remove when it deinitializes
       pageInstance = new PageApp();
-      pageInstance.__name = this.uid + "-" + appName;
+      pageInstance.__name = this.uid + '-' + appName;
 
       // Add to our page
-      container.innerHTML = "";
+      container.innerHTML = '';
       container.appendChild(pageInstance);
 
       // Make sure we're back at the top of the page
       document.body.scrollTop = 0;
 
       // Augment ApplicationRouter with new routes from PageApp added in reverse order to preserve order higherarchy
-      if (!isService) this.route(this._currentRoute, "default", function () {
-        return "DEFAULT";
+      if (!isService) this.route(this._currentRoute, 'default', function () {
+        return 'DEFAULT';
       });
       _.each(pageInstance.data.routes, function (value, key) {
         // If key is a stringified regexp literal, convert to a regexp object
-        if (key[0] === "/") key = new RegExp(key.split("/")[1], key.split("/")[2]);
+        if (key[0] === '/') key = new RegExp(key.split('/')[1], key.split('/')[2]);
         routes.unshift({ key: key, value: value });
         // Add the new callback referance on to our router and add the route handler
       }, this);
@@ -15565,7 +15773,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
         });
       });
 
-      var name = isService ? appName : "page";
+      var name = isService ? appName : 'page';
       if (!isService) this.current = pageInstance;
 
       // If the target is a dummy service, hydrate it with the proper service object
@@ -15580,7 +15788,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
         // If no routes are matched, app will hit wildCard route which will then trigger 404
         if (!isService) {
           var res = Backbone.history.loadUrl(Backbone.history.fragment);
-          if (res && typeof res.then === "function") return res.then(resolve);
+          if (res && typeof res.then === 'function') return res.then(resolve);
           return resolve(res);
         }
         // Return our newly installed app
@@ -15589,15 +15797,15 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
     },
 
     _fetchJavascript: function _fetchJavascript(routeName, appName) {
-      var jsID = this.uid + "-" + appName + "-js",
+      var jsID = this.uid + '-' + appName + '-js',
           jsUrl = this.config.jsPath.replace(/:route/g, routeName).replace(/:app/g, appName),
-          jsElement = document.getElementById(appName + "-js");
+          jsElement = document.getElementById(appName + '-js');
 
       // AMD will manage dependancies for us. Load the JavaScript.
       return new Promise(function (resolve, reject) {
         window.require([jsUrl], function (PageClass) {
-          jsElement = (0, _$["default"])("script[src=\"" + jsUrl + "\"]")[0];
-          jsElement.setAttribute("id", jsID);
+          jsElement = (0, _$["default"])('script[src="' + jsUrl + '"]')[0];
+          jsElement.setAttribute('id', jsID);
           resolve(PageClass);
         }, function (err) {
           console.error(err);
@@ -15608,7 +15816,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
 
     _fetchCSS: function _fetchCSS(routeName, appName) {
 
-      var cssID = this.uid + "-" + appName + "-css",
+      var cssID = this.uid + '-' + appName + '-css',
           cssUrl = this.config.cssPath.replace(/:route/g, routeName).replace(/:app/g, appName),
           cssElement = document.getElementById(cssID);
 
@@ -15620,11 +15828,11 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
             ti;
         if (cssElement === null) {
           // Construct our `<link>` element.
-          cssElement = document.createElement("link");
-          cssElement.setAttribute("type", "text/css");
-          cssElement.setAttribute("rel", "stylesheet");
-          cssElement.setAttribute("href", cssUrl);
-          cssElement.setAttribute("id", cssID);
+          cssElement = document.createElement('link');
+          cssElement.setAttribute('type', 'text/css');
+          cssElement.setAttribute('rel', 'stylesheet');
+          cssElement.setAttribute('href', cssUrl);
+          cssElement.setAttribute('id', cssID);
 
           // On successful load, clearInterval and resolve.
           // On failed load, clearInterval and reject.
@@ -15634,7 +15842,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
           };
           var errorCallback = function errorCallback(err) {
             clearInterval(ti);
-            cssElement.dataset.error = "";
+            cssElement.dataset.error = '';
             reject(err);
           };
 
@@ -15643,23 +15851,23 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
           ti = setInterval(function () {
             for (var i = 0; i < document.styleSheets.length; i++) {
               count = count + 50;
-              if (document.styleSheets[i].href.indexOf(cssUrl) > -1) successCallback();else if (count >= 5000) errorCallback("CSS Timeout");
+              if (document.styleSheets[i].href.indexOf(cssUrl) > -1) successCallback();else if (count >= 5000) errorCallback('CSS Timeout');
             }
           }, 50);
 
           // Modern browsers support loading events on `<link>` elements, bind these
           // events. These will be callsed before our interval is called and they will
           // clearInterval so the resolve/reject handlers aren't called twice.
-          (0, _$["default"])(cssElement).on("load", successCallback);
-          (0, _$["default"])(cssElement).on("error", errorCallback);
-          (0, _$["default"])(cssElement).on("readystatechange", function () {
+          (0, _$["default"])(cssElement).on('load', successCallback);
+          (0, _$["default"])(cssElement).on('error', errorCallback);
+          (0, _$["default"])(cssElement).on('readystatechange', function () {
             clearInterval(ti);
           });
 
           // Add our `<link>` element to the page.
           document.head.appendChild(cssElement);
         } else {
-          if (cssElement.hasAttribute("data-error")) return reject();
+          if (cssElement.hasAttribute('data-error')) return reject();
           resolve(cssElement);
         }
       });
@@ -15675,14 +15883,14 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
           isError = route === ERROR_ROUTE_NAME;
 
       // Normalize Route
-      route || (route = "");
+      route || (route = '');
 
       // Get the app name from this route
-      appName = routeName = route.split("/")[0] || "index";
+      appName = routeName = route.split('/')[0] || 'index';
 
       // If this isn't the error route, Find Any Custom Route Mappings
       if (!isService && !isError) {
-        this._currentRoute = route.split("/")[0];
+        this._currentRoute = route.split('/')[0];
         _.any(this.config.handlers, function (handler) {
           if (handler.regex.test(route)) {
             appName = handler.app;
@@ -15708,7 +15916,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
           }
 
           // Set our status to error and attempt to load a custom error page.
-          console.error("Could not " + (isService ? "load the " + appName + " service:" : "find the " + (appName || "index") + " app."), "at", "/" + route);
+          console.error('Could not ' + (isService ? 'load the ' + appName + ' service:' : 'find the ' + (appName || 'index') + ' app.'), 'at', '/' + route);
           _this5.status = ERROR;
           _this5._currentRoute = route;
           resolve(_this5._fetchResource(ERROR_ROUTE_NAME, container));
@@ -15719,9 +15927,9 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
         var install = function install(response) {
           var cssElement = response[0],
               PageClass = response[1];
-          if (!(cssElement instanceof Element) || typeof PageClass !== "function") return throwError();
+          if (!(cssElement instanceof Element) || typeof PageClass !== 'function') return throwError();
           !isService && !isError && (_this5.status = SUCCESS);
-          cssElement && cssElement.removeAttribute("disabled");
+          cssElement && cssElement.removeAttribute('disabled');
 
           _this5._installResource(PageClass, appName, container).then(resolve, resolve);
         };
@@ -15730,7 +15938,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
         !isService && !isError && (_this5.status = LOADING);
 
         // If Page Is Already Loaded Then The Route Does Not Exist. 404 and Exit.
-        if (_this5.current && _this5.current.__name === _this5.uid + "-" + appName) return throwError();
+        if (_this5.current && _this5.current.__name === _this5.uid + '-' + appName) return throwError();
         // Fetch our css and js in paralell, install or throw when both complete
         Promise.all([_this5._fetchCSS(routeName, appName), _this5._fetchJavascript(routeName, appName)]).then(install, throwError);
       });
@@ -15750,26 +15958,26 @@ define("rebound-compiler/precompile", ["exports", "module", "./parser", "htmlbar
   var _parse = _interopRequireDefault(_parser);
 
   function precompile(str) {
-    var options = arguments[1] === undefined ? {} : arguments[1];
+    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
     if (!str || str.length === 0) {
-      return console.error("No template provided!");
+      return console.error('No template provided!');
     }
 
     var template;
     str = (0, _parse["default"])(str, options);
 
     // Compile
-    str.template = "" + (0, _htmlbars.compileSpec)(str.template);
+    str.template = '' + (0, _htmlbars.compileSpec)(str.template);
 
     // If is a partial
     if (str.isPartial) {
-      template = "\n      define( [ " + str.deps.join(", ") + " ], function(){\n        var template = " + str.template + ";\n        window.Rebound.registerPartial(\"" + str.name + "\", template);\n      });";
+      template = "\n      define( [ " + str.deps.join(', ') + " ], function(){\n        var template = " + str.template + ";\n        window.Rebound.registerPartial(\"" + str.name + "\", template);\n      });";
     }
     // Else, is a component
     else {
-      template = "\n      define( [ " + str.deps.join(", ") + " ], function(){\n        return window.Rebound.registerComponent(\"" + str.name + "\", {\n          prototype: " + str.script + ",\n          template: " + str.template + ",\n          style: \"" + str.style + "\"\n        });\n      });";
-    }
+        template = "\n      define( [ " + str.deps.join(', ') + " ], function(){\n        return window.Rebound.registerComponent(\"" + str.name + "\", {\n          prototype: " + str.script + ",\n          template: " + str.template + ",\n          style: \"" + str.style + "\"\n        });\n      });";
+      }
 
     return template;
   }
@@ -15787,26 +15995,26 @@ define("rebound-compiler/precompile", ["exports", "module", "./parser", "htmlbar
   var _parse = _interopRequireDefault(_parser);
 
   function precompile(str) {
-    var options = arguments[1] === undefined ? {} : arguments[1];
+    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
     if (!str || str.length === 0) {
-      return console.error("No template provided!");
+      return console.error('No template provided!');
     }
 
     var template;
     str = (0, _parse["default"])(str, options);
 
     // Compile
-    str.template = "" + (0, _htmlbars.compileSpec)(str.template);
+    str.template = '' + (0, _htmlbars.compileSpec)(str.template);
 
     // If is a partial
     if (str.isPartial) {
-      template = "\n      define( [ " + str.deps.join(", ") + " ], function(){\n        var template = " + str.template + ";\n        window.Rebound.registerPartial(\"" + str.name + "\", template);\n      });";
+      template = "\n      define( [ " + str.deps.join(', ') + " ], function(){\n        var template = " + str.template + ";\n        window.Rebound.registerPartial(\"" + str.name + "\", template);\n      });";
     }
     // Else, is a component
     else {
-      template = "\n      define( [ " + str.deps.join(", ") + " ], function(){\n        return window.Rebound.registerComponent(\"" + str.name + "\", {\n          prototype: " + str.script + ",\n          template: " + str.template + ",\n          style: \"" + str.style + "\"\n        });\n      });";
-    }
+        template = "\n      define( [ " + str.deps.join(', ') + " ], function(){\n        return window.Rebound.registerComponent(\"" + str.name + "\", {\n          prototype: " + str.script + ",\n          template: " + str.template + ",\n          style: \"" + str.style + "\"\n        });\n      });";
+      }
 
     return template;
   }
@@ -15864,7 +16072,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
   _hooks["default"].get = function get(env, scope, path) {
 
-    if (path === "this") path = "";
+    if (path === 'this') path = '';
 
     var setPath = path;
 
@@ -15876,7 +16084,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     // If this path referances a block param, use that as the context instead.
     if (scope.localPresent[key]) {
       value = scope.locals[key];
-      path = rest.join(".");
+      path = rest.join('.');
     } else {
       value = scope.self;
     }
@@ -15916,7 +16124,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
   function streamHelper(morph, env, scope, visitor, params, hash, helper, templates, context) {
 
-    if (!_.isFunction(helper)) return console.error(scope + " is not a valid helper!");
+    if (!_.isFunction(helper)) return console.error(scope + ' is not a valid helper!');
 
     // Create a lazy value that returns the value of our evaluated helper.
     var lazyValue = new _LazyValue["default"](function () {
@@ -15953,7 +16161,11 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
   _hooks["default"].cleanupRenderNode = function () {};
 
   _hooks["default"].destroyRenderNode = function (renderNode) {};
-  _hooks["default"].willCleanupTree = function (renderNode) {};
+  _hooks["default"].willCleanupTree = function (renderNode) {
+    // for(let i in renderNode.lazyValues)
+    //   if(renderNode.lazyValues[i].isLazyValue)
+    //     renderNode.lazyValues[i].destroy();
+  };
 
   /*******************************
           Default Hooks
@@ -16030,7 +16242,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
         // Call our func with merged helpers and hooks
         env.template = _render2["default"]["default"](template, env, scope, options);
-        env.template.uid = _.uniqueId("template");
+        env.template.uid = _.uniqueId('template');
         return env.template;
       }
     };
@@ -16054,7 +16266,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
         // Call our func with merged helpers and hooks
         env.template = _render2["default"]["default"](template, env, scope, options);
-        env.template.uid = _.uniqueId("template");
+        env.template.uid = _.uniqueId('template');
         return env.template;
       }
     };
@@ -16147,7 +16359,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       var value = "";
 
       for (i = 0, l = params.length; i < l; i++) {
-        value += params[i] && params[i].isLazyValue ? params[i].value : params[i] || "";
+        value += params[i] && params[i].isLazyValue ? params[i].value : params[i] || '';
       }
 
       return value;
@@ -16174,9 +16386,9 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     };
 
     // Two way databinding for textareas
-    if (domElement.tagName === "TEXTAREA") {
+    if (domElement.tagName === 'TEXTAREA') {
       lazyValue.onNotify(updateTextarea);
-      (0, _$["default"])(domElement).on("change keyup", function (event) {
+      (0, _$["default"])(domElement).on('change keyup', function (event) {
         lazyValue.set(lazyValue.path, this.value);
       });
     }
@@ -16190,20 +16402,20 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
         checkboxChange,
         type = domElement.getAttribute("type"),
         attr,
-        inputTypes = { "null": true, "text": true, "email": true, "password": true,
-      "search": true, "url": true, "tel": true, "hidden": true,
-      "number": true, "color": true, "date": true, "datetime": true,
-      "datetime-local:": true, "month": true, "range": true,
-      "time": true, "week": true
+        inputTypes = { 'null': true, 'text': true, 'email': true, 'password': true,
+      'search': true, 'url': true, 'tel': true, 'hidden': true,
+      'number': true, 'color': true, 'date': true, 'datetime': true,
+      'datetime-local:': true, 'month': true, 'range': true,
+      'time': true, 'week': true
     };
 
     // If is a text input element's value prop with only one variable, wire default events
-    if (domElement.tagName === "INPUT" && inputTypes[type] && name === "value") {
+    if (domElement.tagName === 'INPUT' && inputTypes[type] && name === 'value') {
 
       // If our special input events have not been bound yet, bind them and set flag
       if (!attrMorph.inputObserver) {
 
-        (0, _$["default"])(domElement).on("change input propertychange", function (event) {
+        (0, _$["default"])(domElement).on('change input propertychange', function (event) {
           value.set(value.path, this.value);
         });
 
@@ -16214,13 +16426,13 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       _.isUndefined(val) ? domElement.removeAttribute(name) : domElement.setAttribute(name, val);
 
       attr = val;
-      return domElement.value !== String(attr) ? domElement.value = attr || "" : attr;
-    } else if (domElement.tagName === "INPUT" && (type === "checkbox" || type === "radio") && name === "checked") {
+      return domElement.value !== String(attr) ? domElement.value = attr || '' : attr;
+    } else if (domElement.tagName === 'INPUT' && (type === 'checkbox' || type === 'radio') && name === 'checked') {
 
       // If our special input events have not been bound yet, bind them and set flag
       if (!attrMorph.eventsBound) {
 
-        (0, _$["default"])(domElement).on("change propertychange", function (event) {
+        (0, _$["default"])(domElement).on('change propertychange', function (event) {
           value.set(value.path, this.checked ? true : false, { quiet: true });
         });
 
@@ -16235,27 +16447,27 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
     // Special case for link elements with dynamic classes.
     // If the router has assigned it a truthy 'active' property, ensure that the extra class is present on re-render.
-    else if (domElement.tagName === "A" && name === "class") {
-      if (_.isUndefined(val)) {
-        domElement.active ? domElement.setAttribute("class", "active") : domElement.classList.remove("class");
+    else if (domElement.tagName === 'A' && name === 'class') {
+        if (_.isUndefined(val)) {
+          domElement.active ? domElement.setAttribute('class', 'active') : domElement.classList.remove('class');
+        } else {
+          domElement.setAttribute(name, val + (domElement.active ? ' active' : ''));
+        }
       } else {
-        domElement.setAttribute(name, val + (domElement.active ? " active" : ""));
+        _.isString(val) && (val = val.trim());
+        val || (val = undefined);
+        if (_.isUndefined(val)) {
+          domElement.removeAttribute(name);
+        } else {
+          domElement.setAttribute(name, val);
+        }
       }
-    } else {
-      _.isString(val) && (val = val.trim());
-      val || (val = undefined);
-      if (_.isUndefined(val)) {
-        domElement.removeAttribute(name);
-      } else {
-        domElement.setAttribute(name, val);
-      }
-    }
 
-    _hooks["default"].linkRenderNode(attrMorph, env, scope, "@attribute", [value], {});
+    _hooks["default"].linkRenderNode(attrMorph, env, scope, '@attribute', [value], {});
   };
 
   _hooks["default"].partial = function partial(renderNode, env, scope, path) {
-    if (!path) console.error("Partial helper must be passed path!");
+    if (!path) console.error('Partial helper must be passed path!');
     path = path.isLazyValue ? path.value : path;
     var part = this.wrapPartial(_reboundComponentHelpers.partials[path]);
     if (part && part.render) {
@@ -16298,6 +16510,9 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       componentData[key] = streamProperty(component, key);
     }
 
+    // Set up two way binding between component and original context for non-data attributes
+    // Syncing between models and collections passed are handled in model and collection
+
     var _loop = function () {
       var key = prop;
       if (componentData[key].isLazyValue && attrs[key].isLazyValue) {
@@ -16317,16 +16532,13 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       }
     };
 
-    // Set up two way binding between component and original context for non-data attributes
-    // Syncing between models and collections passed are handled in model and collection
-
     for (var prop in componentData) {
       _loop();
     }
 
     // TODO: Move this to Component
     // // For each change on our component, update the states of the original context and the element's proeprties.
-    component.listenTo(component, "change", function (model) {
+    component.listenTo(component, 'change', function (model) {
       var json = component.toJSON();
 
       if (_.isString(json)) return; // If is a string, this model is seralizing already
@@ -16380,15 +16592,15 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     // `<content>` outlets to render templates into.
     (0, _$["default"])(element).walkTheDOM(function (el) {
       if (element === el) return true;
-      if (el.tagName === "CONTENT") outlet = el;
-      if (el.tagName.indexOf("-") > -1) return false;
+      if (el.tagName === 'CONTENT') outlet = el;
+      if (el.tagName.indexOf('-') > -1) return false;
       return true;
     });
 
     // If a `<content>` outlet is present in component's template, and a template
     // is provided, render it into the outlet
     if (templates["default"] && _.isElement(outlet)) {
-      outlet.innerHTML = "";
+      outlet.innerHTML = '';
       outlet.appendChild(_render2["default"]["default"](templates["default"], env, scope, {}).fragment);
     }
 
@@ -16398,10 +16610,6 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
   module.exports = _hooks["default"];
 });
-
-// for(let i in renderNode.lazyValues)
-//   if(renderNode.lazyValues[i].isLazyValue)
-//     renderNode.lazyValues[i].destroy();
 define("rebound-data/model", ["exports", "module", "rebound-data/computed-property", "rebound-component/utils"], function (exports, module, _reboundDataComputedProperty, _reboundComponentUtils) {
   // Rebound Model
   // ----------------
@@ -16427,7 +16635,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
   function pathGenerator(parent, key) {
     return function () {
       var path = parent.__path();
-      return path + (path === "" ? "" : ".") + key;
+      return path + (path === '' ? '' : '.') + key;
     };
   }
 
@@ -16439,7 +16647,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
     // A method that returns a root path by default. Meant to be overridden on
     // instantiation.
     __path: function __path() {
-      return "";
+      return '';
     },
 
     // Create a new Model with the specified attributes. The Model's lineage is set
@@ -16464,7 +16672,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
     toggle: function toggle(attr, options) {
       options = options ? _.clone(options) : {};
       var val = this.get(attr);
-      if (!_.isBoolean(val)) console.error("Tried to toggle non-boolean value " + attr + "!", this);
+      if (!_.isBoolean(val)) console.error('Tried to toggle non-boolean value ' + attr + '!', this);
       return this.set(attr, !val, options);
     },
 
@@ -16475,13 +16683,13 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
       var wait = options.wait;
 
       var destroy = function destroy() {
-        model.trigger("destroy", model, model.collection, options);
+        model.trigger('destroy', model, model.collection, options);
       };
 
       options.success = function (resp) {
         if (wait) destroy();
         if (success) success.call(options.context, model, resp, options);
-        if (!model.isNew()) model.trigger("sync", model, resp, options);
+        if (!model.isNew()) model.trigger('sync', model, resp, options);
       };
 
       var xhr = false;
@@ -16489,7 +16697,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
         _.defer(options.success);
       } else {
         wrapError(this, options);
-        xhr = this.sync("delete", this, options);
+        xhr = this.sync('delete', this, options);
       }
       if (!wait) destroy();
       return xhr;
@@ -16517,7 +16725,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
         value = this.attributes[key];
         if (value === obj[key]) continue;else if (_.isUndefined(value)) obj[key] && (changed[key] = obj[key]);else if (value.isComponent) continue;else if (value.isCollection || value.isModel || value.isComputedProperty) {
           value.reset(obj[key] || [], { silent: true });
-          if (value.isCollection) changed[key] = [];else if (value.isModel && value.isComputedProperty) changed[key] = value.cache.model.changed;else if (value.isModel) changed[key] = value.changed;
+          if (value.isCollection) changed[key] = value.previousModels;else if (value.isModel && value.isComputedProperty) changed[key] = value.cache.model.changedAttributes();else if (value.isModel) changed[key] = value.changedAttributes();
         } else if (obj.hasOwnProperty(key)) {
           changed[key] = obj[key];
         } else if (this.defaults.hasOwnProperty(key) && !_.isFunction(this.defaults[key])) {
@@ -16538,7 +16746,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
 
       // Trigger custom reset event
       this.changed = changed;
-      if (!options.silent) this.trigger("reset", this, options);
+      if (!options.silent) this.trigger('reset', this, options);
 
       // Return new values
       return obj;
@@ -16564,13 +16772,13 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
           l = parts.length;
 
       if (_.isUndefined(key) || _.isNull(key)) return undefined;
-      if (key === "" || parts.length === 0) return result;
+      if (key === '' || parts.length === 0) return result;
 
       for (i = 0; i < l; i++) {
         if (result && result.isComputedProperty && options.raw) return result;
         if (result && result.isComputedProperty) result = result.value();
         if (_.isUndefined(result) || _.isNull(result)) return result;
-        if (parts[i] === "@parent") result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result && result.hasOwnProperty(parts[i])) result = result[parts[i]];
+        if (parts[i] === '@parent') result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result && result.hasOwnProperty(parts[i])) result = result[parts[i]];
       }
 
       if (result && result.isComputedProperty && !options.raw) result = result.value();
@@ -16582,6 +16790,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
     // It needs to traverse `Models`, `Collections` and `Computed Properties` to
     // find the correct value to call the original `Backbone.Set` on.
     set: function set(key, val, options) {
+      var _this = this;
 
       var attrs,
           attr,
@@ -16591,7 +16800,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
           props = [],
           lineage;
 
-      if (typeof key === "object") {
+      if (typeof key === 'object') {
         attrs = key.isModel ? key.attributes : key;
         options = val;
       } else (attrs = {})[key] = val;
@@ -16606,31 +16815,33 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
       if (_.isEmpty(attrs)) return;
 
       // For each attribute passed:
-      for (key in attrs) {
-        var _val = attrs[key],
+      var _loop = function () {
+        var val = attrs[key],
             paths = _$["default"].splitPath(key),
-            _attr = paths.pop() || ""; // The key        ex: foo[0].bar --> bar
-        target = this.get(paths.join(".")), // The element    ex: foo.bar.baz --> foo.bar
-        lineage;
+            attr = paths.pop() || '',
+            // The key        ex: foo[0].bar --> bar
+        target = _this.get(paths.join('.')),
+            // The element    ex: foo.bar.baz --> foo.bar
+        lineage = undefined;
 
         // If target currently doesnt exist, construct its tree
         if (_.isUndefined(target)) {
-          target = this;
+          target = _this;
           _.each(paths, function (value) {
             var tmp = target.get(value);
             if (_.isUndefined(tmp)) tmp = target.set(value, {}).get(value);
             target = tmp;
-          }, this);
+          }, _this);
         }
 
         // The old value of `attr` in `target`
-        destination = target.get(_attr, { raw: true }) || {};
+        destination = target.get(attr, { raw: true }) || {};
 
         // Create this new object's lineage.
         lineage = {
           name: key,
           parent: target,
-          root: this.__root__,
+          root: _this.__root__,
           path: pathGenerator(target, key),
           silent: true,
           defaults: options.defaults
@@ -16648,19 +16859,25 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
         // - Else If this value is a `Object`, turn it into a `Model`.
         // - Else val is a primitive value, set it accordingly.
 
-        if (_.isNull(_val) || _.isUndefined(_val)) _val = this.defaults[key];
-        if (_val && _val.isComputedProperty) _val = _val.value();
-        if (_.isNull(_val) || _.isUndefined(_val)) _val = undefined;else if (options.raw === true) _val = _val;else if (destination.isComputedProperty && destination.func === _val) continue;else if (_val.isComputedProto) _val = new _ComputedProperty["default"](_val.get, _val.set, lineage);else if (_val.isData && target.hasParent(_val)) _val = _val;else if (destination.isComputedProperty || destination.isCollection && (_.isArray(_val) || _val.isCollection) || destination.isModel && (_.isObject(_val) || _val.isModel)) {
-          destination.set(_val, options);
-          continue;
-        } else if (_val.isData && options.clone !== false) _val = new _val.constructor(_val.attributes || _val.models, lineage);else if (_.isArray(_val)) _val = new Rebound.Collection(_val, lineage); // TODO: Remove global referance
-        else if (_.isObject(_val)) _val = new Model(_val, lineage);
+        if (_.isNull(val) || _.isUndefined(val)) val = _this.defaults[key];
+        if (val && val.isComputedProperty) val = val.value();
+        if (_.isNull(val) || _.isUndefined(val)) val = undefined;else if (options.raw === true) val = val;else if (destination.isComputedProperty && destination.func === val) return "continue";else if (val.isComputedProto) val = new _ComputedProperty["default"](val.get, val.set, lineage);else if (val.isData && target.hasParent(val)) val = val;else if (destination.isComputedProperty || destination.isCollection && (_.isArray(val) || val.isCollection) || destination.isModel && (_.isObject(val) || val.isModel)) {
+          destination.set(val, options);
+          return "continue";
+        } else if (val.isData && options.clone !== false) val = new val.constructor(val.attributes || val.models, lineage);else if (_.isArray(val)) val = new Rebound.Collection(val, lineage); // TODO: Remove global referance
+        else if (_.isObject(val)) val = new Model(val, lineage);
 
         // If val is a data object, let this object know it is now a parent
-        this._hasAncestry = _val && _val.isData || false;
+        _this._hasAncestry = val && val.isData || false;
 
         // Set the value
-        Backbone.Model.prototype.set.call(target, _attr, _val, options); // TODO: Event cleanup when replacing a model or collection with another value
+        Backbone.Model.prototype.set.call(target, attr, val, options); // TODO: Event cleanup when replacing a model or collection with another value
+      };
+
+      for (key in attrs) {
+        var _ret = _loop();
+
+        if (_ret === "continue") continue;
       }
 
       return this;
@@ -16811,7 +17028,7 @@ define('rebound-component/lazy-value', ['exports', 'module'], function (exports,
   }, {
     value: { // just for reusing the array, might not work well if children.length changes after computation
 
-      get: function () {
+      get: function get() {
         var cache = this.cache;
         if (cache !== NIL) {
           return cache;
@@ -16864,16 +17081,16 @@ define("rebound-data/rebound-data", ["exports", "module", "rebound-data/model", 
     // Ex: Would trigger `change:val`, `change:[0].val`, `change:arr[0].val` and `obj.arr[0].val`
     // on each parent as it is propagated up the tree.
     propagateEvent: function propagateEvent(type, model) {
-      if (this.__parent__ === this || type === "dirty") return;
-      if (type.indexOf("change:") === 0 && model.isModel) {
-        if (this.isCollection && ~type.indexOf("change:[")) return;
+      if (this.__parent__ === this || type === 'dirty') return;
+      if (type.indexOf('change:') === 0 && model.isModel) {
+        if (this.isCollection && ~type.indexOf('change:[')) return;
         var key,
-            path = model.__path().replace(this.__parent__.__path(), "").replace(/^\./, ""),
+            path = model.__path().replace(this.__parent__.__path(), '').replace(/^\./, ''),
             changed = model.changedAttributes();
 
         for (key in changed) {
           // TODO: Modifying arguments array is bad. change this
-          arguments[0] = "change:" + path + (path && ".") + key; // jshint ignore:line
+          arguments[0] = 'change:' + path + (path && '.') + key; // jshint ignore:line
           this.__parent__.trigger.apply(this.__parent__, arguments);
         }
         return;
@@ -16884,10 +17101,10 @@ define("rebound-data/rebound-data", ["exports", "module", "rebound-data/model", 
     // Set this data object's parent to `parent` and, as long as a data object is
     // not its own parent, propagate every event triggered on `this` up the tree.
     setParent: function setParent(parent) {
-      if (this.__parent__) this.off("all", this.propagateEvent);
+      if (this.__parent__) this.off('all', this.propagateEvent);
       this.__parent__ = parent;
       this._hasAncestry = true;
-      if (parent !== this) this.on("all", this.__parent__.propagateEvent);
+      if (parent !== this) this.on('all', this.__parent__.propagateEvent);
       return parent;
     },
 
@@ -16938,7 +17155,7 @@ define("rebound-data/rebound-data", ["exports", "module", "rebound-data/model", 
       if (this.el) {
         _.each(this.el.__listeners, function (handler, eventType) {
           if (this.el.removeEventListener) this.el.removeEventListener(eventType, handler, false);
-          if (this.el.detachEvent) this.el.detachEvent("on" + eventType, handler);
+          if (this.el.detachEvent) this.el.detachEvent('on' + eventType, handler);
         }, this);
         (0, _$["default"])(this.el).walkTheDOM(function (el) {
           if (el.__lazyValue && el.__lazyValue.destroy()) n.__lazyValue.destroy();
@@ -17046,8 +17263,8 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
 
       // Event type
     } else {
-      this.type = src;
-    }
+        this.type = src;
+      }
 
     // Put explicitly provided properties onto the event object
     if (props) {
@@ -17106,7 +17323,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
     // Given a valid data path, split it into an array of its parts.
     // ex: foo.bar[0].baz --> ['foo', 'var', '0', 'baz']
     splitPath: function splitPath(path) {
-      path = ("." + path + ".").split(/(?:\.|\[|\])+/);
+      path = ('.' + path + '.').split(/(?:\.|\[|\])+/);
       path.pop();
       path.shift();
       return path;
@@ -17139,8 +17356,8 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
             set = undefined;
         if (!obj.hasOwnProperty(key)) continue;
         var desc = Object.getOwnPropertyDescriptor(obj, key);
-        get = desc.hasOwnProperty("get") && desc.get;
-        set = desc.hasOwnProperty("set") && desc.set;
+        get = desc.hasOwnProperty('get') && desc.get;
+        set = desc.hasOwnProperty('set') && desc.set;
         if (get || set) {
           delete obj[key];
           obj[key] = { get: get, set: set, isComputedProto: true };
@@ -17174,11 +17391,11 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
       while (len--) {
         el = this[len];
         if (document.createEvent) {
-          var event = document.createEvent("HTMLEvents");
+          var event = document.createEvent('HTMLEvents');
           event.initEvent(eventName, true, false);
           el.dispatchEvent(event);
         } else {
-          el.fireEvent("on" + eventName);
+          el.fireEvent('on' + eventName);
         }
       }
     },
@@ -17212,7 +17429,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
           el.removeEventListener(eventType, handler, false);
         }
         if (eventCount === 0 && el.detachEvent) {
-          el.detachEvent("on" + eventType, handler);
+          el.detachEvent('on' + eventType, handler);
         }
       }
     },
@@ -17221,7 +17438,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
       var el,
           events = this._events,
           len = this.length,
-          eventNames = eventName.split(" "),
+          eventNames = eventName.split(' '),
           delegateId,
           delegateGroup;
 
@@ -17243,8 +17460,8 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
           return false;
         }
 
-        delegateId = _.isString(delegate) ? delegate : delegate.delegateId = delegate.delegateId || _.uniqueId("event");
-        delegateGroup = el.delegateGroup = el.delegateGroup || _.uniqueId("delegateGroup");
+        delegateId = _.isString(delegate) ? delegate : delegate.delegateId = delegate.delegateId || _.uniqueId('event');
+        delegateGroup = el.delegateGroup = el.delegateGroup || _.uniqueId('delegateGroup');
 
         _.each(eventNames, function (eventName) {
 
@@ -17288,7 +17505,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
             // This also allows jquery's trigger method to actually fire delegated events
             // el['on' + eventName] = callback;
             // If event is focus or blur, use capture to allow for event delegation.
-            el.addEventListener(eventName, callback, eventName === "focus" || eventName === "blur");
+            el.addEventListener(eventName, callback, eventName === 'focus' || eventName === 'blur');
           }
 
           // Add our listener
@@ -17323,9 +17540,9 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
     unMarkLinks: function unMarkLinks() {
       var len = this.length;
       while (len--) {
-        var links = this[len].querySelectorAll("a");
+        var links = this[len].querySelectorAll('a');
         for (var i = 0; i < links.length; i++) {
-          links.item(i).classList.remove("active");
+          links.item(i).classList.remove('active');
           links.item(i).active = false;
         }
       }
@@ -17334,9 +17551,9 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
     markLinks: function markLinks() {
       var len = this.length;
       while (len--) {
-        var links = this[len].querySelectorAll("a[href=\"/" + Backbone.history.fragment + "\"]");
+        var links = this[len].querySelectorAll('a[href="/' + Backbone.history.fragment + '"]');
         for (var i = 0; i < links.length; i++) {
-          links.item(i).classList.add("active");
+          links.item(i).classList.add('active');
           links.item(i).active = true;
         }
       }
@@ -17345,22 +17562,22 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
 
     // http://krasimirtsonev.com/blog/article/Cross-browser-handling-of-Ajax-requests-in-absurdjs
     ajax: function ajax(ops) {
-      if (typeof ops == "string") ops = { url: ops };
-      ops.url = ops.url || "";
+      if (typeof ops == 'string') ops = { url: ops };
+      ops.url = ops.url || '';
       ops.json = ops.json || true;
-      ops.method = ops.method || "get";
+      ops.method = ops.method || 'get';
       ops.data = ops.data || {};
       var getParams = function getParams(data, url) {
         var arr = [],
             str;
         for (var name in data) {
-          arr.push(name + "=" + encodeURIComponent(data[name]));
+          arr.push(name + '=' + encodeURIComponent(data[name]));
         }
-        str = arr.join("&");
-        if (str !== "") {
-          return url ? url.indexOf("?") < 0 ? "?" + str : "&" + str : str;
+        str = arr.join('&');
+        if (str !== '') {
+          return url ? url.indexOf('?') < 0 ? '?' + str : '&' + str : str;
         }
-        return "";
+        return '';
       };
       var api = {
         host: {},
@@ -17368,7 +17585,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
           var self = this;
           this.xhr = null;
           if (window.ActiveXObject) {
-            this.xhr = new ActiveXObject("Microsoft.XMLHTTP");
+            this.xhr = new ActiveXObject('Microsoft.XMLHTTP');
           } else if (window.XMLHttpRequest) {
             this.xhr = new XMLHttpRequest();
           }
@@ -17376,7 +17593,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
             this.xhr.onreadystatechange = function () {
               if (self.xhr.readyState == 4 && self.xhr.status == 200) {
                 var result = self.xhr.responseText;
-                if (ops.json === true && typeof JSON != "undefined") {
+                if (ops.json === true && typeof JSON != 'undefined') {
                   result = JSON.parse(result);
                 }
                 self.doneCallback && self.doneCallback.apply(self.host, [result, self.xhr]);
@@ -17389,23 +17606,23 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
               ops.complete && ops.complete.apply(self.host, [self.xhr]);
             };
           }
-          if (ops.method == "get") {
+          if (ops.method == 'get') {
             this.xhr.open("GET", ops.url + getParams(ops.data, ops.url), true);
             this.setHeaders({
-              "X-Requested-With": "XMLHttpRequest"
+              'X-Requested-With': 'XMLHttpRequest'
             });
           } else {
             this.xhr.open(ops.method, ops.url, true);
             this.setHeaders({
-              "X-Requested-With": "XMLHttpRequest",
-              "Content-type": "application/x-www-form-urlencoded"
+              'X-Requested-With': 'XMLHttpRequest',
+              'Content-type': 'application/x-www-form-urlencoded'
             });
           }
-          if (ops.headers && typeof ops.headers == "object") {
+          if (ops.headers && typeof ops.headers == 'object') {
             this.setHeaders(ops.headers);
           }
           setTimeout(function () {
-            ops.method == "get" ? self.xhr.send() : self.xhr.send(getParams(ops.data));
+            ops.method == 'get' ? self.xhr.send() : self.xhr.send(getParams(ops.data));
           }, 20);
           return this.xhr;
         },
