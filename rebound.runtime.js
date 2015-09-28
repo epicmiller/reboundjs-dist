@@ -212,9 +212,6 @@ var
   doesNotSupportDOMAttrModified = true,
   dropDomContentLoaded = true,
 
-  // needed for the innerHTML helper
-  notFromInnerHTMLHelper = true,
-
   // optionally defined later on
   onSubtreeModified,
   callDOMAttrModified,
@@ -225,7 +222,8 @@ var
   // will check proto or the expando attribute
   // in order to setup the node once
   patchIfNotAlready,
-  patch
+  patch,
+  notFromInnerHTMLHelper
 ;
 
 if (sPO || hasProto) {
@@ -657,7 +655,7 @@ document[REGISTER_ELEMENT] = function registerElement(type, options) {
   }
 
   if (!validName.test(upperType) || -1 < indexOf.call(invalidNames, upperType)) {
-    throw new Error('The type ' + type + ' is invalid');
+    throw new Error('The type ' + upperType + ' is invalid ' + validName.test(upperType) + ' ' + indexOf.call(invalidNames, upperType));
   }
 
   var
@@ -7444,6 +7442,8 @@ define('htmlbars-runtime/hooks', ['exports', './render', '../morph-range/morph-l
   }
 
   function isStableTemplate(template, lastYielded) {
+    console.log(!lastYielded.shadowTemplate && template === lastYielded.template);
+
     return !lastYielded.shadowTemplate && template === lastYielded.template;
   }
 
@@ -9881,7 +9881,7 @@ define('property-compiler/property-compiler', ['exports', 'module', 'property-co
         }
 
         // Replace any access to a collection with the generic @each placeholder and push dependancy
-        workingpath.push(path.value.replace(/\[.+\]/g, ".@each").replace(/^\./, ''));
+        workingpath.push(path.value.replace(/\[.+\]/g, '.@each').replace(/^\./, ''));
       }
 
       if (token.value === 'pluck') {
@@ -9961,7 +9961,7 @@ define("rebound-compiler/compile", ["exports", "module", "rebound-compiler/parse
   var _Component = _interopRequireDefault(_reboundComponentComponent);
 
   function compile(str) {
-    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+    var options = arguments[1] === undefined ? {} : arguments[1];
 
     /* jshint evil: true */
     // Parse the template and compile our template function
@@ -10001,7 +10001,7 @@ define("rebound-compiler/compile", ["exports", "module", "rebound-compiler/parse
   var _Component = _interopRequireDefault(_reboundComponentComponent);
 
   function compile(str) {
-    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+    var options = arguments[1] === undefined ? {} : arguments[1];
 
     /* jshint evil: true */
     // Parse the template and compile our template function
@@ -10021,133 +10021,6 @@ define("rebound-compiler/compile", ["exports", "module", "rebound-compiler/parse
   }
 
   module.exports = { compile: compile };
-});
-define("rebound-data/collection", ["exports", "module", "rebound-data/model", "rebound-component/utils"], function (exports, module, _reboundDataModel, _reboundComponentUtils) {
-  // Rebound Collection
-  // ----------------
-
-  "use strict";
-
-  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-  var _Model = _interopRequireDefault(_reboundDataModel);
-
-  var _$ = _interopRequireDefault(_reboundComponentUtils);
-
-  function pathGenerator(collection) {
-    return function () {
-      return collection.__path() + '[' + collection.indexOf(collection._byId[this.cid]) + ']';
-    };
-  }
-
-  var Collection = Backbone.Collection.extend({
-
-    isCollection: true,
-    isData: true,
-
-    model: _Model["default"],
-
-    __path: function __path() {
-      return '';
-    },
-
-    constructor: function constructor(models, options) {
-      models || (models = []);
-      options || (options = {});
-      this.__observers = {};
-      this.helpers = {};
-      this.cid = _.uniqueId('collection');
-
-      // Set lineage
-      this.setParent(options.parent || this);
-      this.setRoot(options.root || this);
-      this.__path = options.path || this.__path;
-
-      Backbone.Collection.apply(this, arguments);
-
-      // When a model is removed from its original collection, destroy it
-      // TODO: Fix this. Computed properties now somehow allow collection to share a model. They may be removed from one but not the other. That is bad.
-      // The clone = false options is the culprit. Find a better way to copy all of the collections custom attributes over to the clone.
-      this.on('remove', function (model, collection, options) {
-        // model.deinitialize();
-      });
-    },
-
-    get: function get(key, options) {
-
-      // If the key is a number or object, default to backbone's collection get
-      if (typeof key == 'number' || typeof key == 'object') {
-        return Backbone.Collection.prototype.get.call(this, key);
-      }
-
-      // If key is not a string, return undefined
-      if (!_.isString(key)) return void 0;
-
-      // Split the path at all '.', '[' and ']' and find the value referanced.
-      var parts = _$["default"].splitPath(key),
-          result = this,
-          l = parts.length,
-          i = 0;
-      options || (options = {});
-
-      if (_.isUndefined(key) || _.isNull(key)) return key;
-      if (key === '' || parts.length === 0) return result;
-
-      if (parts.length > 0) {
-        for (i = 0; i < l; i++) {
-          // If returning raw, always return the first computed property found. If undefined, you're done.
-          if (result && result.isComputedProperty && options.raw) return result;
-          if (result && result.isComputedProperty) result = result.value();
-          if (_.isUndefined(result) || _.isNull(result)) return result;
-          if (parts[i] === '@parent') result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result.hasOwnProperty(parts[i])) result = result[parts[i]];
-        }
-      }
-
-      if (result && result.isComputedProperty && !options.raw) result = result.value();
-
-      return result;
-    },
-
-    set: function set(models, options) {
-      var newModels = [],
-          lineage = {
-        parent: this,
-        root: this.__root__,
-        path: pathGenerator(this),
-        silent: true
-      };
-      options = options || {},
-
-      // If no models passed, implies an empty array
-      models || (models = []);
-
-      // If models is a string, call set at that path
-      if (_.isString(models)) return this.get(_$["default"].splitPath(models)[0]).set(_$["default"].splitPath(models).splice(1, models.length).join('.'), options);
-      if (!_.isObject(models)) return console.error('Collection.set must be passed a Model, Object, array or Models and Objects, or another Collection');
-
-      // If another collection, treat like an array
-      models = models.isCollection ? models.models : models;
-      // Ensure models is an array
-      models = !_.isArray(models) ? [models] : models;
-
-      // If the model already exists in this collection, or we are told not to clone it, let Backbone handle the merge
-      // Otherwise, create our copy of this model, give them the same cid so our helpers treat them as the same object
-      _.each(models, function (data, index) {
-        if (data.isModel && options.clone === false || this._byId[data.cid]) return newModels[index] = data;
-        newModels[index] = new this.model(data, _.defaults(lineage, options));
-        data.isModel && (newModels[index].cid = data.cid);
-      }, this);
-
-      // Ensure that this element now knows that it has children now. Without this cyclic dependancies cause issues
-      this._hasAncestry || (this._hasAncestry = newModels.length > 0);
-
-      // Call original set function with model duplicates
-      return Backbone.Collection.prototype.set.call(this, newModels, options);
-    }
-
-  });
-
-  module.exports = Collection;
 });
 define("rebound-component/component", ["exports", "module", "dom-helper", "htmlbars-runtime/render", "rebound-component/hooks", "rebound-component/helpers", "rebound-component/utils", "rebound-data/rebound-data"], function (exports, module, _domHelper, _htmlbarsRuntimeRender, _reboundComponentHooks, _reboundComponentHelpers, _reboundComponentUtils, _reboundDataReboundData) {
   // Rebound Component
@@ -10173,7 +10046,7 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
     str = _$["default"].splitPath(str);
     test = _$["default"].splitPath(test);
     while (test[0] && str[0]) {
-      if (str[0] !== test[0] && str[0] !== '@each' && test[0] !== '@each') return false;
+      if (str[0] !== test[0] && str[0] !== "@each" && test[0] !== "@each") return false;
       test.shift();
       str.shift();
     }
@@ -10210,15 +10083,15 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
       var _this = this;
 
       var self = this;
-      this.listenTo(service, 'all', function (type, model, value, options) {
+      this.listenTo(service, "all", function (type, model, value, options) {
         var attr,
             path = model.__path(),
             changed;
-        if (type.indexOf('change:') === 0) {
+        if (type.indexOf("change:") === 0) {
           changed = model.changedAttributes();
           for (attr in changed) {
             // TODO: Modifying arguments array is bad. change this
-            type = 'change:' + key + '.' + path + (path && '.') + attr; // jshint ignore:line
+            type = "change:" + key + "." + path + (path && ".") + attr; // jshint ignore:line
             options.service = key;
             _this.trigger.call(_this, type, model, value, options);
           }
@@ -10253,7 +10126,7 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
     // It also marks itself as a consumer of this component
     set: function set(key, val, options) {
       var attrs, attr, serviceOptions;
-      if (typeof key === 'object') {
+      if (typeof key === "object") {
         attrs = key.isModel ? key.attributes : key;
         options = val;
       } else (attrs = {})[key] = val;
@@ -10286,8 +10159,8 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
           attr,
           self = this;
       options = options || (options = {});
-      _.bindAll(this, '_callOnComponent', '_listenToService', '_render');
-      this.cid = _.uniqueId('component');
+      _.bindAll(this, "_callOnComponent", "_listenToService", "_render");
+      this.cid = _.uniqueId("component");
       this.env = _hooks["default"].createChildEnv(_hooks["default"].createFreshEnv());
       // Call on component is used by the {{on}} helper to call all event callbacks in the scope of the component
       this.env.helpers._callOnComponent = this._callOnComponent;
@@ -10296,7 +10169,7 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
       this.consumers = [];
       this.services = {};
       this.__parent__ = this.__root__ = this;
-      this.listenTo(this, 'all', this._onChange);
+      this.listenTo(this, "all", this._onChange);
 
       // Take our parsed data and add it to our backbone data structure. Does a deep defaults set.
       // In the model, primatives (arrays, objects, etc) are converted to Backbone Objects
@@ -10311,11 +10184,11 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
       this.routes = _.defaults(options.routes || {}, this.routes);
       // Ensure that all route functions exist
       _.each(this.routes, function (value, key, routes) {
-        if (typeof value !== 'string') {
-          throw 'Function name passed to routes in  ' + this.__name + ' component must be a string!';
+        if (typeof value !== "string") {
+          throw "Function name passed to routes in  " + this.__name + " component must be a string!";
         }
         if (!this[value]) {
-          throw 'Callback function ' + value + ' does not exist on the  ' + this.__name + ' component!';
+          throw "Callback function " + value + " does not exist on the  " + this.__name + " component!";
         }
       }, this);
 
@@ -10344,7 +10217,7 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
 
     $: function $(selector) {
       if (!this.$el) {
-        return console.error('No DOM manipulation library on the page!');
+        return console.error("No DOM manipulation library on the page!");
       }
       return this.$el.find(selector);
     },
@@ -10357,25 +10230,7 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
       Backbone.Model.prototype.trigger.apply(this, arguments);
     },
 
-    _onAttributeChange: function _onAttributeChange(attrName, oldVal, newVal) {
-      // Commented out because tracking attribute changes and making sure they dont infinite loop is hard.
-      // TODO: Make work.
-      // try{ newVal = JSON.parse(newVal); } catch (e){ newVal = newVal; }
-      //
-      // // data attributes should be referanced by their camel case name
-      // attrName = attrName.replace(/^data-/g, "").replace(/-([a-z])/g, function (g) { return g[1].toUpperCase(); });
-      //
-      // oldVal = this.get(attrName);
-      //
-      // if(newVal === null){ this.unset(attrName); }
-      //
-      // // If oldVal is a number, and newVal is only numerical, preserve type
-      // if(_.isNumber(oldVal) && _.isString(newVal) && newVal.match(/^[0-9]*$/i)){
-      //   newVal = parseInt(newVal);
-      // }
-      //
-      // else{ this.set(attrName, newVal, {quiet: true}); }
-    },
+    _onAttributeChange: function _onAttributeChange(attrName, oldVal, newVal) {},
 
     _onChange: function _onChange(type, model, collection, options) {
       var shortcircuit = { change: 1, sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1, dirty: 1 };
@@ -10385,16 +10240,16 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
       model || (model = {});
       collection || (collection = {});
       options || (options = {});
-      !collection.isData && type.indexOf('change:') === -1 && (options = collection) && (collection = model);
+      !collection.isData && type.indexOf("change:") === -1 && (options = collection) && (collection = model);
       this._toRender || (this._toRender = []);
 
-      if (type === 'reset' && options.previousAttributes || type.indexOf('change:') !== -1) {
+      if (type === "reset" && options.previousAttributes || type.indexOf("change:") !== -1) {
         data = model;
         changed = model.changedAttributes();
-      } else if (type === 'add' || type === 'remove' || type === 'reset' && options.previousModels) {
+      } else if (type === "add" || type === "remove" || type === "reset" && options.previousModels) {
         data = collection;
         changed = {
-          '@each': data
+          "@each": data
         };
       }
 
@@ -10413,7 +10268,7 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
       var context = this;
       var basePath = data.__path();
       // If this event came from within a service, include the service key in the base path
-      if (options.service) basePath = options.service + '.' + basePath;
+      if (options.service) basePath = options.service + "." + basePath;
       var parts = _$["default"].splitPath(basePath);
       var key, obsPath, path, observers;
 
@@ -10422,12 +10277,12 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
       // object's _toRender queue.
       do {
         for (key in changed) {
-          path = (basePath + (basePath && key && '.') + key).replace(context.__path(), '').replace(/\[[^\]]+\]/g, ".@each").replace(/^\./, '');
+          path = (basePath + (basePath && key && ".") + key).replace(context.__path(), "").replace(/\[[^\]]+\]/g, ".@each").replace(/^\./, "");
           for (obsPath in context.__observers) {
             observers = context.__observers[obsPath];
             if (startsWith(obsPath, path)) {
               // If this is a collection event, trigger everything, otherwise only trigger property change callbacks
-              if (_.isArray(changed[key])) push.call(this._toRender, observers.collection);
+              if (_.isArray(changed[key]) || data.isCollection) push.call(this._toRender, observers.collection);
               push.call(this._toRender, observers.model);
             }
           }
@@ -10446,15 +10301,15 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
     var parent = this,
         child,
         reservedMethods = {
-      'trigger': 1, 'constructor': 1, 'get': 1, 'set': 1, 'has': 1,
-      'extend': 1, 'escape': 1, 'unset': 1, 'clear': 1, 'cid': 1,
-      'attributes': 1, 'changed': 1, 'toJSON': 1, 'validationError': 1, 'isValid': 1,
-      'isNew': 1, 'hasChanged': 1, 'changedAttributes': 1, 'previous': 1, 'previousAttributes': 1
+      "trigger": 1, "constructor": 1, "get": 1, "set": 1, "has": 1,
+      "extend": 1, "escape": 1, "unset": 1, "clear": 1, "cid": 1,
+      "attributes": 1, "changed": 1, "toJSON": 1, "validationError": 1, "isValid": 1,
+      "isNew": 1, "hasChanged": 1, "changedAttributes": 1, "previous": 1, "previousAttributes": 1
     },
         configProperties = {
-      'routes': 1, 'template': 1, 'defaults': 1, 'outlet': 1, 'url': 1,
-      'urlRoot': 1, 'idAttribute': 1, 'id': 1, 'createdCallback': 1, 'attachedCallback': 1,
-      'detachedCallback': 1
+      "routes": 1, "template": 1, "defaults": 1, "outlet": 1, "url": 1,
+      "urlRoot": 1, "idAttribute": 1, "id": 1, "createdCallback": 1, "attachedCallback": 1,
+      "detachedCallback": 1
     };
 
     protoProps || (protoProps = {});
@@ -10463,7 +10318,7 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
     // staticProps.services = {};
 
     // If given a constructor, use it, otherwise use the default one defined above
-    if (protoProps && _.has(protoProps, 'constructor')) {
+    if (protoProps && _.has(protoProps, "constructor")) {
       child = protoProps.constructor;
     } else {
       child = function () {
@@ -10551,10 +10406,155 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
     return document.registerElement(name, { prototype: proto });
   };
 
-  _.bindAll(Component, 'registerComponent');
+  _.bindAll(Component, "registerComponent");
 
   module.exports = Component;
 });
+
+// Commented out because tracking attribute changes and making sure they dont infinite loop is hard.
+// TODO: Make work.
+// try{ newVal = JSON.parse(newVal); } catch (e){ newVal = newVal; }
+//
+// // data attributes should be referanced by their camel case name
+// attrName = attrName.replace(/^data-/g, "").replace(/-([a-z])/g, function (g) { return g[1].toUpperCase(); });
+//
+// oldVal = this.get(attrName);
+//
+// if(newVal === null){ this.unset(attrName); }
+//
+// // If oldVal is a number, and newVal is only numerical, preserve type
+// if(_.isNumber(oldVal) && _.isString(newVal) && newVal.match(/^[0-9]*$/i)){
+//   newVal = parseInt(newVal);
+// }
+//
+// else{ this.set(attrName, newVal, {quiet: true}); }
+define("rebound-data/collection", ["exports", "module", "rebound-data/model", "rebound-component/utils"], function (exports, module, _reboundDataModel, _reboundComponentUtils) {
+  // Rebound Collection
+  // ----------------
+
+  "use strict";
+
+  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
+  var _Model = _interopRequireDefault(_reboundDataModel);
+
+  var _$ = _interopRequireDefault(_reboundComponentUtils);
+
+  function pathGenerator(collection) {
+    return function () {
+      return collection.__path() + "[" + collection.indexOf(collection._byId[this.cid]) + "]";
+    };
+  }
+
+  var Collection = Backbone.Collection.extend({
+
+    isCollection: true,
+    isData: true,
+
+    model: _Model["default"],
+
+    __path: function __path() {
+      return "";
+    },
+
+    constructor: function constructor(models, options) {
+      models || (models = []);
+      options || (options = {});
+      this.__observers = {};
+      this.helpers = {};
+      this.cid = _.uniqueId("collection");
+
+      // Set lineage
+      this.setParent(options.parent || this);
+      this.setRoot(options.root || this);
+      this.__path = options.path || this.__path;
+
+      Backbone.Collection.apply(this, arguments);
+
+      // When a model is removed from its original collection, destroy it
+      // TODO: Fix this. Computed properties now somehow allow collection to share a model. They may be removed from one but not the other. That is bad.
+      // The clone = false options is the culprit. Find a better way to copy all of the collections custom attributes over to the clone.
+      this.on("remove", function (model, collection, options) {});
+    },
+
+    get: function get(key, options) {
+
+      // If the key is a number or object, default to backbone's collection get
+      if (typeof key == "number" || typeof key == "object") {
+        return Backbone.Collection.prototype.get.call(this, key);
+      }
+
+      // If key is not a string, return undefined
+      if (!_.isString(key)) return void 0;
+
+      // Split the path at all '.', '[' and ']' and find the value referanced.
+      var parts = _$["default"].splitPath(key),
+          result = this,
+          l = parts.length,
+          i = 0;
+      options || (options = {});
+
+      if (_.isUndefined(key) || _.isNull(key)) return key;
+      if (key === "" || parts.length === 0) return result;
+
+      if (parts.length > 0) {
+        for (i = 0; i < l; i++) {
+          // If returning raw, always return the first computed property found. If undefined, you're done.
+          if (result && result.isComputedProperty && options.raw) return result;
+          if (result && result.isComputedProperty) result = result.value();
+          if (_.isUndefined(result) || _.isNull(result)) return result;
+          if (parts[i] === "@parent") result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result.hasOwnProperty(parts[i])) result = result[parts[i]];
+        }
+      }
+
+      if (result && result.isComputedProperty && !options.raw) result = result.value();
+
+      return result;
+    },
+
+    set: function set(models, options) {
+      var newModels = [],
+          lineage = {
+        parent: this,
+        root: this.__root__,
+        path: pathGenerator(this),
+        silent: true
+      };
+      options = options || {},
+
+      // If no models passed, implies an empty array
+      models || (models = []);
+
+      // If models is a string, call set at that path
+      if (_.isString(models)) return this.get(_$["default"].splitPath(models)[0]).set(_$["default"].splitPath(models).splice(1, models.length).join("."), options);
+      if (!_.isObject(models)) return console.error("Collection.set must be passed a Model, Object, array or Models and Objects, or another Collection");
+
+      // If another collection, treat like an array
+      models = models.isCollection ? models.models : models;
+      // Ensure models is an array
+      models = !_.isArray(models) ? [models] : models;
+
+      // If the model already exists in this collection, or we are told not to clone it, let Backbone handle the merge
+      // Otherwise, create our copy of this model, give them the same cid so our helpers treat them as the same object
+      _.each(models, function (data, index) {
+        if (data.isModel && options.clone === false || this._byId[data.cid]) return newModels[index] = data;
+        newModels[index] = new this.model(data, _.defaults(lineage, options));
+        data.isModel && (newModels[index].cid = data.cid);
+      }, this);
+
+      // Ensure that this element now knows that it has children now. Without this cyclic dependancies cause issues
+      this._hasAncestry || (this._hasAncestry = newModels.length > 0);
+
+      // Call original set function with model duplicates
+      return Backbone.Collection.prototype.set.call(this, newModels, options);
+    }
+
+  });
+
+  module.exports = Collection;
+});
+
+// model.deinitialize();
 define("rebound-router/lazy-component", ["exports", "module"], function (exports, module) {
   // Services keep track of their consumers. LazyComponent are placeholders
   // for services that haven't loaded yet. A LazyComponent mimics the api of a
@@ -10631,8 +10631,10 @@ define("runtime", ["exports", "module", "rebound-component/utils", "rebound-comp
 
   var _Router = _interopRequireDefault(_reboundRouterReboundRouter);
 
+  if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";
+
   // If Backbone doesn't have an ajax method from an external DOM library, use ours
-  if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || _utils["default"].ajax;
+  window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || _utils["default"].ajax;
 
   // Create Global Rebound Object
   var Rebound = {
@@ -10658,13 +10660,13 @@ define("runtime", ["exports", "module", "rebound-component/utils", "rebound-comp
       });
     },
     stop: function stop() {
-      if (!this.router) return console.error('No running Rebound router found!');
+      if (!this.router) return console.error("No running Rebound router found!");
       this.router.stop();
     }
   };
 
   // Fetch Rebound's Config Object from Rebound's `script` tag
-  var Config = document.getElementById('Rebound');
+  var Config = document.getElementById("Rebound");
   Config = Config ? Config.innerHTML : false;
 
   // Start the router if a config object is preset
@@ -11060,8 +11062,8 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
 
       // Otherwise, simply generate a flat `switch` statement.
     } else {
-        compareTo(words);
-      }
+      compareTo(words);
+    }
     return new Function("str", f);
   }
 
@@ -11120,7 +11122,7 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
     if (code < 91) return true;
     if (code < 97) return code === 95;
     if (code < 123) return true;
-    return code >= 0xaa && nonASCIIidentifierStart.test(String.fromCharCode(code));
+    return code >= 170 && nonASCIIidentifierStart.test(String.fromCharCode(code));
   };
 
   // Test whether a given character is part of an identifier.
@@ -11132,7 +11134,7 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
     if (code < 91) return true;
     if (code < 97) return code === 95;
     if (code < 123) return true;
-    return code >= 0xaa && nonASCIIidentifier.test(String.fromCharCode(code));
+    return code >= 170 && nonASCIIidentifier.test(String.fromCharCode(code));
   };
 
   // ## Tokenizer
@@ -11507,8 +11509,8 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
           val;
       if (code >= 97) val = code - 97 + 10; // a
       else if (code >= 65) val = code - 65 + 10; // A
-        else if (code >= 48 && code <= 57) val = code - 48; // 0-9
-          else val = Infinity;
+      else if (code >= 48 && code <= 57) val = code - 48; // 0-9
+      else val = Infinity;
       if (val >= radix) break;
       ++tokPos;
       total = total * radix + val;
@@ -11599,7 +11601,7 @@ define("property-compiler/tokenizer", ["exports", "module"], function (exports, 
             case 102:
               out += "\f";break; // 'f' -> '\f'
             case 48:
-              out += "\0";break; // 0 -> '\0'
+              out += "\u0000";break; // 0 -> '\0'
             case 13:
               if (input.charCodeAt(tokPos) === 10) ++tokPos; // '\r\n'
             /* falls through */
@@ -11702,7 +11704,7 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
 
   // Remove the contents of the component's `style` tag.
   function getStyle(str) {
-    return str.indexOf("<style>") > -1 && str.indexOf("</style>") > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, "$2").replace(/"/g, "\\\"") : "";
+    return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
   }
 
   function stripLinkTags(str) {
@@ -11712,7 +11714,7 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
 
   // Remove the contents of the component's `template` tag.
   function getTemplate(str) {
-    var start = str.indexOf("<template>");
+    var start = str.indexOf('<template>');
     var end = str.lastIndexOf('</template>');
 
     // Get only the content between the template tags, or set to an empty string.
@@ -11723,22 +11725,22 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
 
   // Get the component's name from its `name` attribute.
   function getName(str) {
-    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, "$2").trim();
+    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
   }
 
   // Minify the string passed in by replacing all whitespace.
   function minify(str) {
-    return str.replace(/\s+/g, " ").replace(/\n|(>) (<)/g, "$1$2");
+    return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
   }
 
   // Strip javascript comments
   function removeComments(str) {
-    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, "$1");
+    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
   }
 
   // TODO: This is messy, clean it up!
   function getDependancies(template) {
-    var base = arguments.length <= 1 || arguments[1] === undefined ? '' : arguments[1];
+    var base = arguments[1] === undefined ? '' : arguments[1];
 
     var imports = [],
         partials = [],
@@ -11746,7 +11748,7 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
         match,
         importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
         partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
-        start = template.indexOf("<template>"),
+        start = template.indexOf('<template>'),
         end = template.lastIndexOf('</template>');
     if (start > -1 && end > -1) template = template.substring(start + 10, end);
 
@@ -11771,7 +11773,7 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
   }
 
   function parse(str) {
-    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+    var options = arguments[1] === undefined ? {} : arguments[1];
 
     // If the element tag is present
     if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {
@@ -11814,7 +11816,7 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
 
   // Remove the contents of the component's `style` tag.
   function getStyle(str) {
-    return str.indexOf("<style>") > -1 && str.indexOf("</style>") > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, "$2").replace(/"/g, "\\\"") : "";
+    return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
   }
 
   function stripLinkTags(str) {
@@ -11824,7 +11826,7 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
 
   // Remove the contents of the component's `template` tag.
   function getTemplate(str) {
-    var start = str.indexOf("<template>");
+    var start = str.indexOf('<template>');
     var end = str.lastIndexOf('</template>');
 
     // Get only the content between the template tags, or set to an empty string.
@@ -11835,22 +11837,22 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
 
   // Get the component's name from its `name` attribute.
   function getName(str) {
-    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, "$2").trim();
+    return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
   }
 
   // Minify the string passed in by replacing all whitespace.
   function minify(str) {
-    return str.replace(/\s+/g, " ").replace(/\n|(>) (<)/g, "$1$2");
+    return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
   }
 
   // Strip javascript comments
   function removeComments(str) {
-    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, "$1");
+    return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
   }
 
   // TODO: This is messy, clean it up!
   function getDependancies(template) {
-    var base = arguments.length <= 1 || arguments[1] === undefined ? '' : arguments[1];
+    var base = arguments[1] === undefined ? '' : arguments[1];
 
     var imports = [],
         partials = [],
@@ -11858,7 +11860,7 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
         match,
         importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
         partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
-        start = template.indexOf("<template>"),
+        start = template.indexOf('<template>'),
         end = template.lastIndexOf('</template>');
     if (start > -1 && end > -1) template = template.substring(start + 10, end);
 
@@ -11883,7 +11885,7 @@ define('rebound-compiler/parser', ['exports', 'module'], function (exports, modu
   }
 
   function parse(str) {
-    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+    var options = arguments[1] === undefined ? {} : arguments[1];
 
     // If the element tag is present
     if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {
@@ -11928,7 +11930,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
 
   window.partials = partials;
   helpers.registerPartial = function (name, func) {
-    if (func && typeof name === 'string') {
+    if (func && typeof name === "string") {
       return partials[name] = func;
     }
   };
@@ -11942,28 +11944,28 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
     if (_.isString(env)) name = env;
     env && env.helpers || (env = { helpers: helpers });
     // If a reserved helper, return it
-    if (name === 'attribute') {
+    if (name === "attribute") {
       return env.helpers.attribute;
     }
-    if (name === 'if') {
+    if (name === "if") {
       return env.helpers["if"];
     }
-    if (name === 'unless') {
+    if (name === "unless") {
       return env.helpers.unless;
     }
-    if (name === 'each') {
+    if (name === "each") {
       return env.helpers.each;
     }
-    if (name === 'partial') {
+    if (name === "partial") {
       return env.helpers.partial;
     }
-    if (name === 'on') {
+    if (name === "on") {
       return env.helpers.on;
     }
-    if (name === 'debugger') {
+    if (name === "debugger") {
       return env.helpers["debugger"];
     }
-    if (name === 'log') {
+    if (name === "log") {
       return env.helpers.log;
     }
 
@@ -11973,15 +11975,15 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
 
   helpers.registerHelper = function (name, callback) {
     if (!_.isString(name)) {
-      console.error('Name provided to registerHelper must be a string!');
+      console.error("Name provided to registerHelper must be a string!");
       return;
     }
     if (!_.isFunction(callback)) {
-      console.error('Callback provided to regierHelper must be a function!');
+      console.error("Callback provided to regierHelper must be a function!");
       return;
     }
     if (helpers.lookupHelper(null, null, name)) {
-      console.error('A helper called "' + name + '" is already registered!');
+      console.error("A helper called \"" + name + "\" is already registered!");
       return;
     }
 
@@ -11995,12 +11997,12 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
   helpers["debugger"] = function (params, hash, options, env) {
     /* jshint -W087 */
     debugger;
-    return '';
+    return "";
   };
 
   helpers.log = function (params, hash, options, env) {
     console.log.apply(console, params);
-    return '';
+    return "";
   };
 
   helpers.on = function (params, hash, options, env) {
@@ -12019,10 +12021,10 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
     }
     // If a selector is provided, delegate on the helper's element
     else if (len === 3) {
-        callback = params[2];
-        delegate = params[1];
-        element = options.element;
-      }
+      callback = params[2];
+      delegate = params[1];
+      element = options.element;
+    }
 
     // Attach event
     (0, _$["default"])(element).on(eventName, delegate, hash, function (event) {
@@ -12050,8 +12052,8 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
     }
 
     // Handle string values
-    condition === 'true' && (condition = true);
-    condition === 'false' && (condition = false);
+    condition === "true" && (condition = true);
+    condition === "false" && (condition = false);
 
     return condition;
   }
@@ -12062,7 +12064,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
 
     // If yield does not exist, this is not a block helper.
     if (!this["yield"]) {
-      return condition ? params[1] : params[2] || '';
+      return condition ? params[1] : params[2] || "";
     }
 
     // Render the apropreate block statement
@@ -12071,7 +12073,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
     } else if (!condition && templates.inverse && templates.inverse["yield"]) {
       templates.inverse["yield"]();
     } else {
-      return '';
+      return "";
     }
   };
 
@@ -12084,10 +12086,10 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
   // Given an array, predicate and optional extra variable, finds the index in the array where predicate is true
   function findIndex(arr, predicate, cid) {
     if (arr === null) {
-      throw new TypeError('findIndex called on null or undefined');
+      throw new TypeError("findIndex called on null or undefined");
     }
-    if (typeof predicate !== 'function') {
-      throw new TypeError('predicate must be a function');
+    if (typeof predicate !== "function") {
+      throw new TypeError("predicate must be a function");
     }
     var list = Object(arr);
     var length = list.length >>> 0;
@@ -12106,7 +12108,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
   helpers.each = function (params, hash, templates) {
 
     if (_.isNull(params[0]) || _.isUndefined(params[0])) {
-      console.warn('Undefined value passed to each helper! Maybe try providing a default value?', params, hash);return null;
+      console.warn("Undefined value passed to each helper! Maybe try providing a default value?", params, hash);return null;
     }
 
     var key,
@@ -12119,7 +12121,7 @@ define("rebound-component/helpers", ["exports", "rebound-component/lazy-value", 
         if (value.hasOwnProperty(key)) this.yieldItem(value[key].cid, [value[key], key]);
       }
     }
-    return _.uniqueId('rand');
+    return _.uniqueId("rand");
   };
 
   helpers.partial = function (params, hash, options, env) {
@@ -12147,7 +12149,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
   // Returns true if str starts with test
   function startsWith(str, test) {
     if (str === test) return true;
-    return str.substring(0, test.length + 1) === test + '.';
+    return str.substring(0, test.length + 1) === test + ".";
   }
 
   // Called after callstack is exausted to call all of this computed property's
@@ -12164,9 +12166,9 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
 
   var ComputedProperty = function ComputedProperty(getter, setter, options) {
 
-    if (!_.isFunction(getter) && !_.isFunction(setter)) return console.error('ComputedProperty constructor must be passed a functions!', prop, 'Found instead.');
+    if (!_.isFunction(getter) && !_.isFunction(setter)) return console.error("ComputedProperty constructor must be passed a functions!", prop, "Found instead.");
     options = options || {};
-    this.cid = _.uniqueId('computedPropety');
+    this.cid = _.uniqueId("computedPropety");
     this.name = options.name;
     this.returnType = null;
     this.__observers = {};
@@ -12174,7 +12176,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
     this.waiting = {};
     this.isChanging = false;
     this.isDirty = true;
-    _.bindAll(this, 'onModify', 'markDirty');
+    _.bindAll(this, "onModify", "markDirty");
 
     if (getter) this.getter = getter;
     if (setter) this.setter = setter;
@@ -12205,7 +12207,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
     isComputedProperty: true,
     isData: true,
     __path: function __path() {
-      return '';
+      return "";
     },
 
     getter: function getter() {
@@ -12218,7 +12220,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
     markDirty: function markDirty() {
       if (this.isDirty) return;
       this.isDirty = true;
-      this.trigger('dirty', this);
+      this.trigger("dirty", this);
     },
 
     // Attached to listen to all events where this Computed Property's dependancies
@@ -12245,13 +12247,13 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
       },
           path,
           vector;
-      vector = path = collection.__path().replace(/\.?\[.*\]/ig, '.@each');
+      vector = path = collection.__path().replace(/\.?\[.*\]/ig, ".@each");
 
       // If a reset event on a Model, check for computed properties that depend
       // on each changed attribute's full path.
-      if (type === 'reset' && options.previousAttributes) {
+      if (type === "reset" && options.previousAttributes) {
         _.each(options.previousAttributes, function (value, key) {
-          vector = path + (path && '.') + key;
+          vector = path + (path && ".") + key;
           _.each(this.__computedDeps, function (dependants, dependancy) {
             startsWith(vector, dependancy) && push.call(this._toCall, dependants);
           }, this);
@@ -12260,27 +12262,27 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
 
       // If a reset event on a Collction, check for computed properties that depend
       // on anything inside that collection.
-      else if (type === 'reset' && options.previousModels) {
-          _.each(this.__computedDeps, function (dependants, dependancy) {
-            startsWith(dependancy, vector) && push.call(this._toCall, dependants);
-          }, this);
-        }
+      else if (type === "reset" && options.previousModels) {
+        _.each(this.__computedDeps, function (dependants, dependancy) {
+          startsWith(dependancy, vector) && push.call(this._toCall, dependants);
+        }, this);
+      }
 
-        // If an add or remove event, check for computed properties that depend on
-        // anything inside that collection or that contains that collection.
-        else if (type === 'add' || type === 'remove') {
-            _.each(this.__computedDeps, function (dependants, dependancy) {
-              if (startsWith(dependancy, vector) || startsWith(vector, dependancy)) push.call(this._toCall, dependants);
-            }, this);
-          }
+      // If an add or remove event, check for computed properties that depend on
+      // anything inside that collection or that contains that collection.
+      else if (type === "add" || type === "remove") {
+        _.each(this.__computedDeps, function (dependants, dependancy) {
+          if (startsWith(dependancy, vector) || startsWith(vector, dependancy)) push.call(this._toCall, dependants);
+        }, this);
+      }
 
-          // If a change event, trigger anything that depends on that changed path.
-          else if (type.indexOf('change:') === 0) {
-              vector = type.replace('change:', '').replace(/\.?\[.*\]/ig, '.@each');
-              _.each(this.__computedDeps, function (dependants, dependancy) {
-                startsWith(vector, dependancy) && push.call(this._toCall, dependants);
-              }, this);
-            }
+      // If a change event, trigger anything that depends on that changed path.
+      else if (type.indexOf("change:") === 0) {
+        vector = type.replace("change:", "").replace(/\.?\[.*\]/ig, ".@each");
+        _.each(this.__computedDeps, function (dependants, dependancy) {
+          startsWith(vector, dependancy) && push.call(this._toCall, dependants);
+        }, this);
+      }
 
       var i,
           len = this._toCall.length;
@@ -12299,17 +12301,17 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
     // the original object.
     onModify: function onModify(type, model, collection, options) {
       var shortcircuit = { sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1 };
-      if (!this.tracking || shortcircuit[type] || ~type.indexOf('change:')) return;
+      if (!this.tracking || shortcircuit[type] || ~type.indexOf("change:")) return;
       model || (model = {});
       collection || (collection = {});
       options || (options = {});
       !collection.isData && _.isObject(collection) && (options = collection) && (collection = model);
       var src = this;
-      var path = collection.__path().replace(src.__path(), '').replace(/^\./, '');
+      var path = collection.__path().replace(src.__path(), "").replace(/^\./, "");
       var dest = this.tracking.get(path);
 
       if (_.isUndefined(dest)) return;
-      if (type === 'change') dest.set && dest.set(model.changedAttributes());else if (type === 'reset') dest.reset && dest.reset(model);else if (type === 'add') dest.add && dest.add(model);else if (type === 'remove') dest.remove && dest.remove(model);
+      if (type === "change") dest.set && dest.set(model.changedAttributes());else if (type === "reset") dest.reset && dest.reset(model);else if (type === "add") dest.add && dest.add(model);else if (type === "remove") dest.remove && dest.remove(model);
       // TODO: Add sort
     },
 
@@ -12324,19 +12326,19 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
       _.each(this.deps, function (path) {
         var dep = root.get(path, { raw: true });
         if (!dep || !dep.isComputedProperty) return;
-        dep.on('dirty', this.markDirty);
+        dep.on("dirty", this.markDirty);
       }, this);
 
       _.each(this.deps, function (path) {
         // Find actual path from relative paths
         var split = _$["default"].splitPath(path);
-        while (split[0] === '@parent') {
+        while (split[0] === "@parent") {
           context = context.__parent__;
           split.shift();
         }
 
-        path = context.__path().replace(/\.?\[.*\]/ig, '.@each');
-        path = path + (path && '.') + split.join('.');
+        path = context.__path().replace(/\.?\[.*\]/ig, ".@each");
+        path = path + (path && ".") + split.join(".");
 
         // Add ourselves as dependants
         root.__computedDeps[path] || (root.__computedDeps[path] = []);
@@ -12344,7 +12346,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
       }, this);
 
       // Ensure we only have one listener per Model at a time.
-      context.off('all', this.onRecompute).on('all', this.onRecompute);
+      context.off("all", this.onRecompute).on("all", this.onRecompute);
     },
 
     unwire: function unwire() {
@@ -12354,10 +12356,10 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
       _.each(this.deps, function (path) {
         var dep = root.get(path, { raw: true });
         if (!dep || !dep.isComputedProperty) return;
-        dep.off('dirty', this.markDirty);
+        dep.off("dirty", this.markDirty);
       }, this);
 
-      context.off('all', this.onRecompute);
+      context.off("all", this.onRecompute);
     },
 
     // Call this computed property like you would with Function.call()
@@ -12403,7 +12405,7 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
 
       if (!this.isChanging) return;
 
-      if (this.returnType !== 'value') this.stopListening(value, 'all', this.onModify);
+      if (this.returnType !== "value") this.stopListening(value, "all", this.onModify);
 
       result = this.getter.apply(context, params);
 
@@ -12412,28 +12414,28 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
 
       // If result is undefined, reset our cache item
       if (_.isUndefined(result) || _.isNull(result)) {
-        this.returnType = 'value';
+        this.returnType = "value";
         this.isCollection = this.isModel = false;
         this.set(undefined);
       }
       // Set result and return types, bind events
       else if (result.isCollection) {
-          this.returnType = 'collection';
-          this.isCollection = true;
-          this.isModel = false;
-          this.set(result);
-          this.track(result);
-        } else if (result.isModel) {
-          this.returnType = 'model';
-          this.isCollection = false;
-          this.isModel = true;
-          this.reset(result);
-          this.track(result);
-        } else {
-          this.returnType = 'value';
-          this.isCollection = this.isModel = false;
-          this.reset(result);
-        }
+        this.returnType = "collection";
+        this.isCollection = true;
+        this.isModel = false;
+        this.set(result);
+        this.track(result);
+      } else if (result.isModel) {
+        this.returnType = "model";
+        this.isCollection = false;
+        this.isModel = true;
+        this.reset(result);
+        this.track(result);
+      } else {
+        this.returnType = "value";
+        this.isCollection = this.isModel = false;
+        this.reset(result);
+      }
 
       return this.value();
     },
@@ -12449,14 +12451,14 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
       object._cid || (object._cid = object.cid);
       target.cid = object.cid;
       this.tracking = object;
-      this.listenTo(target, 'all', this.onModify);
+      this.listenTo(target, "all", this.onModify);
     },
 
     // Get from the Computed Property's cache
     get: function get(key, options) {
       var value = this.value();
       options || (options = {});
-      if (this.returnType === 'value') return console.error('Called get on the `' + this.name + '` computed property which returns a primitive value.');
+      if (this.returnType === "value") return console.error("Called get on the `" + this.name + "` computed property which returns a primitive value.");
       return value.get(key, options);
     },
 
@@ -12471,30 +12473,30 @@ define("rebound-data/computed-property", ["exports", "module", "property-compile
       var value = this.value();
 
       // Noralize the data passed in
-      if (this.returnType === 'model') {
-        if (typeof key === 'object') {
+      if (this.returnType === "model") {
+        if (typeof key === "object") {
           attrs = key.isModel ? key.attributes : key;
           options = val;
         } else {
           (attrs = {})[key] = val;
         }
       }
-      if (this.returnType !== 'model') options = val || {};
+      if (this.returnType !== "model") options = val || {};
       attrs = attrs && attrs.isComputedProperty ? attrs.value() : attrs;
 
       // If a new value, set it and trigger events
       this.setter && this.setter.call(this.__root__, attrs);
-      if (this.returnType === 'value' && this.cache.value !== attrs) {
+      if (this.returnType === "value" && this.cache.value !== attrs) {
         this.cache.value = attrs;
         if (!options.quiet) {
           // If set was called not through computedProperty.call(), this is a fresh new event burst.
           if (!this.isDirty && !this.isChanging) this.__parent__.changed = {};
           this.__parent__.changed[this.name] = attrs;
-          this.trigger('change', this.__parent__);
-          this.trigger('change:' + this.name, this.__parent__, attrs);
+          this.trigger("change", this.__parent__);
+          this.trigger("change:" + this.name, this.__parent__, attrs);
           delete this.__parent__.changed[this.name];
         }
-      } else if (this.returnType !== 'value' && options.reset) key = value.reset(attrs, options);else if (this.returnType !== 'value') key = value.set(attrs, options);
+      } else if (this.returnType !== "value" && options.reset) key = value.reset(attrs, options);else if (this.returnType !== "value") key = value.set(attrs, options);
       this.isDirty = this.isChanging = false;
 
       // Call all reamining computed properties waiting for this value to resolve.
@@ -12547,10 +12549,10 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
 
   var DEFAULT_404_PAGE = "<div style=\"display: block;text-align: center;font-size: 22px;\">\n  <h1 style=\"margin-top: 60px;\">\n    Oops! We couldn't find this page.\n  </h1>\n  <a href=\"#\" onclick=\"window.history.back();return false;\" style=\"display: block;text-decoration: none;margin-top: 30px;\">\n    Take me back\n  </a>\n</div>";
 
-  var ERROR_ROUTE_NAME = 'error';
-  var SUCCESS = 'success';
-  var ERROR = 'error';
-  var LOADING = 'loading';
+  var ERROR_ROUTE_NAME = "error";
+  var SUCCESS = "success";
+  var ERROR = "error";
+  var LOADING = "loading";
 
   // Overload Backbone's loadUrl so it returns the value of the routed callback
   // instead of undefined and prefixes all fragment tests with the current app name
@@ -12572,13 +12574,13 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
   var ReboundRouter = Backbone.Router.extend({
 
     status: SUCCESS, // loading, success or error
-    _currentRoute: '', // The route path that triggered the current page
-    _previousRoute: '',
+    _currentRoute: "", // The route path that triggered the current page
+    _previousRoute: "",
 
     // By default there is one route. The wildcard route fetches the required
     // page assets based on user-defined naming convention.
     routes: {
-      '*route': 'wildcardRoute'
+      "*route": "wildcardRoute"
     },
 
     // Called when no matching routes are found. Extracts root route and fetches it's resources
@@ -12590,7 +12592,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       // Fetch Resources
       document.body.classList.add("loading");
       return this._fetchResource(route, this.config.container).then(function (res) {
-        document.body.classList.remove('loading');
+        document.body.classList.remove("loading");
         return res;
       });
     },
@@ -12598,7 +12600,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
     // Modify navigate to default to `trigger=true` and to return the value of
     // `Backbone.history.navigate` inside of a promise.
     navigate: function navigate(fragment) {
-      var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+      var options = arguments[1] === undefined ? {} : arguments[1];
 
       options.trigger === undefined && (options.trigger = true);
       var $container = (0, _$["default"])(this.config.containers).unMarkLinks();
@@ -12625,7 +12627,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       if (!_.isRegExp(_route)) _route = this._routeToRegExp(_route);
       if (_.isFunction(name)) {
         callback = name;
-        name = '';
+        name = "";
       }
 
       if (!callback) callback = this[name];
@@ -12633,9 +12635,9 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
         var args = _this._extractParameters(_route, fragment);
         var resp = _this.execute(callback, args, name);
         if (resp !== false) {
-          _this.trigger.apply(_this, ['route:' + name].concat(args));
-          _this.trigger('route', name, args);
-          Backbone.history.trigger('route', _this, name, args);
+          _this.trigger.apply(_this, ["route:" + name].concat(args));
+          _this.trigger("route", name, args);
+          Backbone.history.trigger("route", _this, name, args);
         }
         return resp;
       });
@@ -12644,8 +12646,8 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
 
     // On startup, save our config object and start the router
     initialize: function initialize() {
-      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
-      var callback = arguments.length <= 1 || arguments[1] === undefined ? function () {} : arguments[1];
+      var options = arguments[0] === undefined ? {} : arguments[0];
+      var callback = arguments[1] === undefined ? function () {} : arguments[1];
 
       // Let all of our components always have referance to our router
       Rebound.Component.prototype.router = this;
@@ -12656,7 +12658,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       this.config.containers = [];
 
       // Get a unique instance id for this router
-      this.uid = _.uniqueId('router');
+      this.uid = _.uniqueId("router");
 
       // Allow user to override error route
       this.config.errorRoute && (ERROR_ROUTE_NAME = this.config.errorRoute);
@@ -12668,13 +12670,13 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       }, this);
 
       // Use the user provided container, or default to the closest `<main>` tag
-      this.config.container = (0, _$["default"])(this.config.container || 'main')[0];
+      this.config.container = (0, _$["default"])(this.config.container || "main")[0];
       this.config.containers.push(this.config.container);
       Rebound.services.page = new _LazyComponent["default"]();
 
       // Install our global components
       _.each(this.config.services, function (selector, route) {
-        var container = (0, _$["default"])(selector)[0] || document.createElement('span');
+        var container = (0, _$["default"])(selector)[0] || document.createElement("span");
         this.config.containers.push(container);
         Rebound.services[route] = new _LazyComponent["default"]();
         this._fetchResource(route, container)["catch"](function () {});
@@ -12693,7 +12695,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
     },
 
     stop: function stop() {
-      (0, _$["default"])(this.config.container).off('click');
+      (0, _$["default"])(this.config.container).off("click");
       Backbone.history.stop();
       this._uninstallResource();
       Backbone.history.handlers = [];
@@ -12707,14 +12709,14 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
 
       // Navigate to route for any link with a relative href
       var remoteUrl = /^([a-z]+:)|^(\/\/)|^([^\/]+\.)/;
-      (0, _$["default"])(container).on('click', 'a', function (e) {
-        var path = e.target.getAttribute('href');
+      (0, _$["default"])(container).on("click", "a", function (e) {
+        var path = e.target.getAttribute("href");
 
         // If path is not an remote url, ends in .[a-z], or blank, try and navigate to that route.
-        if (path && path !== '#' && !remoteUrl.test(path)) e.preventDefault();
+        if (path && path !== "#" && !remoteUrl.test(path)) e.preventDefault();
 
         // If this is not our current route, navigate to the new route
-        if (path !== '/' + Backbone.history.fragment) {
+        if (path !== "/" + Backbone.history.fragment) {
           _this2.navigate(path, { trigger: true });
         }
       });
@@ -12727,12 +12729,12 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       var _this3 = this;
 
       var routes = this.current ? this.current.data.routes || {} : {};
-      routes[this._previousRoute] = '';
+      routes[this._previousRoute] = "";
 
       // Unset Previous Application's Routes. For each route in the page app, remove
       // the handler from our route object and delete our referance to the route's callback
       _.each(routes, function (value, key) {
-        if (key[0] === '/') key = new RegExp(key.split('/')[1], key.split('/')[2]);
+        if (key[0] === "/") key = new RegExp(key.split("/")[1], key.split("/")[2]);
         var regExp = key instanceof RegExp ? key.toString() : _this3._routeToRegExp(key).toString();
         Backbone.history.handlers = _.filter(Backbone.history.handlers, function (obj) {
           return obj.route.toString() !== regExp;
@@ -12752,7 +12754,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
       // Disable old css if it exists
       setTimeout(function () {
         if (_this3.status === ERROR) return;
-        document.getElementById(oldPageName + '-css').setAttribute('disabled', true);
+        document.getElementById(oldPageName + "-css").setAttribute("disabled", true);
       }, 500);
     },
 
@@ -12766,30 +12768,30 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
           routes = [];
       var isService = container !== this.config.container;
 
-      if (!container) throw 'No container found on the page! Please specify a container that exists in your Rebound config.';
+      if (!container) throw "No container found on the page! Please specify a container that exists in your Rebound config.";
 
-      container.classList.remove('error', 'loading');
+      container.classList.remove("error", "loading");
 
       if (!isService && this.current) this._uninstallResource();
 
       // Load New PageApp, give it it's name so we know what css to remove when it deinitializes
       pageInstance = new PageApp();
-      pageInstance.__name = this.uid + '-' + appName;
+      pageInstance.__name = this.uid + "-" + appName;
 
       // Add to our page
-      container.innerHTML = '';
+      container.innerHTML = "";
       container.appendChild(pageInstance);
 
       // Make sure we're back at the top of the page
       document.body.scrollTop = 0;
 
       // Augment ApplicationRouter with new routes from PageApp added in reverse order to preserve order higherarchy
-      if (!isService) this.route(this._currentRoute, 'default', function () {
-        return 'DEFAULT';
+      if (!isService) this.route(this._currentRoute, "default", function () {
+        return "DEFAULT";
       });
       _.each(pageInstance.data.routes, function (value, key) {
         // If key is a stringified regexp literal, convert to a regexp object
-        if (key[0] === '/') key = new RegExp(key.split('/')[1], key.split('/')[2]);
+        if (key[0] === "/") key = new RegExp(key.split("/")[1], key.split("/")[2]);
         routes.unshift({ key: key, value: value });
         // Add the new callback referance on to our router and add the route handler
       }, this);
@@ -12799,7 +12801,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
         });
       });
 
-      var name = isService ? appName : 'page';
+      var name = isService ? appName : "page";
       if (!isService) this.current = pageInstance;
 
       // If the target is a dummy service, hydrate it with the proper service object
@@ -12814,7 +12816,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
         // If no routes are matched, app will hit wildCard route which will then trigger 404
         if (!isService) {
           var res = Backbone.history.loadUrl(Backbone.history.fragment);
-          if (res && typeof res.then === 'function') return res.then(resolve);
+          if (res && typeof res.then === "function") return res.then(resolve);
           return resolve(res);
         }
         // Return our newly installed app
@@ -12823,15 +12825,15 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
     },
 
     _fetchJavascript: function _fetchJavascript(routeName, appName) {
-      var jsID = this.uid + '-' + appName + '-js',
+      var jsID = this.uid + "-" + appName + "-js",
           jsUrl = this.config.jsPath.replace(/:route/g, routeName).replace(/:app/g, appName),
-          jsElement = document.getElementById(appName + '-js');
+          jsElement = document.getElementById(appName + "-js");
 
       // AMD will manage dependancies for us. Load the JavaScript.
       return new Promise(function (resolve, reject) {
         window.require([jsUrl], function (PageClass) {
-          jsElement = (0, _$["default"])('script[src="' + jsUrl + '"]')[0];
-          jsElement.setAttribute('id', jsID);
+          jsElement = (0, _$["default"])("script[src=\"" + jsUrl + "\"]")[0];
+          jsElement.setAttribute("id", jsID);
           resolve(PageClass);
         }, function (err) {
           console.error(err);
@@ -12842,7 +12844,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
 
     _fetchCSS: function _fetchCSS(routeName, appName) {
 
-      var cssID = this.uid + '-' + appName + '-css',
+      var cssID = this.uid + "-" + appName + "-css",
           cssUrl = this.config.cssPath.replace(/:route/g, routeName).replace(/:app/g, appName),
           cssElement = document.getElementById(cssID);
 
@@ -12854,11 +12856,11 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
             ti;
         if (cssElement === null) {
           // Construct our `<link>` element.
-          cssElement = document.createElement('link');
-          cssElement.setAttribute('type', 'text/css');
-          cssElement.setAttribute('rel', 'stylesheet');
-          cssElement.setAttribute('href', cssUrl);
-          cssElement.setAttribute('id', cssID);
+          cssElement = document.createElement("link");
+          cssElement.setAttribute("type", "text/css");
+          cssElement.setAttribute("rel", "stylesheet");
+          cssElement.setAttribute("href", cssUrl);
+          cssElement.setAttribute("id", cssID);
 
           // On successful load, clearInterval and resolve.
           // On failed load, clearInterval and reject.
@@ -12868,7 +12870,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
           };
           var errorCallback = function errorCallback(err) {
             clearInterval(ti);
-            cssElement.dataset.error = '';
+            cssElement.dataset.error = "";
             reject(err);
           };
 
@@ -12877,23 +12879,23 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
           ti = setInterval(function () {
             for (var i = 0; i < document.styleSheets.length; i++) {
               count = count + 50;
-              if (document.styleSheets[i].href.indexOf(cssUrl) > -1) successCallback();else if (count >= 5000) errorCallback('CSS Timeout');
+              if (document.styleSheets[i].href.indexOf(cssUrl) > -1) successCallback();else if (count >= 5000) errorCallback("CSS Timeout");
             }
           }, 50);
 
           // Modern browsers support loading events on `<link>` elements, bind these
           // events. These will be callsed before our interval is called and they will
           // clearInterval so the resolve/reject handlers aren't called twice.
-          (0, _$["default"])(cssElement).on('load', successCallback);
-          (0, _$["default"])(cssElement).on('error', errorCallback);
-          (0, _$["default"])(cssElement).on('readystatechange', function () {
+          (0, _$["default"])(cssElement).on("load", successCallback);
+          (0, _$["default"])(cssElement).on("error", errorCallback);
+          (0, _$["default"])(cssElement).on("readystatechange", function () {
             clearInterval(ti);
           });
 
           // Add our `<link>` element to the page.
           document.head.appendChild(cssElement);
         } else {
-          if (cssElement.hasAttribute('data-error')) return reject();
+          if (cssElement.hasAttribute("data-error")) return reject();
           resolve(cssElement);
         }
       });
@@ -12909,14 +12911,14 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
           isError = route === ERROR_ROUTE_NAME;
 
       // Normalize Route
-      route || (route = '');
+      route || (route = "");
 
       // Get the app name from this route
-      appName = routeName = route.split('/')[0] || 'index';
+      appName = routeName = route.split("/")[0] || "index";
 
       // If this isn't the error route, Find Any Custom Route Mappings
       if (!isService && !isError) {
-        this._currentRoute = route.split('/')[0];
+        this._currentRoute = route.split("/")[0];
         _.any(this.config.handlers, function (handler) {
           if (handler.regex.test(route)) {
             appName = handler.app;
@@ -12942,7 +12944,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
           }
 
           // Set our status to error and attempt to load a custom error page.
-          console.error('Could not ' + (isService ? 'load the ' + appName + ' service:' : 'find the ' + (appName || 'index') + ' app.'), 'at', '/' + route);
+          console.error("Could not " + (isService ? "load the " + appName + " service:" : "find the " + (appName || "index") + " app."), "at", "/" + route);
           _this5.status = ERROR;
           _this5._currentRoute = route;
           resolve(_this5._fetchResource(ERROR_ROUTE_NAME, container));
@@ -12953,9 +12955,9 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
         var install = function install(response) {
           var cssElement = response[0],
               PageClass = response[1];
-          if (!(cssElement instanceof Element) || typeof PageClass !== 'function') return throwError();
+          if (!(cssElement instanceof Element) || typeof PageClass !== "function") return throwError();
           !isService && !isError && (_this5.status = SUCCESS);
-          cssElement && cssElement.removeAttribute('disabled');
+          cssElement && cssElement.removeAttribute("disabled");
 
           _this5._installResource(PageClass, appName, container).then(resolve, resolve);
         };
@@ -12964,7 +12966,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
         !isService && !isError && (_this5.status = LOADING);
 
         // If Page Is Already Loaded Then The Route Does Not Exist. 404 and Exit.
-        if (_this5.current && _this5.current.__name === _this5.uid + '-' + appName) return throwError();
+        if (_this5.current && _this5.current.__name === _this5.uid + "-" + appName) return throwError();
         // Fetch our css and js in paralell, install or throw when both complete
         Promise.all([_this5._fetchCSS(routeName, appName), _this5._fetchJavascript(routeName, appName)]).then(install, throwError);
       });
@@ -12984,63 +12986,26 @@ define("rebound-compiler/precompile", ["exports", "module", "./parser", "htmlbar
   var _parse = _interopRequireDefault(_parser);
 
   function precompile(str) {
-    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+    var options = arguments[1] === undefined ? {} : arguments[1];
 
     if (!str || str.length === 0) {
-      return console.error('No template provided!');
+      return console.error("No template provided!");
     }
 
     var template;
     str = (0, _parse["default"])(str, options);
 
     // Compile
-    str.template = '' + (0, _htmlbars.compileSpec)(str.template);
+    str.template = "" + (0, _htmlbars.compileSpec)(str.template);
 
     // If is a partial
     if (str.isPartial) {
-      template = "\n      define( [ " + str.deps.join(', ') + " ], function(){\n        var template = " + str.template + ";\n        window.Rebound.registerPartial(\"" + str.name + "\", template);\n      });";
+      template = "\n      define( [ " + str.deps.join(", ") + " ], function(){\n        var template = " + str.template + ";\n        window.Rebound.registerPartial(\"" + str.name + "\", template);\n      });";
     }
     // Else, is a component
     else {
-        template = "\n      define( [ " + str.deps.join(', ') + " ], function(){\n        return window.Rebound.registerComponent(\"" + str.name + "\", {\n          prototype: " + str.script + ",\n          template: " + str.template + ",\n          style: \"" + str.style + "\"\n        });\n      });";
-      }
-
-    return template;
-  }
-
-  module.exports = precompile;
-});
-define("rebound-compiler/precompile", ["exports", "module", "./parser", "htmlbars"], function (exports, module, _parser, _htmlbars) {
-  // Rebound Pre-Compiler
-  // ----------------
-
-  "use strict";
-
-  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-  var _parse = _interopRequireDefault(_parser);
-
-  function precompile(str) {
-    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
-
-    if (!str || str.length === 0) {
-      return console.error('No template provided!');
+      template = "\n      define( [ " + str.deps.join(", ") + " ], function(){\n        return window.Rebound.registerComponent(\"" + str.name + "\", {\n          prototype: " + str.script + ",\n          template: " + str.template + ",\n          style: \"" + str.style + "\"\n        });\n      });";
     }
-
-    var template;
-    str = (0, _parse["default"])(str, options);
-
-    // Compile
-    str.template = '' + (0, _htmlbars.compileSpec)(str.template);
-
-    // If is a partial
-    if (str.isPartial) {
-      template = "\n      define( [ " + str.deps.join(', ') + " ], function(){\n        var template = " + str.template + ";\n        window.Rebound.registerPartial(\"" + str.name + "\", template);\n      });";
-    }
-    // Else, is a component
-    else {
-        template = "\n      define( [ " + str.deps.join(', ') + " ], function(){\n        return window.Rebound.registerComponent(\"" + str.name + "\", {\n          prototype: " + str.script + ",\n          template: " + str.template + ",\n          style: \"" + str.style + "\"\n        });\n      });";
-      }
 
     return template;
   }
@@ -13098,7 +13063,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
   _hooks["default"].get = function get(env, scope, path) {
 
-    if (path === 'this') path = '';
+    if (path === "this") path = "";
 
     var setPath = path;
 
@@ -13110,7 +13075,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     // If this path referances a block param, use that as the context instead.
     if (scope.localPresent[key]) {
       value = scope.locals[key];
-      path = rest.join('.');
+      path = rest.join(".");
     } else {
       value = scope.self;
     }
@@ -13150,7 +13115,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
   function streamHelper(morph, env, scope, visitor, params, hash, helper, templates, context) {
 
-    if (!_.isFunction(helper)) return console.error(scope + ' is not a valid helper!');
+    if (!_.isFunction(helper)) return console.error(scope + " is not a valid helper!");
 
     // Create a lazy value that returns the value of our evaluated helper.
     var lazyValue = new _LazyValue["default"](function () {
@@ -13187,11 +13152,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
   _hooks["default"].cleanupRenderNode = function () {};
 
   _hooks["default"].destroyRenderNode = function (renderNode) {};
-  _hooks["default"].willCleanupTree = function (renderNode) {
-    // for(let i in renderNode.lazyValues)
-    //   if(renderNode.lazyValues[i].isLazyValue)
-    //     renderNode.lazyValues[i].destroy();
-  };
+  _hooks["default"].willCleanupTree = function (renderNode) {};
 
   /*******************************
           Default Hooks
@@ -13268,7 +13229,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
         // Call our func with merged helpers and hooks
         env.template = _render2["default"]["default"](template, env, scope, options);
-        env.template.uid = _.uniqueId('template');
+        env.template.uid = _.uniqueId("template");
         return env.template;
       }
     };
@@ -13292,7 +13253,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
         // Call our func with merged helpers and hooks
         env.template = _render2["default"]["default"](template, env, scope, options);
-        env.template.uid = _.uniqueId('template');
+        env.template.uid = _.uniqueId("template");
         return env.template;
       }
     };
@@ -13385,7 +13346,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       var value = "";
 
       for (i = 0, l = params.length; i < l; i++) {
-        value += params[i] && params[i].isLazyValue ? params[i].value : params[i] || '';
+        value += params[i] && params[i].isLazyValue ? params[i].value : params[i] || "";
       }
 
       return value;
@@ -13412,9 +13373,9 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     };
 
     // Two way databinding for textareas
-    if (domElement.tagName === 'TEXTAREA') {
+    if (domElement.tagName === "TEXTAREA") {
       lazyValue.onNotify(updateTextarea);
-      (0, _$["default"])(domElement).on('change keyup', function (event) {
+      (0, _$["default"])(domElement).on("change keyup", function (event) {
         lazyValue.set(lazyValue.path, this.value);
       });
     }
@@ -13428,20 +13389,20 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
         checkboxChange,
         type = domElement.getAttribute("type"),
         attr,
-        inputTypes = { 'null': true, 'text': true, 'email': true, 'password': true,
-      'search': true, 'url': true, 'tel': true, 'hidden': true,
-      'number': true, 'color': true, 'date': true, 'datetime': true,
-      'datetime-local:': true, 'month': true, 'range': true,
-      'time': true, 'week': true
+        inputTypes = { "null": true, "text": true, "email": true, "password": true,
+      "search": true, "url": true, "tel": true, "hidden": true,
+      "number": true, "color": true, "date": true, "datetime": true,
+      "datetime-local:": true, "month": true, "range": true,
+      "time": true, "week": true
     };
 
     // If is a text input element's value prop with only one variable, wire default events
-    if (domElement.tagName === 'INPUT' && inputTypes[type] && name === 'value') {
+    if (domElement.tagName === "INPUT" && inputTypes[type] && name === "value") {
 
       // If our special input events have not been bound yet, bind them and set flag
       if (!attrMorph.inputObserver) {
 
-        (0, _$["default"])(domElement).on('change input propertychange', function (event) {
+        (0, _$["default"])(domElement).on("change input propertychange", function (event) {
           value.set(value.path, this.value);
         });
 
@@ -13452,13 +13413,13 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       _.isUndefined(val) ? domElement.removeAttribute(name) : domElement.setAttribute(name, val);
 
       attr = val;
-      return domElement.value !== String(attr) ? domElement.value = attr || '' : attr;
-    } else if (domElement.tagName === 'INPUT' && (type === 'checkbox' || type === 'radio') && name === 'checked') {
+      return domElement.value !== String(attr) ? domElement.value = attr || "" : attr;
+    } else if (domElement.tagName === "INPUT" && (type === "checkbox" || type === "radio") && name === "checked") {
 
       // If our special input events have not been bound yet, bind them and set flag
       if (!attrMorph.eventsBound) {
 
-        (0, _$["default"])(domElement).on('change propertychange', function (event) {
+        (0, _$["default"])(domElement).on("change propertychange", function (event) {
           value.set(value.path, this.checked ? true : false, { quiet: true });
         });
 
@@ -13473,27 +13434,27 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
     // Special case for link elements with dynamic classes.
     // If the router has assigned it a truthy 'active' property, ensure that the extra class is present on re-render.
-    else if (domElement.tagName === 'A' && name === 'class') {
-        if (_.isUndefined(val)) {
-          domElement.active ? domElement.setAttribute('class', 'active') : domElement.classList.remove('class');
-        } else {
-          domElement.setAttribute(name, val + (domElement.active ? ' active' : ''));
-        }
+    else if (domElement.tagName === "A" && name === "class") {
+      if (_.isUndefined(val)) {
+        domElement.active ? domElement.setAttribute("class", "active") : domElement.classList.remove("class");
       } else {
-        _.isString(val) && (val = val.trim());
-        val || (val = undefined);
-        if (_.isUndefined(val)) {
-          domElement.removeAttribute(name);
-        } else {
-          domElement.setAttribute(name, val);
-        }
+        domElement.setAttribute(name, val + (domElement.active ? " active" : ""));
       }
+    } else {
+      _.isString(val) && (val = val.trim());
+      val || (val = undefined);
+      if (_.isUndefined(val)) {
+        domElement.removeAttribute(name);
+      } else {
+        domElement.setAttribute(name, val);
+      }
+    }
 
-    _hooks["default"].linkRenderNode(attrMorph, env, scope, '@attribute', [value], {});
+    _hooks["default"].linkRenderNode(attrMorph, env, scope, "@attribute", [value], {});
   };
 
   _hooks["default"].partial = function partial(renderNode, env, scope, path) {
-    if (!path) console.error('Partial helper must be passed path!');
+    if (!path) console.error("Partial helper must be passed path!");
     path = path.isLazyValue ? path.value : path;
     var part = this.wrapPartial(_reboundComponentHelpers.partials[path]);
     if (part && part.render) {
@@ -13536,9 +13497,6 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       componentData[key] = streamProperty(component, key);
     }
 
-    // Set up two way binding between component and original context for non-data attributes
-    // Syncing between models and collections passed are handled in model and collection
-
     var _loop = function () {
       var key = prop;
       if (componentData[key].isLazyValue && attrs[key].isLazyValue) {
@@ -13558,13 +13516,16 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       }
     };
 
+    // Set up two way binding between component and original context for non-data attributes
+    // Syncing between models and collections passed are handled in model and collection
+
     for (var prop in componentData) {
       _loop();
     }
 
     // TODO: Move this to Component
     // // For each change on our component, update the states of the original context and the element's proeprties.
-    component.listenTo(component, 'change', function (model) {
+    component.listenTo(component, "change", function (model) {
       var json = component.toJSON();
 
       if (_.isString(json)) return; // If is a string, this model is seralizing already
@@ -13618,15 +13579,15 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     // `<content>` outlets to render templates into.
     (0, _$["default"])(element).walkTheDOM(function (el) {
       if (element === el) return true;
-      if (el.tagName === 'CONTENT') outlet = el;
-      if (el.tagName.indexOf('-') > -1) return false;
+      if (el.tagName === "CONTENT") outlet = el;
+      if (el.tagName.indexOf("-") > -1) return false;
       return true;
     });
 
     // If a `<content>` outlet is present in component's template, and a template
     // is provided, render it into the outlet
     if (templates["default"] && _.isElement(outlet)) {
-      outlet.innerHTML = '';
+      outlet.innerHTML = "";
       outlet.appendChild(_render2["default"]["default"](templates["default"], env, scope, {}).fragment);
     }
 
@@ -13635,6 +13596,47 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
   };
 
   module.exports = _hooks["default"];
+});
+
+// for(let i in renderNode.lazyValues)
+//   if(renderNode.lazyValues[i].isLazyValue)
+//     renderNode.lazyValues[i].destroy();
+define("rebound-compiler/precompile", ["exports", "module", "./parser", "htmlbars"], function (exports, module, _parser, _htmlbars) {
+  // Rebound Pre-Compiler
+  // ----------------
+
+  "use strict";
+
+  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
+  var _parse = _interopRequireDefault(_parser);
+
+  function precompile(str) {
+    var options = arguments[1] === undefined ? {} : arguments[1];
+
+    if (!str || str.length === 0) {
+      return console.error("No template provided!");
+    }
+
+    var template;
+    str = (0, _parse["default"])(str, options);
+
+    // Compile
+    str.template = "" + (0, _htmlbars.compileSpec)(str.template);
+
+    // If is a partial
+    if (str.isPartial) {
+      template = "\n      define( [ " + str.deps.join(", ") + " ], function(){\n        var template = " + str.template + ";\n        window.Rebound.registerPartial(\"" + str.name + "\", template);\n      });";
+    }
+    // Else, is a component
+    else {
+      template = "\n      define( [ " + str.deps.join(", ") + " ], function(){\n        return window.Rebound.registerComponent(\"" + str.name + "\", {\n          prototype: " + str.script + ",\n          template: " + str.template + ",\n          style: \"" + str.style + "\"\n        });\n      });";
+    }
+
+    return template;
+  }
+
+  module.exports = precompile;
 });
 define("rebound-data/model", ["exports", "module", "rebound-data/computed-property", "rebound-component/utils"], function (exports, module, _reboundDataComputedProperty, _reboundComponentUtils) {
   // Rebound Model
@@ -13661,7 +13663,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
   function pathGenerator(parent, key) {
     return function () {
       var path = parent.__path();
-      return path + (path === '' ? '' : '.') + key;
+      return path + (path === "" ? "" : ".") + key;
     };
   }
 
@@ -13673,7 +13675,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
     // A method that returns a root path by default. Meant to be overridden on
     // instantiation.
     __path: function __path() {
-      return '';
+      return "";
     },
 
     // Create a new Model with the specified attributes. The Model's lineage is set
@@ -13698,7 +13700,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
     toggle: function toggle(attr, options) {
       options = options ? _.clone(options) : {};
       var val = this.get(attr);
-      if (!_.isBoolean(val)) console.error('Tried to toggle non-boolean value ' + attr + '!', this);
+      if (!_.isBoolean(val)) console.error("Tried to toggle non-boolean value " + attr + "!", this);
       return this.set(attr, !val, options);
     },
 
@@ -13709,13 +13711,13 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
       var wait = options.wait;
 
       var destroy = function destroy() {
-        model.trigger('destroy', model, model.collection, options);
+        model.trigger("destroy", model, model.collection, options);
       };
 
       options.success = function (resp) {
         if (wait) destroy();
         if (success) success.call(options.context, model, resp, options);
-        if (!model.isNew()) model.trigger('sync', model, resp, options);
+        if (!model.isNew()) model.trigger("sync", model, resp, options);
       };
 
       var xhr = false;
@@ -13723,7 +13725,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
         _.defer(options.success);
       } else {
         wrapError(this, options);
-        xhr = this.sync('delete', this, options);
+        xhr = this.sync("delete", this, options);
       }
       if (!wait) destroy();
       return xhr;
@@ -13772,7 +13774,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
 
       // Trigger custom reset event
       this.changed = changed;
-      if (!options.silent) this.trigger('reset', this, options);
+      if (!options.silent) this.trigger("reset", this, options);
 
       // Return new values
       return obj;
@@ -13798,13 +13800,13 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
           l = parts.length;
 
       if (_.isUndefined(key) || _.isNull(key)) return undefined;
-      if (key === '' || parts.length === 0) return result;
+      if (key === "" || parts.length === 0) return result;
 
       for (i = 0; i < l; i++) {
         if (result && result.isComputedProperty && options.raw) return result;
         if (result && result.isComputedProperty) result = result.value();
         if (_.isUndefined(result) || _.isNull(result)) return result;
-        if (parts[i] === '@parent') result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result && result.hasOwnProperty(parts[i])) result = result[parts[i]];
+        if (parts[i] === "@parent") result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result && result.hasOwnProperty(parts[i])) result = result[parts[i]];
       }
 
       if (result && result.isComputedProperty && !options.raw) result = result.value();
@@ -13826,7 +13828,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
           props = [],
           lineage;
 
-      if (typeof key === 'object') {
+      if (typeof key === "object") {
         attrs = key.isModel ? key.attributes : key;
         options = val;
       } else (attrs = {})[key] = val;
@@ -13840,13 +13842,12 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
       if (options.defaults === true) this.defaults = attrs;
       if (_.isEmpty(attrs)) return;
 
-      // For each attribute passed:
       var _loop = function () {
         var val = attrs[key],
             paths = _$["default"].splitPath(key),
-            attr = paths.pop() || '',
+            attr = paths.pop() || "",
             // The key        ex: foo[0].bar --> bar
-        target = _this.get(paths.join('.')),
+        target = _this.get(paths.join(".")),
             // The element    ex: foo.bar.baz --> foo.bar
         lineage = undefined;
 
@@ -13900,6 +13901,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
         Backbone.Model.prototype.set.call(target, attr, val, options); // TODO: Event cleanup when replacing a model or collection with another value
       };
 
+      // For each attribute passed:
       for (key in attrs) {
         var _ret = _loop();
 
@@ -14054,7 +14056,7 @@ define('rebound-component/lazy-value', ['exports', 'module'], function (exports,
   }, {
     value: { // just for reusing the array, might not work well if children.length changes after computation
 
-      get: function get() {
+      get: function () {
         var cache = this.cache;
         if (cache !== NIL) {
           return cache;
@@ -14107,16 +14109,16 @@ define("rebound-data/rebound-data", ["exports", "module", "rebound-data/model", 
     // Ex: Would trigger `change:val`, `change:[0].val`, `change:arr[0].val` and `obj.arr[0].val`
     // on each parent as it is propagated up the tree.
     propagateEvent: function propagateEvent(type, model) {
-      if (this.__parent__ === this || type === 'dirty') return;
-      if (type.indexOf('change:') === 0 && model.isModel) {
-        if (this.isCollection && ~type.indexOf('change:[')) return;
+      if (this.__parent__ === this || type === "dirty") return;
+      if (type.indexOf("change:") === 0 && model.isModel) {
+        if (this.isCollection && ~type.indexOf("change:[")) return;
         var key,
-            path = model.__path().replace(this.__parent__.__path(), '').replace(/^\./, ''),
+            path = model.__path().replace(this.__parent__.__path(), "").replace(/^\./, ""),
             changed = model.changedAttributes();
 
         for (key in changed) {
           // TODO: Modifying arguments array is bad. change this
-          arguments[0] = 'change:' + path + (path && '.') + key; // jshint ignore:line
+          arguments[0] = "change:" + path + (path && ".") + key; // jshint ignore:line
           this.__parent__.trigger.apply(this.__parent__, arguments);
         }
         return;
@@ -14127,10 +14129,10 @@ define("rebound-data/rebound-data", ["exports", "module", "rebound-data/model", 
     // Set this data object's parent to `parent` and, as long as a data object is
     // not its own parent, propagate every event triggered on `this` up the tree.
     setParent: function setParent(parent) {
-      if (this.__parent__) this.off('all', this.propagateEvent);
+      if (this.__parent__) this.off("all", this.propagateEvent);
       this.__parent__ = parent;
       this._hasAncestry = true;
-      if (parent !== this) this.on('all', this.__parent__.propagateEvent);
+      if (parent !== this) this.on("all", this.__parent__.propagateEvent);
       return parent;
     },
 
@@ -14181,7 +14183,7 @@ define("rebound-data/rebound-data", ["exports", "module", "rebound-data/model", 
       if (this.el) {
         _.each(this.el.__listeners, function (handler, eventType) {
           if (this.el.removeEventListener) this.el.removeEventListener(eventType, handler, false);
-          if (this.el.detachEvent) this.el.detachEvent('on' + eventType, handler);
+          if (this.el.detachEvent) this.el.detachEvent("on" + eventType, handler);
         }, this);
         (0, _$["default"])(this.el).walkTheDOM(function (el) {
           if (el.__lazyValue && el.__lazyValue.destroy()) n.__lazyValue.destroy();
@@ -14289,8 +14291,8 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
 
       // Event type
     } else {
-        this.type = src;
-      }
+      this.type = src;
+    }
 
     // Put explicitly provided properties onto the event object
     if (props) {
@@ -14349,7 +14351,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
     // Given a valid data path, split it into an array of its parts.
     // ex: foo.bar[0].baz --> ['foo', 'var', '0', 'baz']
     splitPath: function splitPath(path) {
-      path = ('.' + path + '.').split(/(?:\.|\[|\])+/);
+      path = ("." + path + ".").split(/(?:\.|\[|\])+/);
       path.pop();
       path.shift();
       return path;
@@ -14382,8 +14384,8 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
             set = undefined;
         if (!obj.hasOwnProperty(key)) continue;
         var desc = Object.getOwnPropertyDescriptor(obj, key);
-        get = desc.hasOwnProperty('get') && desc.get;
-        set = desc.hasOwnProperty('set') && desc.set;
+        get = desc.hasOwnProperty("get") && desc.get;
+        set = desc.hasOwnProperty("set") && desc.set;
         if (get || set) {
           delete obj[key];
           obj[key] = { get: get, set: set, isComputedProto: true };
@@ -14417,11 +14419,11 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
       while (len--) {
         el = this[len];
         if (document.createEvent) {
-          var event = document.createEvent('HTMLEvents');
+          var event = document.createEvent("HTMLEvents");
           event.initEvent(eventName, true, false);
           el.dispatchEvent(event);
         } else {
-          el.fireEvent('on' + eventName);
+          el.fireEvent("on" + eventName);
         }
       }
     },
@@ -14455,7 +14457,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
           el.removeEventListener(eventType, handler, false);
         }
         if (eventCount === 0 && el.detachEvent) {
-          el.detachEvent('on' + eventType, handler);
+          el.detachEvent("on" + eventType, handler);
         }
       }
     },
@@ -14464,7 +14466,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
       var el,
           events = this._events,
           len = this.length,
-          eventNames = eventName.split(' '),
+          eventNames = eventName.split(" "),
           delegateId,
           delegateGroup;
 
@@ -14486,8 +14488,8 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
           return false;
         }
 
-        delegateId = _.isString(delegate) ? delegate : delegate.delegateId = delegate.delegateId || _.uniqueId('event');
-        delegateGroup = el.delegateGroup = el.delegateGroup || _.uniqueId('delegateGroup');
+        delegateId = _.isString(delegate) ? delegate : delegate.delegateId = delegate.delegateId || _.uniqueId("event");
+        delegateGroup = el.delegateGroup = el.delegateGroup || _.uniqueId("delegateGroup");
 
         _.each(eventNames, function (eventName) {
 
@@ -14531,7 +14533,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
             // This also allows jquery's trigger method to actually fire delegated events
             // el['on' + eventName] = callback;
             // If event is focus or blur, use capture to allow for event delegation.
-            el.addEventListener(eventName, callback, eventName === 'focus' || eventName === 'blur');
+            el.addEventListener(eventName, callback, eventName === "focus" || eventName === "blur");
           }
 
           // Add our listener
@@ -14566,9 +14568,9 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
     unMarkLinks: function unMarkLinks() {
       var len = this.length;
       while (len--) {
-        var links = this[len].querySelectorAll('a');
+        var links = this[len].querySelectorAll("a");
         for (var i = 0; i < links.length; i++) {
-          links.item(i).classList.remove('active');
+          links.item(i).classList.remove("active");
           links.item(i).active = false;
         }
       }
@@ -14577,9 +14579,9 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
     markLinks: function markLinks() {
       var len = this.length;
       while (len--) {
-        var links = this[len].querySelectorAll('a[href="/' + Backbone.history.fragment + '"]');
+        var links = this[len].querySelectorAll("a[href=\"/" + Backbone.history.fragment + "\"]");
         for (var i = 0; i < links.length; i++) {
-          links.item(i).classList.add('active');
+          links.item(i).classList.add("active");
           links.item(i).active = true;
         }
       }
@@ -14588,22 +14590,22 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
 
     // http://krasimirtsonev.com/blog/article/Cross-browser-handling-of-Ajax-requests-in-absurdjs
     ajax: function ajax(ops) {
-      if (typeof ops == 'string') ops = { url: ops };
-      ops.url = ops.url || '';
+      if (typeof ops == "string") ops = { url: ops };
+      ops.url = ops.url || "";
       ops.json = ops.json || true;
-      ops.method = ops.method || 'get';
+      ops.method = ops.method || "get";
       ops.data = ops.data || {};
       var getParams = function getParams(data, url) {
         var arr = [],
             str;
         for (var name in data) {
-          arr.push(name + '=' + encodeURIComponent(data[name]));
+          arr.push(name + "=" + encodeURIComponent(data[name]));
         }
-        str = arr.join('&');
-        if (str !== '') {
-          return url ? url.indexOf('?') < 0 ? '?' + str : '&' + str : str;
+        str = arr.join("&");
+        if (str !== "") {
+          return url ? url.indexOf("?") < 0 ? "?" + str : "&" + str : str;
         }
-        return '';
+        return "";
       };
       var api = {
         host: {},
@@ -14611,7 +14613,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
           var self = this;
           this.xhr = null;
           if (window.ActiveXObject) {
-            this.xhr = new ActiveXObject('Microsoft.XMLHTTP');
+            this.xhr = new ActiveXObject("Microsoft.XMLHTTP");
           } else if (window.XMLHttpRequest) {
             this.xhr = new XMLHttpRequest();
           }
@@ -14619,7 +14621,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
             this.xhr.onreadystatechange = function () {
               if (self.xhr.readyState == 4 && self.xhr.status == 200) {
                 var result = self.xhr.responseText;
-                if (ops.json === true && typeof JSON != 'undefined') {
+                if (ops.json === true && typeof JSON != "undefined") {
                   result = JSON.parse(result);
                 }
                 self.doneCallback && self.doneCallback.apply(self.host, [result, self.xhr]);
@@ -14632,23 +14634,23 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
               ops.complete && ops.complete.apply(self.host, [self.xhr]);
             };
           }
-          if (ops.method == 'get') {
+          if (ops.method == "get") {
             this.xhr.open("GET", ops.url + getParams(ops.data, ops.url), true);
             this.setHeaders({
-              'X-Requested-With': 'XMLHttpRequest'
+              "X-Requested-With": "XMLHttpRequest"
             });
           } else {
             this.xhr.open(ops.method, ops.url, true);
             this.setHeaders({
-              'X-Requested-With': 'XMLHttpRequest',
-              'Content-type': 'application/x-www-form-urlencoded'
+              "X-Requested-With": "XMLHttpRequest",
+              "Content-type": "application/x-www-form-urlencoded"
             });
           }
-          if (ops.headers && typeof ops.headers == 'object') {
+          if (ops.headers && typeof ops.headers == "object") {
             this.setHeaders(ops.headers);
           }
           setTimeout(function () {
-            ops.method == 'get' ? self.xhr.send() : self.xhr.send(getParams(ops.data));
+            ops.method == "get" ? self.xhr.send() : self.xhr.send(getParams(ops.data));
           }, 20);
           return this.xhr;
         },

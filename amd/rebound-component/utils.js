@@ -64,8 +64,8 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
 
       // Event type
     } else {
-        this.type = src;
-      }
+      this.type = src;
+    }
 
     // Put explicitly provided properties onto the event object
     if (props) {
@@ -124,7 +124,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
     // Given a valid data path, split it into an array of its parts.
     // ex: foo.bar[0].baz --> ['foo', 'var', '0', 'baz']
     splitPath: function splitPath(path) {
-      path = ('.' + path + '.').split(/(?:\.|\[|\])+/);
+      path = ("." + path + ".").split(/(?:\.|\[|\])+/);
       path.pop();
       path.shift();
       return path;
@@ -157,8 +157,8 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
             set = undefined;
         if (!obj.hasOwnProperty(key)) continue;
         var desc = Object.getOwnPropertyDescriptor(obj, key);
-        get = desc.hasOwnProperty('get') && desc.get;
-        set = desc.hasOwnProperty('set') && desc.set;
+        get = desc.hasOwnProperty("get") && desc.get;
+        set = desc.hasOwnProperty("set") && desc.set;
         if (get || set) {
           delete obj[key];
           obj[key] = { get: get, set: set, isComputedProto: true };
@@ -192,11 +192,11 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
       while (len--) {
         el = this[len];
         if (document.createEvent) {
-          var event = document.createEvent('HTMLEvents');
+          var event = document.createEvent("HTMLEvents");
           event.initEvent(eventName, true, false);
           el.dispatchEvent(event);
         } else {
-          el.fireEvent('on' + eventName);
+          el.fireEvent("on" + eventName);
         }
       }
     },
@@ -230,7 +230,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
           el.removeEventListener(eventType, handler, false);
         }
         if (eventCount === 0 && el.detachEvent) {
-          el.detachEvent('on' + eventType, handler);
+          el.detachEvent("on" + eventType, handler);
         }
       }
     },
@@ -239,7 +239,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
       var el,
           events = this._events,
           len = this.length,
-          eventNames = eventName.split(' '),
+          eventNames = eventName.split(" "),
           delegateId,
           delegateGroup;
 
@@ -261,8 +261,8 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
           return false;
         }
 
-        delegateId = _.isString(delegate) ? delegate : delegate.delegateId = delegate.delegateId || _.uniqueId('event');
-        delegateGroup = el.delegateGroup = el.delegateGroup || _.uniqueId('delegateGroup');
+        delegateId = _.isString(delegate) ? delegate : delegate.delegateId = delegate.delegateId || _.uniqueId("event");
+        delegateGroup = el.delegateGroup = el.delegateGroup || _.uniqueId("delegateGroup");
 
         _.each(eventNames, function (eventName) {
 
@@ -306,7 +306,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
             // This also allows jquery's trigger method to actually fire delegated events
             // el['on' + eventName] = callback;
             // If event is focus or blur, use capture to allow for event delegation.
-            el.addEventListener(eventName, callback, eventName === 'focus' || eventName === 'blur');
+            el.addEventListener(eventName, callback, eventName === "focus" || eventName === "blur");
           }
 
           // Add our listener
@@ -341,9 +341,9 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
     unMarkLinks: function unMarkLinks() {
       var len = this.length;
       while (len--) {
-        var links = this[len].querySelectorAll('a');
+        var links = this[len].querySelectorAll("a");
         for (var i = 0; i < links.length; i++) {
-          links.item(i).classList.remove('active');
+          links.item(i).classList.remove("active");
           links.item(i).active = false;
         }
       }
@@ -352,9 +352,9 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
     markLinks: function markLinks() {
       var len = this.length;
       while (len--) {
-        var links = this[len].querySelectorAll('a[href="/' + Backbone.history.fragment + '"]');
+        var links = this[len].querySelectorAll("a[href=\"/" + Backbone.history.fragment + "\"]");
         for (var i = 0; i < links.length; i++) {
-          links.item(i).classList.add('active');
+          links.item(i).classList.add("active");
           links.item(i).active = true;
         }
       }
@@ -363,22 +363,22 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
 
     // http://krasimirtsonev.com/blog/article/Cross-browser-handling-of-Ajax-requests-in-absurdjs
     ajax: function ajax(ops) {
-      if (typeof ops == 'string') ops = { url: ops };
-      ops.url = ops.url || '';
+      if (typeof ops == "string") ops = { url: ops };
+      ops.url = ops.url || "";
       ops.json = ops.json || true;
-      ops.method = ops.method || 'get';
+      ops.method = ops.method || "get";
       ops.data = ops.data || {};
       var getParams = function getParams(data, url) {
         var arr = [],
             str;
         for (var name in data) {
-          arr.push(name + '=' + encodeURIComponent(data[name]));
+          arr.push(name + "=" + encodeURIComponent(data[name]));
         }
-        str = arr.join('&');
-        if (str !== '') {
-          return url ? url.indexOf('?') < 0 ? '?' + str : '&' + str : str;
+        str = arr.join("&");
+        if (str !== "") {
+          return url ? url.indexOf("?") < 0 ? "?" + str : "&" + str : str;
         }
-        return '';
+        return "";
       };
       var api = {
         host: {},
@@ -386,7 +386,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
           var self = this;
           this.xhr = null;
           if (window.ActiveXObject) {
-            this.xhr = new ActiveXObject('Microsoft.XMLHTTP');
+            this.xhr = new ActiveXObject("Microsoft.XMLHTTP");
           } else if (window.XMLHttpRequest) {
             this.xhr = new XMLHttpRequest();
           }
@@ -394,7 +394,7 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
             this.xhr.onreadystatechange = function () {
               if (self.xhr.readyState == 4 && self.xhr.status == 200) {
                 var result = self.xhr.responseText;
-                if (ops.json === true && typeof JSON != 'undefined') {
+                if (ops.json === true && typeof JSON != "undefined") {
                   result = JSON.parse(result);
                 }
                 self.doneCallback && self.doneCallback.apply(self.host, [result, self.xhr]);
@@ -407,23 +407,23 @@ define("rebound-component/utils", ["exports", "module"], function (exports, modu
               ops.complete && ops.complete.apply(self.host, [self.xhr]);
             };
           }
-          if (ops.method == 'get') {
+          if (ops.method == "get") {
             this.xhr.open("GET", ops.url + getParams(ops.data, ops.url), true);
             this.setHeaders({
-              'X-Requested-With': 'XMLHttpRequest'
+              "X-Requested-With": "XMLHttpRequest"
             });
           } else {
             this.xhr.open(ops.method, ops.url, true);
             this.setHeaders({
-              'X-Requested-With': 'XMLHttpRequest',
-              'Content-type': 'application/x-www-form-urlencoded'
+              "X-Requested-With": "XMLHttpRequest",
+              "Content-type": "application/x-www-form-urlencoded"
             });
           }
-          if (ops.headers && typeof ops.headers == 'object') {
+          if (ops.headers && typeof ops.headers == "object") {
             this.setHeaders(ops.headers);
           }
           setTimeout(function () {
-            ops.method == 'get' ? self.xhr.send() : self.xhr.send(getParams(ops.data));
+            ops.method == "get" ? self.xhr.send() : self.xhr.send(getParams(ops.data));
           }, 20);
           return this.xhr;
         },

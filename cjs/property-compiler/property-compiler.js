@@ -9,7 +9,7 @@ Object.defineProperty(exports, '__esModule', {
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
-var _propertyCompilerTokenizer = require("property-compiler/tokenizer");
+var _propertyCompilerTokenizer = require('property-compiler/tokenizer');
 
 var _propertyCompilerTokenizer2 = _interopRequireDefault(_propertyCompilerTokenizer);
 
@@ -60,7 +60,7 @@ function compile(prop, name) {
       }
 
       // Replace any access to a collection with the generic @each placeholder and push dependancy
-      workingpath.push(path.value.replace(/\[.+\]/g, ".@each").replace(/^\./, ''));
+      workingpath.push(path.value.replace(/\[.+\]/g, '.@each').replace(/^\./, ''));
     }
 
     if (token.value === 'pluck') {

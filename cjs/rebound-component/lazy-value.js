@@ -119,7 +119,7 @@ LazyValue.prototype = Object.defineProperties({
 }, {
   value: { // just for reusing the array, might not work well if children.length changes after computation
 
-    get: function get() {
+    get: function () {
       var cache = this.cache;
       if (cache !== NIL) {
         return cache;

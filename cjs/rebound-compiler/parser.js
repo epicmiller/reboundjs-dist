@@ -19,7 +19,7 @@ function getScript(str) {
 
 // Remove the contents of the component's `style` tag.
 function getStyle(str) {
-  return str.indexOf("<style>") > -1 && str.indexOf("</style>") > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, "$2").replace(/"/g, "\\\"") : "";
+  return str.indexOf('<style>') > -1 && str.indexOf('</style>') > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, '$2').replace(/"/g, '\\"') : '';
 }
 
 function stripLinkTags(str) {
@@ -29,7 +29,7 @@ function stripLinkTags(str) {
 
 // Remove the contents of the component's `template` tag.
 function getTemplate(str) {
-  var start = str.indexOf("<template>");
+  var start = str.indexOf('<template>');
   var end = str.lastIndexOf('</template>');
 
   // Get only the content between the template tags, or set to an empty string.
@@ -40,22 +40,22 @@ function getTemplate(str) {
 
 // Get the component's name from its `name` attribute.
 function getName(str) {
-  return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, "$2").trim();
+  return str.replace(/[^]*?<element[^>]*name=(["'])?([^'">\s]+)\1[^<>]*>[^]*/ig, '$2').trim();
 }
 
 // Minify the string passed in by replacing all whitespace.
 function minify(str) {
-  return str.replace(/\s+/g, " ").replace(/\n|(>) (<)/g, "$1$2");
+  return str.replace(/\s+/g, ' ').replace(/\n|(>) (<)/g, '$1$2');
 }
 
 // Strip javascript comments
 function removeComments(str) {
-  return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, "$1");
+  return str.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s])+\/\/(?:.*)$)/gm, '$1');
 }
 
 // TODO: This is messy, clean it up!
 function getDependancies(template) {
-  var base = arguments.length <= 1 || arguments[1] === undefined ? '' : arguments[1];
+  var base = arguments[1] === undefined ? '' : arguments[1];
 
   var imports = [],
       partials = [],
@@ -63,7 +63,7 @@ function getDependancies(template) {
       match,
       importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
       partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
-      start = template.indexOf("<template>"),
+      start = template.indexOf('<template>'),
       end = template.lastIndexOf('</template>');
   if (start > -1 && end > -1) template = template.substring(start + 10, end);
 
@@ -88,7 +88,7 @@ function getDependancies(template) {
 }
 
 function parse(str) {
-  var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+  var options = arguments[1] === undefined ? {} : arguments[1];
 
   // If the element tag is present
   if (str.indexOf('<element') > -1 && str.indexOf('</element>') > -1) {

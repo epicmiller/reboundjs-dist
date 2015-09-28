@@ -117,7 +117,7 @@ define('rebound-component/lazy-value', ['exports', 'module'], function (exports,
   }, {
     value: { // just for reusing the array, might not work well if children.length changes after computation
 
-      get: function get() {
+      get: function () {
         var cache = this.cache;
         if (cache !== NIL) {
           return cache;
