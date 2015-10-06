@@ -3035,7 +3035,6 @@ Component.registerComponent = <span class="hljs-function"><span class="hljs-keyw
 
   proto.detachedCallback = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
     script.detachedCallback &amp;&amp; script.detachedCallback.call(<span class="hljs-keyword">this</span>.data);
-    <span class="hljs-keyword">this</span>.data.deinitialize();
   };
 
   proto.attributeChangedCallback = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(attrName, oldVal, newVal)</span> </span>{

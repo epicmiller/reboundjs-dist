@@ -371,7 +371,6 @@ define("rebound-component/component", ["exports", "module", "dom-helper", "htmlb
 
     proto.detachedCallback = function () {
       script.detachedCallback && script.detachedCallback.call(this.data);
-      this.data.deinitialize();
     };
 
     proto.attributeChangedCallback = function (attrName, oldVal, newVal) {

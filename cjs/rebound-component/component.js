@@ -386,7 +386,6 @@ Component.registerComponent = function registerComponent(name, options) {
 
   proto.detachedCallback = function () {
     script.detachedCallback && script.detachedCallback.call(this.data);
-    this.data.deinitialize();
   };
 
   proto.attributeChangedCallback = function (attrName, oldVal, newVal) {
