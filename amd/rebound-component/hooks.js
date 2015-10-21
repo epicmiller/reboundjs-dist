@@ -181,6 +181,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
   _hooks["default"].createChildScope = function (parent) {
     var scope = (0, _htmlbarsUtilObjectUtils.createObject)(parent);
     scope.locals = (0, _htmlbarsUtilObjectUtils.createObject)(parent.locals);
+    scope.localPresent = (0, _htmlbarsUtilObjectUtils.createObject)(parent.localPresent);
     scope.streams = (0, _htmlbarsUtilObjectUtils.createObject)(parent.streams);
     return scope;
   };

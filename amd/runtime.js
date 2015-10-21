@@ -32,7 +32,7 @@ define("runtime", ["exports", "module", "rebound-component/utils", "rebound-comp
   window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || _utils["default"].ajax;
 
   // Create Global Rebound Object
-  var Rebound = {
+  var Rebound = window.Rebound = {
     services: {},
     registerHelper: _helpers["default"].registerHelper,
     registerPartial: _helpers["default"].registerPartial,
@@ -46,12 +46,11 @@ define("runtime", ["exports", "module", "rebound-component/utils", "rebound-comp
 
       return new Promise(function (resolve, reject) {
         var run = function run() {
-          if (document.readyState !== "complete") return;
+          if (!document.body) return setTimeout(run.bind(_this), 1);
           delete _this.router;
           _this.router = new _Router["default"](options, resolve);
         };
-        if (document.readyState === "complete") return run();
-        document.addEventListener("readystatechange", run);
+        run();
       });
     },
     stop: function stop() {

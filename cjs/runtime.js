@@ -45,7 +45,7 @@ if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";
 window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || _reboundComponentUtils2["default"].ajax;
 
 // Create Global Rebound Object
-var Rebound = {
+var Rebound = window.Rebound = {
   services: {},
   registerHelper: _reboundComponentHelpers2["default"].registerHelper,
   registerPartial: _reboundComponentHelpers2["default"].registerPartial,
@@ -59,12 +59,11 @@ var Rebound = {
 
     return new Promise(function (resolve, reject) {
       var run = function run() {
-        if (document.readyState !== "complete") return;
+        if (!document.body) return setTimeout(run.bind(_this), 1);
         delete _this.router;
         _this.router = new _reboundRouterReboundRouter2["default"](options, resolve);
       };
-      if (document.readyState === "complete") return run();
-      document.addEventListener("readystatechange", run);
+      run();
     });
   },
   stop: function stop() {

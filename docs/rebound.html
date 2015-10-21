@@ -136,7 +136,7 @@ in use, throw an error</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre><span class="hljs-keyword">var</span> Rebound = {
+            <div class="content"><div class='highlight'><pre><span class="hljs-keyword">var</span> Rebound = <span class="hljs-built_in">window</span>.Rebound = {
   services: {},
   registerHelper: helpers.registerHelper,
   registerPartial: helpers.registerPartial,
@@ -148,12 +148,11 @@ in use, throw an error</p>
   start: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(options)</span></span>{
     <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Promise</span>((resolve, reject) =&gt; {
       <span class="hljs-keyword">let</span> run = () =&gt; {
-        <span class="hljs-keyword">if</span>(<span class="hljs-built_in">document</span>.readyState !== <span class="hljs-string">"complete"</span>) <span class="hljs-keyword">return</span>;
+        <span class="hljs-keyword">if</span>(!<span class="hljs-built_in">document</span>.body) <span class="hljs-keyword">return</span> setTimeout(run.bind(<span class="hljs-keyword">this</span>), <span class="hljs-number">1</span>);
         <span class="hljs-keyword">delete</span> <span class="hljs-keyword">this</span>.router;
         <span class="hljs-keyword">this</span>.router = <span class="hljs-keyword">new</span> Router(options, resolve);
       };
-      <span class="hljs-keyword">if</span>(<span class="hljs-built_in">document</span>.readyState === <span class="hljs-string">"complete"</span>) <span class="hljs-keyword">return</span> run();
-      <span class="hljs-built_in">document</span>.addEventListener(<span class="hljs-string">"readystatechange"</span>, run);
+      run();
     });
   },
   stop: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{
@@ -3388,23 +3387,31 @@ helpers.if = <span class="hljs-function"><span class="hljs-keyword">function</sp
   <span class="hljs-keyword">return</span> -<span class="hljs-number">1</span>;
 }
 
-helpers.each = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(params, hash, templates)</span></span>{
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">shouldRender</span><span class="hljs-params">(value)</span></span>{
+  <span class="hljs-keyword">return</span> (_.isArray(value) &amp;&amp; value.length &gt; <span class="hljs-number">0</span>) || (_.isObject(value) &amp;&amp; <span class="hljs-built_in">Object</span>.keys(value).length &gt; <span class="hljs-number">0</span>);
+}
 
-  <span class="hljs-keyword">if</span>(_.isNull(params[<span class="hljs-number">0</span>]) || _.isUndefined(params[<span class="hljs-number">0</span>])){ <span class="hljs-built_in">console</span>.warn(<span class="hljs-string">'Undefined value passed to each helper! Maybe try providing a default value?'</span>, params, hash); <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>; }
+helpers.each = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(params, hash, templates)</span> </span>{
 
-  <span class="hljs-keyword">var</span> key, value = (params[<span class="hljs-number">0</span>].isCollection) ? params[<span class="hljs-number">0</span>].models : params[<span class="hljs-number">0</span>]; <span class="hljs-comment">// Accepts collections or arrays</span>
-
-  <span class="hljs-keyword">if</span>((!_.isArray(value) || value.length === <span class="hljs-number">0</span>)){
-    <span class="hljs-keyword">if</span>(templates.inverse &amp;&amp; templates.inverse.yield)
-      templates.inverse.yield();
+  <span class="hljs-keyword">if</span> (_.isNull(params[<span class="hljs-number">0</span>]) || _.isUndefined(params[<span class="hljs-number">0</span>])) {
+    <span class="hljs-built_in">console</span>.warn(<span class="hljs-string">"Undefined value passed to each helper."</span>, params, hash);
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>;
   }
-  <span class="hljs-keyword">else</span>{
+
+  <span class="hljs-keyword">var</span> key, eachId,
+      value = params[<span class="hljs-number">0</span>].isCollection ? params[<span class="hljs-number">0</span>].models : (params[<span class="hljs-number">0</span>].isModel ? params[<span class="hljs-number">0</span>].attributes : params[<span class="hljs-number">0</span>]); <span class="hljs-comment">// Accepts collections, arrays, or models</span>
+
+  <span class="hljs-keyword">if</span> (shouldRender(value)) {
     <span class="hljs-keyword">for</span> (key <span class="hljs-keyword">in</span> value) {
-      <span class="hljs-keyword">if</span>(value.hasOwnProperty(key))
-        <span class="hljs-keyword">this</span>.yieldItem(value[key].cid, [ value[key], key ]);
+      eachId = (value[key] &amp;&amp; value[key].isData) ? value[key].cid : params[<span class="hljs-number">0</span>].cid + key;
+      <span class="hljs-keyword">if</span> (value.hasOwnProperty(key)) <span class="hljs-keyword">this</span>.yieldItem(eachId, [value[key], key]);
     }
   }
-  <span class="hljs-keyword">return</span> _.uniqueId(<span class="hljs-string">'rand'</span>);
+  <span class="hljs-keyword">else</span> {
+    <span class="hljs-keyword">if</span>(templates.inverse &amp;&amp; templates.inverse[<span class="hljs-string">"yield"</span>]) templates.inverse[<span class="hljs-string">"yield"</span>]();
+  }
+
+  <span class="hljs-keyword">return</span> _.uniqueId(<span class="hljs-string">"rand"</span>);
 };
 
 helpers.partial = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(params, hash, options, env)</span></span>{
@@ -3798,6 +3805,7 @@ See <code>bindLocal</code> for more information.</p>
 hooks.createChildScope = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(parent)</span> </span>{
   <span class="hljs-keyword">var</span> scope = createObject(parent);
   scope.locals = createObject(parent.locals);
+  scope.localPresent = createObject(parent.localPresent);
   scope.streams = createObject(parent.streams);
   <span class="hljs-keyword">return</span> scope;
 };</pre></div></div>

@@ -198,6 +198,7 @@ _htmlbarsRuntimeHooks2["default"].createFreshScope = function () {
 _htmlbarsRuntimeHooks2["default"].createChildScope = function (parent) {
   var scope = (0, _htmlbarsUtilObjectUtils.createObject)(parent);
   scope.locals = (0, _htmlbarsUtilObjectUtils.createObject)(parent.locals);
+  scope.localPresent = (0, _htmlbarsUtilObjectUtils.createObject)(parent.localPresent);
   scope.streams = (0, _htmlbarsUtilObjectUtils.createObject)(parent.streams);
   return scope;
 };
