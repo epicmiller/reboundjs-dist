@@ -1,4 +1,4 @@
-define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-value", "rebound-component/utils", "rebound-component/helpers", "htmlbars-runtime/hooks", "dom-helper", "../htmlbars-util/object-utils", "htmlbars-runtime/render"], function (exports, module, _reboundComponentLazyValue, _reboundComponentUtils, _reboundComponentHelpers, _htmlbarsRuntimeHooks, _domHelper, _htmlbarsUtilObjectUtils, _htmlbarsRuntimeRender) {
+define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-value", "rebound-component/utils", "rebound-component/helpers", "htmlbars-runtime/hooks", "dom-helper", "htmlbars-util/object-utils", "htmlbars-runtime/render"], function (exports, module, _reboundComponentLazyValue, _reboundComponentUtils, _reboundComponentHelpers, _htmlbarsRuntimeHooks, _domHelper, _htmlbarsUtilObjectUtils, _htmlbarsRuntimeRender) {
   // Rebound Hooks
   // ----------------
 
@@ -49,7 +49,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
   _hooks["default"].get = function get(env, scope, path) {
 
-    if (path === "this") path = "";
+    if (path === 'this') path = '';
 
     var setPath = path;
 
@@ -61,7 +61,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     // If this path referances a block param, use that as the context instead.
     if (scope.localPresent[key]) {
       value = scope.locals[key];
-      path = rest.join(".");
+      path = rest.join('.');
     } else {
       value = scope.self;
     }
@@ -75,7 +75,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
     // Lazy value that returns the value of context.path
     var lazyValue = new _LazyValue["default"](function () {
-      return context.get(path);
+      return context.get(path, { isPath: true });
     }, { context: context });
 
     // Save our path so parent lazyvalues can know the data var or helper they are getting info from
@@ -101,7 +101,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
   function streamHelper(morph, env, scope, visitor, params, hash, helper, templates, context) {
 
-    if (!_.isFunction(helper)) return console.error(scope + " is not a valid helper!");
+    if (!_.isFunction(helper)) return console.error(scope + ' is not a valid helper!');
 
     // Create a lazy value that returns the value of our evaluated helper.
     var lazyValue = new _LazyValue["default"](function () {
@@ -138,7 +138,11 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
   _hooks["default"].cleanupRenderNode = function () {};
 
   _hooks["default"].destroyRenderNode = function (renderNode) {};
-  _hooks["default"].willCleanupTree = function (renderNode) {};
+  _hooks["default"].willCleanupTree = function (renderNode) {
+    // for(let i in renderNode.lazyValues)
+    //   if(renderNode.lazyValues[i].isLazyValue)
+    //     renderNode.lazyValues[i].destroy();
+  };
 
   /*******************************
           Default Hooks
@@ -216,7 +220,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
         // Call our func with merged helpers and hooks
         env.template = _render2["default"]["default"](template, env, scope, options);
-        env.template.uid = _.uniqueId("template");
+        env.template.uid = _.uniqueId('template');
         return env.template;
       }
     };
@@ -240,7 +244,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
         // Call our func with merged helpers and hooks
         env.template = _render2["default"]["default"](template, env, scope, options);
-        env.template.uid = _.uniqueId("template");
+        env.template.uid = _.uniqueId('template');
         return env.template;
       }
     };
@@ -333,7 +337,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       var value = "";
 
       for (i = 0, l = params.length; i < l; i++) {
-        value += params[i] && params[i].isLazyValue ? params[i].value : params[i] || "";
+        value += params[i] && params[i].isLazyValue ? params[i].value : params[i] || '';
       }
 
       return value;
@@ -360,9 +364,9 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     };
 
     // Two way databinding for textareas
-    if (domElement.tagName === "TEXTAREA") {
+    if (domElement.tagName === 'TEXTAREA') {
       lazyValue.onNotify(updateTextarea);
-      (0, _$["default"])(domElement).on("change keyup", function (event) {
+      (0, _$["default"])(domElement).on('change keyup', function (event) {
         lazyValue.set(lazyValue.path, this.value);
       });
     }
@@ -376,20 +380,20 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
         checkboxChange,
         type = domElement.getAttribute("type"),
         attr,
-        inputTypes = { "null": true, "text": true, "email": true, "password": true,
-      "search": true, "url": true, "tel": true, "hidden": true,
-      "number": true, "color": true, "date": true, "datetime": true,
-      "datetime-local:": true, "month": true, "range": true,
-      "time": true, "week": true
+        inputTypes = { 'null': true, 'text': true, 'email': true, 'password': true,
+      'search': true, 'url': true, 'tel': true, 'hidden': true,
+      'number': true, 'color': true, 'date': true, 'datetime': true,
+      'datetime-local:': true, 'month': true, 'range': true,
+      'time': true, 'week': true
     };
 
     // If is a text input element's value prop with only one variable, wire default events
-    if (domElement.tagName === "INPUT" && inputTypes[type] && name === "value") {
+    if (domElement.tagName === 'INPUT' && inputTypes[type] && name === 'value') {
 
       // If our special input events have not been bound yet, bind them and set flag
       if (!attrMorph.inputObserver) {
 
-        (0, _$["default"])(domElement).on("change input propertychange", function (event) {
+        (0, _$["default"])(domElement).on('change input propertychange', function (event) {
           value.set(value.path, this.value);
         });
 
@@ -400,13 +404,13 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       _.isUndefined(val) ? domElement.removeAttribute(name) : domElement.setAttribute(name, val);
 
       attr = val;
-      return domElement.value !== String(attr) ? domElement.value = attr || "" : attr;
-    } else if (domElement.tagName === "INPUT" && (type === "checkbox" || type === "radio") && name === "checked") {
+      return domElement.value !== String(attr) ? domElement.value = attr || '' : attr;
+    } else if (domElement.tagName === 'INPUT' && (type === 'checkbox' || type === 'radio') && name === 'checked') {
 
       // If our special input events have not been bound yet, bind them and set flag
       if (!attrMorph.eventsBound) {
 
-        (0, _$["default"])(domElement).on("change propertychange", function (event) {
+        (0, _$["default"])(domElement).on('change propertychange', function (event) {
           value.set(value.path, this.checked ? true : false, { quiet: true });
         });
 
@@ -421,27 +425,27 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
     // Special case for link elements with dynamic classes.
     // If the router has assigned it a truthy 'active' property, ensure that the extra class is present on re-render.
-    else if (domElement.tagName === "A" && name === "class") {
-      if (_.isUndefined(val)) {
-        domElement.active ? domElement.setAttribute("class", "active") : domElement.classList.remove("class");
+    else if (domElement.tagName === 'A' && name === 'class') {
+        if (_.isUndefined(val)) {
+          domElement.active ? domElement.setAttribute('class', 'active') : domElement.classList.remove('class');
+        } else {
+          domElement.setAttribute(name, val + (domElement.active ? ' active' : ''));
+        }
       } else {
-        domElement.setAttribute(name, val + (domElement.active ? " active" : ""));
+        _.isString(val) && (val = val.trim());
+        val || (val = undefined);
+        if (_.isUndefined(val)) {
+          domElement.removeAttribute(name);
+        } else {
+          domElement.setAttribute(name, val);
+        }
       }
-    } else {
-      _.isString(val) && (val = val.trim());
-      val || (val = undefined);
-      if (_.isUndefined(val)) {
-        domElement.removeAttribute(name);
-      } else {
-        domElement.setAttribute(name, val);
-      }
-    }
 
-    _hooks["default"].linkRenderNode(attrMorph, env, scope, "@attribute", [value], {});
+    _hooks["default"].linkRenderNode(attrMorph, env, scope, '@attribute', [value], {});
   };
 
   _hooks["default"].partial = function partial(renderNode, env, scope, path) {
-    if (!path) console.error("Partial helper must be passed path!");
+    if (!path) console.error('Partial helper must be passed path!');
     path = path.isLazyValue ? path.value : path;
     var part = this.wrapPartial(_reboundComponentHelpers.partials[path]);
     if (part && part.render) {
@@ -484,6 +488,9 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       componentData[key] = streamProperty(component, key);
     }
 
+    // Set up two way binding between component and original context for non-data attributes
+    // Syncing between models and collections passed are handled in model and collection
+
     var _loop = function () {
       var key = prop;
       if (componentData[key].isLazyValue && attrs[key].isLazyValue) {
@@ -503,16 +510,13 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       }
     };
 
-    // Set up two way binding between component and original context for non-data attributes
-    // Syncing between models and collections passed are handled in model and collection
-
     for (var prop in componentData) {
       _loop();
     }
 
     // TODO: Move this to Component
     // // For each change on our component, update the states of the original context and the element's proeprties.
-    component.listenTo(component, "change", function (model) {
+    component.listenTo(component, 'change', function (model) {
       var json = component.toJSON();
 
       if (_.isString(json)) return; // If is a string, this model is seralizing already
@@ -566,15 +570,15 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     // `<content>` outlets to render templates into.
     (0, _$["default"])(element).walkTheDOM(function (el) {
       if (element === el) return true;
-      if (el.tagName === "CONTENT") outlet = el;
-      if (el.tagName.indexOf("-") > -1) return false;
+      if (el.tagName === 'CONTENT') outlet = el;
+      if (el.tagName.indexOf('-') > -1) return false;
       return true;
     });
 
     // If a `<content>` outlet is present in component's template, and a template
     // is provided, render it into the outlet
     if (templates["default"] && _.isElement(outlet)) {
-      outlet.innerHTML = "";
+      outlet.innerHTML = '';
       outlet.appendChild(_render2["default"]["default"](templates["default"], env, scope, {}).fragment);
     }
 
@@ -584,7 +588,3 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
   module.exports = _hooks["default"];
 });
-
-// for(let i in renderNode.lazyValues)
-//   if(renderNode.lazyValues[i].isLazyValue)
-//     renderNode.lazyValues[i].destroy();

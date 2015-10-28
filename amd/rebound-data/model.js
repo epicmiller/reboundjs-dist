@@ -23,7 +23,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
   function pathGenerator(parent, key) {
     return function () {
       var path = parent.__path();
-      return path + (path === "" ? "" : ".") + key;
+      return path + (path === '' ? '' : '.') + key;
     };
   }
 
@@ -35,13 +35,14 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
     // A method that returns a root path by default. Meant to be overridden on
     // instantiation.
     __path: function __path() {
-      return "";
+      return '';
     },
 
     // Create a new Model with the specified attributes. The Model's lineage is set
     // up here to keep track of it's place in the data tree.
     constructor: function constructor(attributes, options) {
-      attributes || (attributes = {});
+      var self = this;
+      if (attributes === null || attributes === undefined) attributes = {};
       attributes.isModel && (attributes = attributes.attributes);
       options || (options = {});
       this.helpers = {};
@@ -60,7 +61,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
     toggle: function toggle(attr, options) {
       options = options ? _.clone(options) : {};
       var val = this.get(attr);
-      if (!_.isBoolean(val)) console.error("Tried to toggle non-boolean value " + attr + "!", this);
+      if (!_.isBoolean(val)) console.error('Tried to toggle non-boolean value ' + attr + '!', this);
       return this.set(attr, !val, options);
     },
 
@@ -71,13 +72,13 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
       var wait = options.wait;
 
       var destroy = function destroy() {
-        model.trigger("destroy", model, model.collection, options);
+        model.trigger('destroy', model, model.collection, options);
       };
 
       options.success = function (resp) {
         if (wait) destroy();
         if (success) success.call(options.context, model, resp, options);
-        if (!model.isNew()) model.trigger("sync", model, resp, options);
+        if (!model.isNew()) model.trigger('sync', model, resp, options);
       };
 
       var xhr = false;
@@ -85,7 +86,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
         _.defer(options.success);
       } else {
         wrapError(this, options);
-        xhr = this.sync("delete", this, options);
+        xhr = this.sync('delete', this, options);
       }
       if (!wait) destroy();
       return xhr;
@@ -134,7 +135,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
 
       // Trigger custom reset event
       this.changed = changed;
-      if (!options.silent) this.trigger("reset", this, options);
+      if (!options.silent) this.trigger('reset', this, options);
 
       // Return new values
       return obj;
@@ -151,7 +152,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
     // - If a `Computed Property` and `options.raw` is true, return it.
     // - If a `Computed Property` traverse to its value.
     // - If not set, return its falsy value.
-    // - If a `Model`, `Collection`, or primitive value, traverse to it.
+    // - If a `Model` or `Collection`, traverse to it.
     get: function get(key, options) {
       options || (options = {});
       var parts = _$["default"].splitPath(key),
@@ -160,13 +161,13 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
           l = parts.length;
 
       if (_.isUndefined(key) || _.isNull(key)) return undefined;
-      if (key === "" || parts.length === 0) return result;
+      if (key === '' || parts.length === 0) return result;
 
       for (i = 0; i < l; i++) {
         if (result && result.isComputedProperty && options.raw) return result;
         if (result && result.isComputedProperty) result = result.value();
         if (_.isUndefined(result) || _.isNull(result)) return result;
-        if (parts[i] === "@parent") result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result && result.hasOwnProperty(parts[i])) result = result[parts[i]];
+        if (parts[i] === '@parent') result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result && result.hasOwnProperty(parts[i])) result = result[parts[i]];
       }
 
       if (result && result.isComputedProperty && !options.raw) result = result.value();
@@ -181,14 +182,13 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
       var _this = this;
 
       var attrs,
-          attr,
           newKey,
           target,
           destination,
           props = [],
           lineage;
 
-      if (typeof key === "object") {
+      if (typeof key === 'object') {
         attrs = key.isModel ? key.attributes : key;
         options = val;
       } else (attrs = {})[key] = val;
@@ -202,12 +202,13 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
       if (options.defaults === true) this.defaults = attrs;
       if (_.isEmpty(attrs)) return;
 
+      // For each attribute passed:
       var _loop = function () {
         var val = attrs[key],
             paths = _$["default"].splitPath(key),
-            attr = paths.pop() || "",
+            attr = paths.pop() || '',
             // The key        ex: foo[0].bar --> bar
-        target = _this.get(paths.join(".")),
+        target = _this.get(paths.join('.')),
             // The element    ex: foo.bar.baz --> foo.bar
         lineage = undefined;
 
@@ -236,6 +237,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
         // - If val is `null` or `undefined`, set to default value.
         // - If val is a `Computed Property`, get its current cache object.
         // - If val (default value or evaluated computed property) is `null`, set to default value or (fallback `undefined`).
+        // - Else If val is a primitive object instance, convert to primitive value.
         // - Else If `{raw: true}` option is passed, set the exact object that was passed. No promotion to a Rebound Data object.
         // - Else If this function is the same as the current computed property, continue.
         // - Else If this value is a `Function`, turn it into a `Computed Property`.
@@ -248,7 +250,7 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
 
         if (_.isNull(val) || _.isUndefined(val)) val = _this.defaults[key];
         if (val && val.isComputedProperty) val = val.value();
-        if (_.isNull(val) || _.isUndefined(val)) val = undefined;else if (options.raw === true) val = val;else if (destination.isComputedProperty && destination.func === val) return "continue";else if (val.isComputedProto) val = new _ComputedProperty["default"](val.get, val.set, lineage);else if (val.isData && target.hasParent(val)) val = val;else if (destination.isComputedProperty || destination.isCollection && (_.isArray(val) || val.isCollection) || destination.isModel && (_.isObject(val) || val.isModel)) {
+        if (_.isNull(val) || _.isUndefined(val)) val = undefined;else if (val instanceof String) val = String(val);else if (val instanceof Number) val = Number(val);else if (val instanceof Boolean) val = Boolean(val.valueOf());else if (options.raw === true) val = val;else if (destination.isComputedProperty && destination.func === val) return "continue";else if (val.isComputedProto) val = new _ComputedProperty["default"](val.get, val.set, lineage);else if (val.isData && target.hasParent(val)) val = val;else if (destination.isComputedProperty || destination.isCollection && (_.isArray(val) || val.isCollection) || destination.isModel && (_.isObject(val) || val.isModel)) {
           destination.set(val, options);
           return "continue";
         } else if (val.isData && options.clone !== false) val = new val.constructor(val.attributes || val.models, lineage);else if (_.isArray(val)) val = new Rebound.Collection(val, lineage); // TODO: Remove global referance
@@ -261,7 +263,6 @@ define("rebound-data/model", ["exports", "module", "rebound-data/computed-proper
         Backbone.Model.prototype.set.call(target, attr, val, options); // TODO: Event cleanup when replacing a model or collection with another value
       };
 
-      // For each attribute passed:
       for (key in attrs) {
         var _ret = _loop();
 

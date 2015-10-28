@@ -58,7 +58,7 @@ define('rebound-component/lazy-value', ['exports', 'module'], function (exports,
       context.__observers[path] = context.__observers[path] || { collection: [], model: [] };
 
       // Save the type of object events this observer is for
-      res = context.get(this.path);
+      res = context.get(this.path, { isPath: true });
       res = res && res.isCollection ? 'collection' : 'model';
 
       // Add our callback, save the position it is being inserted so we can garbage collect later.
@@ -117,7 +117,7 @@ define('rebound-component/lazy-value', ['exports', 'module'], function (exports,
   }, {
     value: { // just for reusing the array, might not work well if children.length changes after computation
 
-      get: function () {
+      get: function get() {
         var cache = this.cache;
         if (cache !== NIL) {
           return cache;

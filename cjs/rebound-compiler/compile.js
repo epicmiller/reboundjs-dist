@@ -34,7 +34,7 @@ var _reboundComponentComponent = require("rebound-component/component");
 var _reboundComponentComponent2 = _interopRequireDefault(_reboundComponentComponent);
 
 function compile(str) {
-  var options = arguments[1] === undefined ? {} : arguments[1];
+  var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
   /* jshint evil: true */
   // Parse the template and compile our template function

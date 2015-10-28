@@ -20,7 +20,7 @@ var _reboundComponentUtils2 = _interopRequireDefault(_reboundComponentUtils);
 // Returns true if str starts with test
 function startsWith(str, test) {
   if (str === test) return true;
-  return str.substring(0, test.length + 1) === test + ".";
+  return str.substring(0, test.length + 1) === test + '.';
 }
 
 // Called after callstack is exausted to call all of this computed property's
@@ -37,9 +37,9 @@ function recomputeCallback() {
 
 var ComputedProperty = function ComputedProperty(getter, setter, options) {
 
-  if (!_.isFunction(getter) && !_.isFunction(setter)) return console.error("ComputedProperty constructor must be passed a functions!", prop, "Found instead.");
+  if (!_.isFunction(getter) && !_.isFunction(setter)) return console.error('ComputedProperty constructor must be passed a functions!', prop, 'Found instead.');
   options = options || {};
-  this.cid = _.uniqueId("computedPropety");
+  this.cid = _.uniqueId('computedPropety');
   this.name = options.name;
   this.returnType = null;
   this.__observers = {};
@@ -47,7 +47,7 @@ var ComputedProperty = function ComputedProperty(getter, setter, options) {
   this.waiting = {};
   this.isChanging = false;
   this.isDirty = true;
-  _.bindAll(this, "onModify", "markDirty");
+  _.bindAll(this, 'onModify', 'markDirty');
 
   if (getter) this.getter = getter;
   if (setter) this.setter = setter;
@@ -78,7 +78,7 @@ _.extend(ComputedProperty.prototype, Backbone.Events, {
   isComputedProperty: true,
   isData: true,
   __path: function __path() {
-    return "";
+    return '';
   },
 
   getter: function getter() {
@@ -91,7 +91,7 @@ _.extend(ComputedProperty.prototype, Backbone.Events, {
   markDirty: function markDirty() {
     if (this.isDirty) return;
     this.isDirty = true;
-    this.trigger("dirty", this);
+    this.trigger('dirty', this);
   },
 
   // Attached to listen to all events where this Computed Property's dependancies
@@ -118,13 +118,13 @@ _.extend(ComputedProperty.prototype, Backbone.Events, {
     },
         path,
         vector;
-    vector = path = collection.__path().replace(/\.?\[.*\]/ig, ".@each");
+    vector = path = collection.__path().replace(/\.?\[.*\]/ig, '.@each');
 
     // If a reset event on a Model, check for computed properties that depend
     // on each changed attribute's full path.
-    if (type === "reset" && options.previousAttributes) {
+    if (type === 'reset' && options.previousAttributes) {
       _.each(options.previousAttributes, function (value, key) {
-        vector = path + (path && ".") + key;
+        vector = path + (path && '.') + key;
         _.each(this.__computedDeps, function (dependants, dependancy) {
           startsWith(vector, dependancy) && push.call(this._toCall, dependants);
         }, this);
@@ -133,27 +133,27 @@ _.extend(ComputedProperty.prototype, Backbone.Events, {
 
     // If a reset event on a Collction, check for computed properties that depend
     // on anything inside that collection.
-    else if (type === "reset" && options.previousModels) {
-      _.each(this.__computedDeps, function (dependants, dependancy) {
-        startsWith(dependancy, vector) && push.call(this._toCall, dependants);
-      }, this);
-    }
+    else if (type === 'reset' && options.previousModels) {
+        _.each(this.__computedDeps, function (dependants, dependancy) {
+          startsWith(dependancy, vector) && push.call(this._toCall, dependants);
+        }, this);
+      }
 
-    // If an add or remove event, check for computed properties that depend on
-    // anything inside that collection or that contains that collection.
-    else if (type === "add" || type === "remove") {
-      _.each(this.__computedDeps, function (dependants, dependancy) {
-        if (startsWith(dependancy, vector) || startsWith(vector, dependancy)) push.call(this._toCall, dependants);
-      }, this);
-    }
+      // If an add or remove event, check for computed properties that depend on
+      // anything inside that collection or that contains that collection.
+      else if (type === 'add' || type === 'remove') {
+          _.each(this.__computedDeps, function (dependants, dependancy) {
+            if (startsWith(dependancy, vector) || startsWith(vector, dependancy)) push.call(this._toCall, dependants);
+          }, this);
+        }
 
-    // If a change event, trigger anything that depends on that changed path.
-    else if (type.indexOf("change:") === 0) {
-      vector = type.replace("change:", "").replace(/\.?\[.*\]/ig, ".@each");
-      _.each(this.__computedDeps, function (dependants, dependancy) {
-        startsWith(vector, dependancy) && push.call(this._toCall, dependants);
-      }, this);
-    }
+        // If a change event, trigger anything that depends on that changed path.
+        else if (type.indexOf('change:') === 0) {
+            vector = type.replace('change:', '').replace(/\.?\[.*\]/ig, '.@each');
+            _.each(this.__computedDeps, function (dependants, dependancy) {
+              startsWith(vector, dependancy) && push.call(this._toCall, dependants);
+            }, this);
+          }
 
     var i,
         len = this._toCall.length;
@@ -172,17 +172,18 @@ _.extend(ComputedProperty.prototype, Backbone.Events, {
   // the original object.
   onModify: function onModify(type, model, collection, options) {
     var shortcircuit = { sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1 };
-    if (!this.tracking || shortcircuit[type] || ~type.indexOf("change:")) return;
+    if (!this.tracking || shortcircuit[type] || ~type.indexOf('change:')) return;
     model || (model = {});
     collection || (collection = {});
     options || (options = {});
     !collection.isData && _.isObject(collection) && (options = collection) && (collection = model);
     var src = this;
-    var path = collection.__path().replace(src.__path(), "").replace(/^\./, "");
-    var dest = this.tracking.get(path);
-
+    var path = collection.__path().replace(src.__path(), '').replace(/^\./, '');
+    // Need to pass isPath: true here because when syncing across computed properties
+    // that return collections we may just be passing the model index for the path.
+    var dest = this.tracking.get(path, { raw: true, isPath: true });
     if (_.isUndefined(dest)) return;
-    if (type === "change") dest.set && dest.set(model.changedAttributes());else if (type === "reset") dest.reset && dest.reset(model);else if (type === "add") dest.add && dest.add(model);else if (type === "remove") dest.remove && dest.remove(model);
+    if (type === 'change') dest.set && dest.set(model.changedAttributes());else if (type === 'reset') dest.reset && dest.reset(model);else if (type === 'add') dest.add && dest.add(model);else if (type === 'remove') dest.remove && dest.remove(model);
     // TODO: Add sort
   },
 
@@ -195,21 +196,21 @@ _.extend(ComputedProperty.prototype, Backbone.Events, {
     root.__computedDeps || (root.__computedDeps = {});
 
     _.each(this.deps, function (path) {
-      var dep = root.get(path, { raw: true });
+      var dep = root.get(path, { raw: true, isPath: true });
       if (!dep || !dep.isComputedProperty) return;
-      dep.on("dirty", this.markDirty);
+      dep.on('dirty', this.markDirty);
     }, this);
 
     _.each(this.deps, function (path) {
       // Find actual path from relative paths
       var split = _reboundComponentUtils2["default"].splitPath(path);
-      while (split[0] === "@parent") {
+      while (split[0] === '@parent') {
         context = context.__parent__;
         split.shift();
       }
 
-      path = context.__path().replace(/\.?\[.*\]/ig, ".@each");
-      path = path + (path && ".") + split.join(".");
+      path = context.__path().replace(/\.?\[.*\]/ig, '.@each');
+      path = path + (path && '.') + split.join('.');
 
       // Add ourselves as dependants
       root.__computedDeps[path] || (root.__computedDeps[path] = []);
@@ -217,7 +218,7 @@ _.extend(ComputedProperty.prototype, Backbone.Events, {
     }, this);
 
     // Ensure we only have one listener per Model at a time.
-    context.off("all", this.onRecompute).on("all", this.onRecompute);
+    context.off('all', this.onRecompute).on('all', this.onRecompute);
   },
 
   unwire: function unwire() {
@@ -225,12 +226,12 @@ _.extend(ComputedProperty.prototype, Backbone.Events, {
     var context = this.__parent__;
 
     _.each(this.deps, function (path) {
-      var dep = root.get(path, { raw: true });
+      var dep = root.get(path, { raw: true, isPath: true });
       if (!dep || !dep.isComputedProperty) return;
-      dep.off("dirty", this.markDirty);
+      dep.off('dirty', this.markDirty);
     }, this);
 
-    context.off("all", this.onRecompute);
+    context.off('all', this.onRecompute);
   },
 
   // Call this computed property like you would with Function.call()
@@ -263,7 +264,7 @@ _.extend(ComputedProperty.prototype, Backbone.Events, {
     // Let this dependancy know that we are waiting for it.
     // It will re-run this Computed Property after it finishes.
     _.each(this.deps, function (dep) {
-      var dependancy = context.get(dep, { raw: true });
+      var dependancy = context.get(dep, { raw: true, isPath: true });
       if (!dependancy || !dependancy.isComputedProperty) return;
       if (dependancy.isDirty && dependancy.returnType !== null) {
         dependancy.waiting[this.cid] = this;
@@ -276,7 +277,7 @@ _.extend(ComputedProperty.prototype, Backbone.Events, {
 
     if (!this.isChanging) return;
 
-    if (this.returnType !== "value") this.stopListening(value, "all", this.onModify);
+    if (this.returnType !== 'value') this.stopListening(value, 'all', this.onModify);
 
     result = this.getter.apply(context, params);
 
@@ -285,28 +286,28 @@ _.extend(ComputedProperty.prototype, Backbone.Events, {
 
     // If result is undefined, reset our cache item
     if (_.isUndefined(result) || _.isNull(result)) {
-      this.returnType = "value";
+      this.returnType = 'value';
       this.isCollection = this.isModel = false;
       this.set(undefined);
     }
     // Set result and return types, bind events
     else if (result.isCollection) {
-      this.returnType = "collection";
-      this.isCollection = true;
-      this.isModel = false;
-      this.set(result);
-      this.track(result);
-    } else if (result.isModel) {
-      this.returnType = "model";
-      this.isCollection = false;
-      this.isModel = true;
-      this.reset(result);
-      this.track(result);
-    } else {
-      this.returnType = "value";
-      this.isCollection = this.isModel = false;
-      this.reset(result);
-    }
+        this.returnType = 'collection';
+        this.isCollection = true;
+        this.isModel = false;
+        this.set(result);
+        this.track(result);
+      } else if (result.isModel) {
+        this.returnType = 'model';
+        this.isCollection = false;
+        this.isModel = true;
+        this.reset(result);
+        this.track(result);
+      } else {
+        this.returnType = 'value';
+        this.isCollection = this.isModel = false;
+        this.reset(result);
+      }
 
     return this.value();
   },
@@ -322,14 +323,14 @@ _.extend(ComputedProperty.prototype, Backbone.Events, {
     object._cid || (object._cid = object.cid);
     target.cid = object.cid;
     this.tracking = object;
-    this.listenTo(target, "all", this.onModify);
+    this.listenTo(target, 'all', this.onModify);
   },
 
   // Get from the Computed Property's cache
   get: function get(key, options) {
     var value = this.value();
     options || (options = {});
-    if (this.returnType === "value") return console.error("Called get on the `" + this.name + "` computed property which returns a primitive value.");
+    if (this.returnType === 'value') return console.error('Called get on the `' + this.name + '` computed property which returns a primitive value.');
     return value.get(key, options);
   },
 
@@ -344,30 +345,30 @@ _.extend(ComputedProperty.prototype, Backbone.Events, {
     var value = this.value();
 
     // Noralize the data passed in
-    if (this.returnType === "model") {
-      if (typeof key === "object") {
+    if (this.returnType === 'model') {
+      if (typeof key === 'object') {
         attrs = key.isModel ? key.attributes : key;
         options = val;
       } else {
         (attrs = {})[key] = val;
       }
     }
-    if (this.returnType !== "model") options = val || {};
+    if (this.returnType !== 'model') options = val || {};
     attrs = attrs && attrs.isComputedProperty ? attrs.value() : attrs;
 
     // If a new value, set it and trigger events
     this.setter && this.setter.call(this.__root__, attrs);
-    if (this.returnType === "value" && this.cache.value !== attrs) {
+    if (this.returnType === 'value' && this.cache.value !== attrs) {
       this.cache.value = attrs;
       if (!options.quiet) {
         // If set was called not through computedProperty.call(), this is a fresh new event burst.
         if (!this.isDirty && !this.isChanging) this.__parent__.changed = {};
         this.__parent__.changed[this.name] = attrs;
-        this.trigger("change", this.__parent__);
-        this.trigger("change:" + this.name, this.__parent__, attrs);
+        this.trigger('change', this.__parent__);
+        this.trigger('change:' + this.name, this.__parent__, attrs);
         delete this.__parent__.changed[this.name];
       }
-    } else if (this.returnType !== "value" && options.reset) key = value.reset(attrs, options);else if (this.returnType !== "value") key = value.set(attrs, options);
+    } else if (this.returnType !== 'value' && options.reset) key = value.reset(attrs, options);else if (this.returnType !== 'value') key = value.set(attrs, options);
     this.isDirty = this.isChanging = false;
 
     // Call all reamining computed properties waiting for this value to resolve.

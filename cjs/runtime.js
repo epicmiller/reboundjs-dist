@@ -1,4 +1,4 @@
-//     Rebound.js 0.0.60
+//     Rebound.js 0.0.92
 
 //     (c) 2015 Adam Miller
 //     Rebound may be freely distributed under the MIT license.
@@ -39,10 +39,8 @@ var _reboundRouterReboundRouter = require("rebound-router/rebound-router");
 
 var _reboundRouterReboundRouter2 = _interopRequireDefault(_reboundRouterReboundRouter);
 
-if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";
-
 // If Backbone doesn't have an ajax method from an external DOM library, use ours
-window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || _reboundComponentUtils2["default"].ajax;
+if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || _reboundComponentUtils2["default"].ajax;
 
 // Create Global Rebound Object
 var Rebound = window.Rebound = {
@@ -67,14 +65,19 @@ var Rebound = window.Rebound = {
     });
   },
   stop: function stop() {
-    if (!this.router) return console.error("No running Rebound router found!");
+    if (!this.router) return console.error('No running Rebound router found!');
     this.router.stop();
   }
 };
 
 // Fetch Rebound's Config Object from Rebound's `script` tag
-var Config = document.getElementById("Rebound");
+var Config = document.getElementById('Rebound');
 Config = Config ? Config.innerHTML : false;
+
+// Set our require config
+requirejs.config({
+  baseUrl: "/"
+});
 
 // Start the router if a config object is preset
 if (Config) Rebound.start(JSON.parse(Config));
