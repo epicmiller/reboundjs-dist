@@ -7093,7 +7093,7 @@ _htmlbarsRuntimeHooks2["default"].wrap = function wrap(template) {
     render: function render(data, env, options, blockArguments) {
       if (env === undefined) env = _htmlbarsRuntimeHooks2["default"].createFreshEnv();
       if (options === undefined) options = {};
-
+      // jshint ignore:line
       // Create a fresh scope if it doesn't exist
       var scope = _htmlbarsRuntimeHooks2["default"].createFreshScope();
 
@@ -7123,7 +7123,7 @@ _htmlbarsRuntimeHooks2["default"].wrapPartial = function wrapPartial(template) {
     render: function render(scope, env, options, blockArguments) {
       if (env === undefined) env = _htmlbarsRuntimeHooks2["default"].createFreshEnv();
       if (options === undefined) options = {};
-
+      // jshint ignore:line
       env = _htmlbarsRuntimeHooks2["default"].createChildEnv(env);
 
       // Ensure we have a contextual element to pass to render
@@ -8836,20 +8836,18 @@ var Model = Backbone.Model.extend({
   // `key` may now be any valid json-like identifier. Ex: `obj.coll[3].value`.
   // It needs to traverse `Models`, `Collections` and `Computed Properties` to
   // find the correct value to call the original `Backbone.Set` on.
-  set: function set(key, val, options) {
+  set: function set(key, value, options) {
     var _this = this;
 
     var attrs,
         newKey,
-        target,
         destination,
-        props = [],
-        lineage;
+        props = [];
 
     if (typeof key === 'object') {
       attrs = key.isModel ? key.attributes : key;
-      options = val;
-    } else (attrs = {})[key] = val;
+      options = value;
+    } else (attrs = {})[key] = value;
     options || (options = {});
 
     // Convert getters and setters to computed properties
@@ -8865,7 +8863,7 @@ var Model = Backbone.Model.extend({
       var val = attrs[key],
           paths = _reboundComponentUtils2["default"].splitPath(key),
           attr = paths.pop() || '',
-          // The key        ex: foo[0].bar --> bar
+          // The key          ex: foo[0].bar --> bar
       target = _this.get(paths.join('.')),
           // The element    ex: foo.bar.baz --> foo.bar
       lineage = undefined;
@@ -8873,9 +8871,9 @@ var Model = Backbone.Model.extend({
       // If target currently doesnt exist, construct its tree
       if (_.isUndefined(target)) {
         target = _this;
-        _.each(paths, function (value) {
-          var tmp = target.get(value);
-          if (_.isUndefined(tmp)) tmp = target.set(value, {}).get(value);
+        _.each(paths, function (part) {
+          var tmp = target.get(part);
+          if (_.isUndefined(tmp)) tmp = target.set(part, {}).get(part);
           target = tmp;
         }, _this);
       }
@@ -9190,6 +9188,10 @@ var ERROR_ROUTE_NAME = 'error';
 var SUCCESS = 'success';
 var ERROR = 'error';
 var LOADING = 'loading';
+
+// Regexp to validate remote URLs
+var IS_REMOTE_URL = /^([a-z]+:)|^(\/\/)|^([^\/]+\.)/;
+
 var QS_OPTS = {
   allowDots: true,
   delimiter: /[;,&]/
@@ -9394,12 +9396,13 @@ var ReboundRouter = Backbone.Router.extend({
     var _this2 = this;
 
     // Navigate to route for any link with a relative href
-    var remoteUrl = /^([a-z]+:)|^(\/\/)|^([^\/]+\.)/;
     (0, _reboundComponentUtils2["default"])(container).on('click', 'a', function (e) {
       var path = e.target.getAttribute('href');
 
-      // If path is not an remote url, ends in .[a-z], or blank, try and navigate to that route.
-      if (path && path !== '#' && !remoteUrl.test(path)) e.preventDefault();
+      // If the path is a remote URL, allow the browser to navigate normally.
+      // Otherwise, prevent default so we can handle the route event.
+      if (IS_REMOTE_URL.test(path) || path === '#') return;
+      e.preventDefault();
 
       // If this is not our current route, navigate to the new route
       if (path !== '/' + Backbone.history.fragment) {

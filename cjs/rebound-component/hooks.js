@@ -223,7 +223,7 @@ _htmlbarsRuntimeHooks2["default"].wrap = function wrap(template) {
     render: function render(data, env, options, blockArguments) {
       if (env === undefined) env = _htmlbarsRuntimeHooks2["default"].createFreshEnv();
       if (options === undefined) options = {};
-
+      // jshint ignore:line
       // Create a fresh scope if it doesn't exist
       var scope = _htmlbarsRuntimeHooks2["default"].createFreshScope();
 
@@ -253,7 +253,7 @@ _htmlbarsRuntimeHooks2["default"].wrapPartial = function wrapPartial(template) {
     render: function render(scope, env, options, blockArguments) {
       if (env === undefined) env = _htmlbarsRuntimeHooks2["default"].createFreshEnv();
       if (options === undefined) options = {};
-
+      // jshint ignore:line
       env = _htmlbarsRuntimeHooks2["default"].createChildEnv(env);
 
       // Ensure we have a contextual element to pass to render

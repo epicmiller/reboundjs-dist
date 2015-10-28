@@ -206,7 +206,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       render: function render(data, env, options, blockArguments) {
         if (env === undefined) env = _hooks["default"].createFreshEnv();
         if (options === undefined) options = {};
-
+        // jshint ignore:line
         // Create a fresh scope if it doesn't exist
         var scope = _hooks["default"].createFreshScope();
 
@@ -236,7 +236,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
       render: function render(scope, env, options, blockArguments) {
         if (env === undefined) env = _hooks["default"].createFreshEnv();
         if (options === undefined) options = {};
-
+        // jshint ignore:line
         env = _hooks["default"].createChildEnv(env);
 
         // Ensure we have a contextual element to pass to render

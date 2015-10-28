@@ -27,6 +27,10 @@ var ERROR_ROUTE_NAME = 'error';
 var SUCCESS = 'success';
 var ERROR = 'error';
 var LOADING = 'loading';
+
+// Regexp to validate remote URLs
+var IS_REMOTE_URL = /^([a-z]+:)|^(\/\/)|^([^\/]+\.)/;
+
 var QS_OPTS = {
   allowDots: true,
   delimiter: /[;,&]/
@@ -231,12 +235,13 @@ var ReboundRouter = Backbone.Router.extend({
     var _this2 = this;
 
     // Navigate to route for any link with a relative href
-    var remoteUrl = /^([a-z]+:)|^(\/\/)|^([^\/]+\.)/;
     (0, _reboundComponentUtils2["default"])(container).on('click', 'a', function (e) {
       var path = e.target.getAttribute('href');
 
-      // If path is not an remote url, ends in .[a-z], or blank, try and navigate to that route.
-      if (path && path !== '#' && !remoteUrl.test(path)) e.preventDefault();
+      // If the path is a remote URL, allow the browser to navigate normally.
+      // Otherwise, prevent default so we can handle the route event.
+      if (IS_REMOTE_URL.test(path) || path === '#') return;
+      e.preventDefault();
 
       // If this is not our current route, navigate to the new route
       if (path !== '/' + Backbone.history.fragment) {

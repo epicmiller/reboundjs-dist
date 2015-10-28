@@ -185,20 +185,18 @@ var Model = Backbone.Model.extend({
   // `key` may now be any valid json-like identifier. Ex: `obj.coll[3].value`.
   // It needs to traverse `Models`, `Collections` and `Computed Properties` to
   // find the correct value to call the original `Backbone.Set` on.
-  set: function set(key, val, options) {
+  set: function set(key, value, options) {
     var _this = this;
 
     var attrs,
         newKey,
-        target,
         destination,
-        props = [],
-        lineage;
+        props = [];
 
     if (typeof key === 'object') {
       attrs = key.isModel ? key.attributes : key;
-      options = val;
-    } else (attrs = {})[key] = val;
+      options = value;
+    } else (attrs = {})[key] = value;
     options || (options = {});
 
     // Convert getters and setters to computed properties
@@ -214,7 +212,7 @@ var Model = Backbone.Model.extend({
       var val = attrs[key],
           paths = _reboundComponentUtils2["default"].splitPath(key),
           attr = paths.pop() || '',
-          // The key        ex: foo[0].bar --> bar
+          // The key          ex: foo[0].bar --> bar
       target = _this.get(paths.join('.')),
           // The element    ex: foo.bar.baz --> foo.bar
       lineage = undefined;
@@ -222,9 +220,9 @@ var Model = Backbone.Model.extend({
       // If target currently doesnt exist, construct its tree
       if (_.isUndefined(target)) {
         target = _this;
-        _.each(paths, function (value) {
-          var tmp = target.get(value);
-          if (_.isUndefined(tmp)) tmp = target.set(value, {}).get(value);
+        _.each(paths, function (part) {
+          var tmp = target.get(part);
+          if (_.isUndefined(tmp)) tmp = target.set(part, {}).get(part);
           target = tmp;
         }, _this);
       }
