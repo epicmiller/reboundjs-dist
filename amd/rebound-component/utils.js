@@ -401,7 +401,7 @@ define("rebound-component/utils", ["exports", "module", "qs"], function (exports
             };
           }
           if (ops.method == 'get') {
-            this.xhr.open("GET", ops.url + getParams(ops.data, ops.url), true);
+            this.xhr.open("GET", ops.url + getParams(ops.data), true);
             this.setHeaders({
               'X-Requested-With': 'XMLHttpRequest'
             });
