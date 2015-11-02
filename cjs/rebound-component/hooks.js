@@ -104,18 +104,6 @@ function streamProperty(context, path) {
   return lazyValue;
 }
 
-_htmlbarsRuntimeHooks2["default"].invokeHelper = function invokeHelper(morph, env, scope, visitor, params, hash, helper, templates, context) {
-  if (morph && scope.streams[morph.guid]) {
-    scope.streams[morph.guid].value;
-    return scope.streams[morph.guid];
-  }
-  var lazyValue = streamHelper.apply(this, arguments);
-  lazyValue.path = helper.name;
-  lazyValue.value;
-  // if(morph) scope.streams[morph.guid] = lazyValue;
-  return lazyValue;
-};
-
 function streamHelper(morph, env, scope, visitor, params, hash, helper, templates, context) {
 
   if (!_.isFunction(helper)) return console.error(scope + ' is not a valid helper!');
@@ -151,6 +139,20 @@ function streamHelper(morph, env, scope, visitor, params, hash, helper, template
 
   return lazyValue;
 }
+
+_htmlbarsRuntimeHooks2["default"].invokeHelper = function invokeHelper(morph, env, scope, visitor, params, hash, helper, templates, context) {
+  if (morph && scope.streams[morph.guid]) {
+    scope.streams[morph.guid].value;
+    return scope.streams[morph.guid];
+  }
+  if (!helper) return { value: '' };
+
+  var lazyValue = streamHelper.apply(this, arguments);
+  lazyValue.path = helper.name;
+  lazyValue.value;
+  // if(morph) scope.streams[morph.guid] = lazyValue;
+  return lazyValue;
+};
 
 _htmlbarsRuntimeHooks2["default"].cleanupRenderNode = function () {};
 
@@ -320,7 +322,7 @@ _htmlbarsRuntimeHooks2["default"].subexpr = function subexpr(env, scope, helperN
   if (helper) {
     lazyValue = streamHelper(null, env, scope, null, params, hash, helper, {}, null);
   } else {
-    lazyValue = _htmlbarsRuntimeHooks2["default"].get(env, context, helperName);
+    lazyValue = _htmlbarsRuntimeHooks2["default"].get(env, scope, helperName);
   }
 
   for (i = 0, l = params.length; i < l; i++) {

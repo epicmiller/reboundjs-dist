@@ -87,18 +87,6 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     return lazyValue;
   }
 
-  _hooks["default"].invokeHelper = function invokeHelper(morph, env, scope, visitor, params, hash, helper, templates, context) {
-    if (morph && scope.streams[morph.guid]) {
-      scope.streams[morph.guid].value;
-      return scope.streams[morph.guid];
-    }
-    var lazyValue = streamHelper.apply(this, arguments);
-    lazyValue.path = helper.name;
-    lazyValue.value;
-    // if(morph) scope.streams[morph.guid] = lazyValue;
-    return lazyValue;
-  };
-
   function streamHelper(morph, env, scope, visitor, params, hash, helper, templates, context) {
 
     if (!_.isFunction(helper)) return console.error(scope + ' is not a valid helper!');
@@ -134,6 +122,20 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
 
     return lazyValue;
   }
+
+  _hooks["default"].invokeHelper = function invokeHelper(morph, env, scope, visitor, params, hash, helper, templates, context) {
+    if (morph && scope.streams[morph.guid]) {
+      scope.streams[morph.guid].value;
+      return scope.streams[morph.guid];
+    }
+    if (!helper) return { value: '' };
+
+    var lazyValue = streamHelper.apply(this, arguments);
+    lazyValue.path = helper.name;
+    lazyValue.value;
+    // if(morph) scope.streams[morph.guid] = lazyValue;
+    return lazyValue;
+  };
 
   _hooks["default"].cleanupRenderNode = function () {};
 
@@ -303,7 +305,7 @@ define("rebound-component/hooks", ["exports", "module", "rebound-component/lazy-
     if (helper) {
       lazyValue = streamHelper(null, env, scope, null, params, hash, helper, {}, null);
     } else {
-      lazyValue = _hooks["default"].get(env, context, helperName);
+      lazyValue = _hooks["default"].get(env, scope, helperName);
     }
 
     for (i = 0, l = params.length; i < l; i++) {

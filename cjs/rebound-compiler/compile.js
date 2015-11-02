@@ -42,7 +42,7 @@ function compile(str) {
       template = new Function("return " + (0, _htmlbarsCompilerCompiler.compileSpec)(defs.template))();
 
   if (defs.isPartial) {
-    _reboundComponentHelpers2["default"].registerPartial(options.name, template);
+    if (options.name) _reboundComponentHelpers2["default"].registerPartial(options.name, template);
     return _reboundComponentHooks2["default"].wrap(template);
   } else {
     return _reboundComponentComponent2["default"].registerComponent(defs.name, {

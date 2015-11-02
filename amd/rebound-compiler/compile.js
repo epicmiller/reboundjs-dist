@@ -25,7 +25,7 @@ define("rebound-compiler/compile", ["exports", "module", "rebound-compiler/parse
         template = new Function("return " + (0, _htmlbarsCompilerCompiler.compileSpec)(defs.template))();
 
     if (defs.isPartial) {
-      _helpers["default"].registerPartial(options.name, template);
+      if (options.name) _helpers["default"].registerPartial(options.name, template);
       return _hooks["default"].wrap(template);
     } else {
       return _Component["default"].registerComponent(defs.name, {

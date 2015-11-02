@@ -6289,7 +6289,7 @@ function compile(str) {
       template = new Function("return " + (0, _htmlbarsCompilerCompiler.compileSpec)(defs.template))();
 
   if (defs.isPartial) {
-    _reboundComponentHelpers2["default"].registerPartial(options.name, template);
+    if (options.name) _reboundComponentHelpers2["default"].registerPartial(options.name, template);
     return _reboundComponentHooks2["default"].wrap(template);
   } else {
     return _reboundComponentComponent2["default"].registerComponent(defs.name, {
@@ -6861,15 +6861,13 @@ var _reboundComponentUtils2 = _interopRequireDefault(_reboundComponentUtils);
 var helpers = {},
     partials = {};
 
-window.partials = partials;
 helpers.registerPartial = function (name, func) {
-  if (func && typeof name === 'string') {
-    return partials[name] = func;
-  }
+  if (func && _.isString(name)) return partials[name] = func;
 };
 
 helpers.hasHelper = function (env, scope, name) {
-  return env.helpers[name] !== undefined;
+  env && env.helpers || (env = { helpers: helpers });
+  return !!(helpers[name] || env.helpers[name]);
 };
 
 // lookupHelper returns the given function from the helpers object. Manual checks prevent user from overriding reserved words.
@@ -6877,48 +6875,24 @@ helpers.lookupHelper = function (env, scope, name) {
   if (_.isString(env)) name = env;
   env && env.helpers || (env = { helpers: helpers });
   // If a reserved helper, return it
-  if (name === 'attribute') {
-    return env.helpers.attribute;
-  }
-  if (name === 'if') {
-    return env.helpers["if"];
-  }
-  if (name === 'unless') {
-    return env.helpers.unless;
-  }
-  if (name === 'each') {
-    return env.helpers.each;
-  }
-  if (name === 'partial') {
-    return env.helpers.partial;
-  }
-  if (name === 'on') {
-    return env.helpers.on;
-  }
-  if (name === 'debugger') {
-    return env.helpers["debugger"];
-  }
-  if (name === 'log') {
-    return env.helpers.log;
-  }
+  if (name === 'attribute') return env.helpers.attribute;
+  if (name === 'if') return env.helpers["if"];
+  if (name === 'unless') return env.helpers.unless;
+  if (name === 'each') return env.helpers.each;
+  if (name === 'partial') return env.helpers.partial;
+  if (name === 'on') return env.helpers.on;
+  if (name === 'debugger') return env.helpers["debugger"];
+  if (name === 'log') return env.helpers.log;
 
-  // If not a reserved helper, check env, then global helpers, else return false
+  // If not a reserved helper, check env, then global helpers, or return undefined.
+  if (!this.hasHelper(env, null, name)) console.error('No helper named', name, 'registered with Rebound');
   return helpers[name] || env.helpers[name];
 };
 
-helpers.registerHelper = function (name, callback) {
-  if (!_.isString(name)) {
-    console.error('Name provided to registerHelper must be a string!');
-    return;
-  }
-  if (!_.isFunction(callback)) {
-    console.error('Callback provided to regierHelper must be a function!');
-    return;
-  }
-  if (helpers.lookupHelper(null, null, name)) {
-    console.error('A helper called "' + name + '" is already registered!');
-    return;
-  }
+helpers.registerHelper = function (name, callback, env) {
+  if (!_.isString(name)) return console.error('Name provided to registerHelper must be a string!');
+  if (!_.isFunction(callback)) return console.error('Callback provided to regierHelper must be a function!');
+  if (this.hasHelper(env, null, name)) return console.error('A helper called "' + name + '" is already registered!');
 
   helpers[name] = callback;
 };
@@ -7181,18 +7155,6 @@ function streamProperty(context, path) {
   return lazyValue;
 }
 
-_htmlbarsRuntimeHooks2["default"].invokeHelper = function invokeHelper(morph, env, scope, visitor, params, hash, helper, templates, context) {
-  if (morph && scope.streams[morph.guid]) {
-    scope.streams[morph.guid].value;
-    return scope.streams[morph.guid];
-  }
-  var lazyValue = streamHelper.apply(this, arguments);
-  lazyValue.path = helper.name;
-  lazyValue.value;
-  // if(morph) scope.streams[morph.guid] = lazyValue;
-  return lazyValue;
-};
-
 function streamHelper(morph, env, scope, visitor, params, hash, helper, templates, context) {
 
   if (!_.isFunction(helper)) return console.error(scope + ' is not a valid helper!');
@@ -7228,6 +7190,20 @@ function streamHelper(morph, env, scope, visitor, params, hash, helper, template
 
   return lazyValue;
 }
+
+_htmlbarsRuntimeHooks2["default"].invokeHelper = function invokeHelper(morph, env, scope, visitor, params, hash, helper, templates, context) {
+  if (morph && scope.streams[morph.guid]) {
+    scope.streams[morph.guid].value;
+    return scope.streams[morph.guid];
+  }
+  if (!helper) return { value: '' };
+
+  var lazyValue = streamHelper.apply(this, arguments);
+  lazyValue.path = helper.name;
+  lazyValue.value;
+  // if(morph) scope.streams[morph.guid] = lazyValue;
+  return lazyValue;
+};
 
 _htmlbarsRuntimeHooks2["default"].cleanupRenderNode = function () {};
 
@@ -7397,7 +7373,7 @@ _htmlbarsRuntimeHooks2["default"].subexpr = function subexpr(env, scope, helperN
   if (helper) {
     lazyValue = streamHelper(null, env, scope, null, params, hash, helper, {}, null);
   } else {
-    lazyValue = _htmlbarsRuntimeHooks2["default"].get(env, context, helperName);
+    lazyValue = _htmlbarsRuntimeHooks2["default"].get(env, scope, helperName);
   }
 
   for (i = 0, l = params.length; i < l; i++) {
@@ -9458,9 +9434,21 @@ var ReboundRouter = Backbone.Router.extend({
     var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
     options.trigger === undefined && (options.trigger = true);
+
+    // Stringify any data passed in the options hash
+    console.log(fragment, ~fragment.indexOf('?') ? '?' : '&');
+    var query = options.data ? (~fragment.indexOf('?') ? '&' : '?') + _qs2["default"].stringify(options.data, QS_OPTS) : '';
+
+    // Un-Mark any `active` links in the page container
     var $container = (0, _reboundComponentUtils2["default"])(this.config.containers).unMarkLinks();
-    var resp = Backbone.history.navigate(fragment, options);
-    // Always return a promise
+
+    // Navigate to the specified path. Return value is the value from the router
+    // callback specified on the component
+    var resp = Backbone.history.navigate(fragment + query, options);
+
+    // Always return a promise. If the response of `Backbone.histroy.navigate`
+    // was a promise, wait for it to resolve before resolving. Once resolved,
+    // mark relevent links on the page as `active`.
     return new Promise(function (resolve, reject) {
       if (resp && resp.constructor === Promise) resp.then(resolve, resolve);
       resolve(resp);
@@ -9480,6 +9468,7 @@ var ReboundRouter = Backbone.Router.extend({
   //  - Else If route is a string, proxy right through
   _routeToRegExp: function _routeToRegExp(route) {
     var res;
+
     if (route[0] === '/' && route[route.length - 1] === '/') {
       res = new RegExp(route.slice(1, route.length - 1), '');
       res._isRegexp = true;
@@ -9487,6 +9476,7 @@ var ReboundRouter = Backbone.Router.extend({
       res = Backbone.Router.prototype._routeToRegExp.call(this, route);
       res._isString = true;
     }
+
     return res;
   },
 
@@ -9513,10 +9503,10 @@ var ReboundRouter = Backbone.Router.extend({
       fragment = fragment.split('?')[0];
 
       // Extract the arguments we care about from the fragment
-      var args = _this._extractParameters(_route, fragment),
+      var args = _this._extractParameters(_route, fragment);
 
       // Get the query params string
-      search = (Backbone.history.getSearch() || '').slice(1);
+      var search = (Backbone.history.getSearch() || '').slice(1);
 
       // If this route was created from a string (not a regexp), remove the auto-captured
       // search params.

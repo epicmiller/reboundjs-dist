@@ -90,9 +90,21 @@ var ReboundRouter = Backbone.Router.extend({
     var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
     options.trigger === undefined && (options.trigger = true);
+
+    // Stringify any data passed in the options hash
+    console.log(fragment, ~fragment.indexOf('?') ? '?' : '&');
+    var query = options.data ? (~fragment.indexOf('?') ? '&' : '?') + _qs2["default"].stringify(options.data, QS_OPTS) : '';
+
+    // Un-Mark any `active` links in the page container
     var $container = (0, _reboundComponentUtils2["default"])(this.config.containers).unMarkLinks();
-    var resp = Backbone.history.navigate(fragment, options);
-    // Always return a promise
+
+    // Navigate to the specified path. Return value is the value from the router
+    // callback specified on the component
+    var resp = Backbone.history.navigate(fragment + query, options);
+
+    // Always return a promise. If the response of `Backbone.histroy.navigate`
+    // was a promise, wait for it to resolve before resolving. Once resolved,
+    // mark relevent links on the page as `active`.
     return new Promise(function (resolve, reject) {
       if (resp && resp.constructor === Promise) resp.then(resolve, resolve);
       resolve(resp);
@@ -112,6 +124,7 @@ var ReboundRouter = Backbone.Router.extend({
   //  - Else If route is a string, proxy right through
   _routeToRegExp: function _routeToRegExp(route) {
     var res;
+
     if (route[0] === '/' && route[route.length - 1] === '/') {
       res = new RegExp(route.slice(1, route.length - 1), '');
       res._isRegexp = true;
@@ -119,6 +132,7 @@ var ReboundRouter = Backbone.Router.extend({
       res = Backbone.Router.prototype._routeToRegExp.call(this, route);
       res._isString = true;
     }
+
     return res;
   },
 
@@ -145,10 +159,10 @@ var ReboundRouter = Backbone.Router.extend({
       fragment = fragment.split('?')[0];
 
       // Extract the arguments we care about from the fragment
-      var args = _this._extractParameters(_route, fragment),
+      var args = _this._extractParameters(_route, fragment);
 
       // Get the query params string
-      search = (Backbone.history.getSearch() || '').slice(1);
+      var search = (Backbone.history.getSearch() || '').slice(1);
 
       // If this route was created from a string (not a regexp), remove the auto-captured
       // search params.
