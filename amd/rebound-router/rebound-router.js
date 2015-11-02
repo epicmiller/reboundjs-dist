@@ -1,4 +1,4 @@
-define("rebound-router/rebound-router", ["exports", "module", "rebound-component/utils", "rebound-router/lazy-component", "qs"], function (exports, module, _reboundComponentUtils, _reboundRouterLazyComponent, _qs) {
+define("rebound-router/rebound-router", ["exports", "module", "rebound-component/utils", "rebound-router/lazy-component"], function (exports, module, _reboundComponentUtils, _reboundRouterLazyComponent) {
   // Rebound Router
   // ----------------
 
@@ -10,8 +10,6 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
 
   var _LazyComponent = _interopRequireDefault(_reboundRouterLazyComponent);
 
-  var _qs2 = _interopRequireDefault(_qs);
-
   var DEFAULT_404_PAGE = "<div style=\"display: block;text-align: center;font-size: 22px;\">\n  <h1 style=\"margin-top: 60px;\">\n    Oops! We couldn't find this page.\n  </h1>\n  <a href=\"#\" onclick=\"window.history.back();return false;\" style=\"display: block;text-decoration: none;margin-top: 30px;\">\n    Take me back\n  </a>\n</div>";
 
   var ERROR_ROUTE_NAME = 'error';
@@ -21,11 +19,6 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
 
   // Regexp to validate remote URLs
   var IS_REMOTE_URL = /^([a-z]+:)|^(\/\/)|^([^\/]+\.)/;
-
-  var QS_OPTS = {
-    allowDots: true,
-    delimiter: /[;,&]/
-  };
 
   // Overload Backbone's loadUrl so it returns the value of the routed callback
   // Only ever compare the current path (excludes the query params) to the route regexp
@@ -84,7 +77,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
 
       // Stringify any data passed in the options hash
       console.log(fragment, ~fragment.indexOf('?') ? '?' : '&');
-      var query = options.data ? (~fragment.indexOf('?') ? '&' : '?') + _qs2["default"].stringify(options.data, QS_OPTS) : '';
+      var query = options.data ? (~fragment.indexOf('?') ? '&' : '?') + _$["default"].qs.stringify(options.data) : '';
 
       // Un-Mark any `active` links in the page container
       var $container = (0, _$["default"])(this.config.containers).unMarkLinks();
@@ -163,7 +156,7 @@ define("rebound-router/rebound-router", ["exports", "module", "rebound-component
         // then our args have the params as its last agrument as of Backbone 1.2.0
         // If the route is a user provided regex, add in parsed search params from
         // the history object before passing to the callback.
-        args.push(search ? _qs2["default"].parse(search, QS_OPTS) : {});
+        args.push(search ? _$["default"].qs.parse(search) : {});
 
         var resp = _this.execute(callback, args, name);
         if (resp !== false) {

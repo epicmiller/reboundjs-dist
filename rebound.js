@@ -7824,8 +7824,28 @@ var _qs2 = _interopRequireDefault(_qs);
 // Rebound Utils
 // ----------------
 
+var QS_STRINGIFY_OPTS = {
+  allowDots: true,
+  encode: false,
+  delimiter: '&'
+};
+
+var QS_PARSE_OPTS = {
+  allowDots: true,
+  delimiter: /[;,&]/
+};
+
 var $ = function $(query) {
   return new utils(query);
+};
+
+$.qs = {
+  stringify: function stringify(str) {
+    return _qs2["default"].stringify(str, QS_STRINGIFY_OPTS);
+  },
+  parse: function parse(obj) {
+    return _qs2["default"].parse(obj, QS_PARSE_OPTS);
+  }
 };
 
 var utils = function utils(query) {
@@ -8188,7 +8208,6 @@ utils.prototype = {
     ops.json = ops.json || true;
     ops.method = ops.method || 'get';
     ops.data = ops.data || {};
-    var getParams = _qs2["default"].stringify;
     var api = {
       host: {},
       process: function process(ops) {
@@ -8217,7 +8236,7 @@ utils.prototype = {
           };
         }
         if (ops.method == 'get') {
-          this.xhr.open("GET", ops.url + getParams(ops.data), true);
+          this.xhr.open("GET", ops.url + $.qs.stringify(ops.data), true);
           this.setHeaders({
             'X-Requested-With': 'XMLHttpRequest'
           });
@@ -8232,7 +8251,7 @@ utils.prototype = {
           this.setHeaders(ops.headers);
         }
         setTimeout(function () {
-          ops.method == 'get' ? self.xhr.send() : self.xhr.send(getParams(ops.data));
+          ops.method == 'get' ? self.xhr.send() : self.xhr.send($.qs.stringify(ops.data));
         }, 20);
         return this.xhr;
       },
@@ -9361,10 +9380,6 @@ var _reboundRouterLazyComponent = require("rebound-router/lazy-component");
 
 var _reboundRouterLazyComponent2 = _interopRequireDefault(_reboundRouterLazyComponent);
 
-var _qs = require("qs");
-
-var _qs2 = _interopRequireDefault(_qs);
-
 var DEFAULT_404_PAGE = "<div style=\"display: block;text-align: center;font-size: 22px;\">\n  <h1 style=\"margin-top: 60px;\">\n    Oops! We couldn't find this page.\n  </h1>\n  <a href=\"#\" onclick=\"window.history.back();return false;\" style=\"display: block;text-decoration: none;margin-top: 30px;\">\n    Take me back\n  </a>\n</div>";
 
 var ERROR_ROUTE_NAME = 'error';
@@ -9374,11 +9389,6 @@ var LOADING = 'loading';
 
 // Regexp to validate remote URLs
 var IS_REMOTE_URL = /^([a-z]+:)|^(\/\/)|^([^\/]+\.)/;
-
-var QS_OPTS = {
-  allowDots: true,
-  delimiter: /[;,&]/
-};
 
 // Overload Backbone's loadUrl so it returns the value of the routed callback
 // Only ever compare the current path (excludes the query params) to the route regexp
@@ -9437,7 +9447,7 @@ var ReboundRouter = Backbone.Router.extend({
 
     // Stringify any data passed in the options hash
     console.log(fragment, ~fragment.indexOf('?') ? '?' : '&');
-    var query = options.data ? (~fragment.indexOf('?') ? '&' : '?') + _qs2["default"].stringify(options.data, QS_OPTS) : '';
+    var query = options.data ? (~fragment.indexOf('?') ? '&' : '?') + _reboundComponentUtils2["default"].qs.stringify(options.data) : '';
 
     // Un-Mark any `active` links in the page container
     var $container = (0, _reboundComponentUtils2["default"])(this.config.containers).unMarkLinks();
@@ -9516,7 +9526,7 @@ var ReboundRouter = Backbone.Router.extend({
       // then our args have the params as its last agrument as of Backbone 1.2.0
       // If the route is a user provided regex, add in parsed search params from
       // the history object before passing to the callback.
-      args.push(search ? _qs2["default"].parse(search, QS_OPTS) : {});
+      args.push(search ? _reboundComponentUtils2["default"].qs.parse(search) : {});
 
       var resp = _this.execute(callback, args, name);
       if (resp !== false) {
@@ -9855,7 +9865,7 @@ var ReboundRouter = Backbone.Router.extend({
 
 exports["default"] = ReboundRouter;
 module.exports = exports["default"];
-},{"qs":75,"rebound-component/utils":10,"rebound-router/lazy-component":15}],17:[function(require,module,exports){
+},{"rebound-component/utils":10,"rebound-router/lazy-component":15}],17:[function(require,module,exports){
 //     Rebound.js 0.0.92
 
 //     (c) 2015 Adam Miller
