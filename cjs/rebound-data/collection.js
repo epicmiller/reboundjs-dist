@@ -1,21 +1,25 @@
-// Rebound Collection
-// ----------------
-
 "use strict";
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; }; // Rebound Collection
+// ----------------
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+var _backbone = require("backbone");
 
-var _reboundDataModel = require("rebound-data/model");
+var _backbone2 = _interopRequireDefault(_backbone);
 
-var _reboundDataModel2 = _interopRequireDefault(_reboundDataModel);
+var _model = require("rebound-data/model");
 
-var _reboundComponentUtils = require("rebound-component/utils");
+var _model2 = _interopRequireDefault(_model);
 
-var _reboundComponentUtils2 = _interopRequireDefault(_reboundComponentUtils);
+var _reboundUtils = require("rebound-utils/rebound-utils");
+
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function pathGenerator(collection) {
   return function () {
@@ -23,12 +27,12 @@ function pathGenerator(collection) {
   };
 }
 
-var Collection = Backbone.Collection.extend({
+var Collection = _backbone2.default.Collection.extend({
 
   isCollection: true,
   isData: true,
 
-  model: _reboundDataModel2["default"],
+  model: _model2.default,
 
   __path: function __path() {
     return '';
@@ -38,16 +42,15 @@ var Collection = Backbone.Collection.extend({
     models || (models = []);
     options || (options = {});
     this._byValue = {};
-    this.__observers = {};
     this.helpers = {};
-    this.cid = _.uniqueId('collection');
+    this.cid = _reboundUtils2.default.uniqueId('collection');
 
     // Set lineage
     this.setParent(options.parent || this);
     this.setRoot(options.root || this);
     this.__path = options.path || this.__path;
 
-    Backbone.Collection.apply(this, arguments);
+    _backbone2.default.Collection.apply(this, arguments);
 
     // When a model is removed from its original collection, destroy it
     // TODO: Fix this. Computed properties now somehow allow collection to share a model. They may be removed from one but not the other. That is bad.
@@ -61,7 +64,7 @@ var Collection = Backbone.Collection.extend({
     var _this = this;
 
     // Split the path at all '.', '[' and ']' and find the value referanced.
-    var parts = _.isString(key) ? _reboundComponentUtils2["default"].splitPath(key) : [],
+    var parts = _.isString(key) ? _reboundUtils2.default.splitPath(key) : [],
         result = this,
         l = parts.length,
         i = 0;
@@ -69,15 +72,19 @@ var Collection = Backbone.Collection.extend({
 
     // If the key is a number or object, or just a single string that is not a path,
     // get by id and return the first occurance
-    if (typeof key == 'number' || typeof key == 'object' || parts.length == 1 && !options.isPath) {
-      if (key === null) return void 0;
+    if (typeof key == 'number' || (typeof key === "undefined" ? "undefined" : _typeof(key)) == 'object' || parts.length == 1 && !options.isPath) {
+      if (key === null) {
+        return void 0;
+      }
       var id = this.modelId(this._isModel(key) ? key.attributes : key);
       var responses = [].concat(this._byValue[key], this._byId[key] || this._byId[id] || this._byId[key.cid]);
       var res = responses[0],
           idx = Infinity;
 
       responses.forEach(function (value) {
-        if (!value) return;
+        if (!value) {
+          return void 0;
+        }
         var i = _.indexOf(_this.models, value);
         if (i > -1 && i < idx) {
           idx = i;res = value;
@@ -88,10 +95,16 @@ var Collection = Backbone.Collection.extend({
     }
 
     // If key is not a string, return undefined
-    if (!_.isString(key)) return void 0;
+    if (!_.isString(key)) {
+      return void 0;
+    }
 
-    if (_.isUndefined(key) || _.isNull(key)) return key;
-    if (key === '' || parts.length === 0) return result;
+    if (_.isUndefined(key) || _.isNull(key)) {
+      return key;
+    }
+    if (key === '' || parts.length === 0) {
+      return result;
+    }
 
     if (parts.length > 0) {
       for (i = 0; i < l; i++) {
@@ -110,7 +123,7 @@ var Collection = Backbone.Collection.extend({
 
   set: function set(models, options) {
     var newModels = [],
-        parts = _.isString(models) ? _reboundComponentUtils2["default"].splitPath(models) : [],
+        parts = _.isString(models) ? _reboundUtils2.default.splitPath(models) : [],
         res,
         lineage = {
       parent: this,
@@ -149,10 +162,9 @@ var Collection = Backbone.Collection.extend({
     this._hasAncestry || (this._hasAncestry = newModels.length > 0);
 
     // Call original set function with model duplicates
-    return Backbone.Collection.prototype.set.call(this, newModels, options);
+    return _backbone2.default.Collection.prototype.set.call(this, newModels, options);
   }
 
 });
 
-exports["default"] = Collection;
-module.exports = exports["default"];
+exports.default = Collection;

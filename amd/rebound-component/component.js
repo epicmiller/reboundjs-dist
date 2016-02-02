@@ -1,405 +1,316 @@
-define("rebound-component/component", ["exports", "module", "dom-helper", "htmlbars-runtime/render", "rebound-component/hooks", "rebound-component/helpers", "rebound-component/utils", "rebound-data/rebound-data"], function (exports, module, _domHelper, _htmlbarsRuntimeRender, _reboundComponentHooks, _reboundComponentHelpers, _reboundComponentUtils, _reboundDataReboundData) {
-  // Rebound Component
-  // ----------------
-
+define("rebound-component/component", ["exports", "backbone", "rebound-utils/rebound-utils", "rebound-data/rebound-data", "rebound-htmlbars/render"], function (exports, _backbone, _reboundUtils, _reboundData, _render2) {
   "use strict";
 
-  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
 
-  var _DOMHelper = _interopRequireDefault(_domHelper);
+  var _backbone2 = _interopRequireDefault(_backbone);
 
-  var _render2 = _interopRequireDefault(_htmlbarsRuntimeRender);
+  var _render3 = _interopRequireDefault(_render2);
 
-  var _hooks = _interopRequireDefault(_reboundComponentHooks);
-
-  var _helpers = _interopRequireDefault(_reboundComponentHelpers);
-
-  var _$ = _interopRequireDefault(_reboundComponentUtils);
-
-  // Returns true if `str` starts with `test`
-  function startsWith(str, test) {
-    if (str === test) return true;
-    str = _$["default"].splitPath(str);
-    test = _$["default"].splitPath(test);
-    while (test[0] && str[0]) {
-      if (str[0] !== test[0] && str[0] !== '@each' && test[0] !== '@each') return false;
-      test.shift();
-      str.shift();
-    }
-    return true;
+  function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : {
+      default: obj
+    };
   }
 
-  // New Backbone Component
-  var Component = _reboundDataReboundData.Model.extend({
+  var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {
+    return typeof obj;
+  } : function (obj) {
+    return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj;
+  };
 
+  var Component = _reboundData.Model.extend({
     isComponent: true,
+    isHydrated: true,
+    defaults: {},
+    constructor: function constructor(el, data, options) {
+      options || (options = {});
 
-    _render: function _render() {
-      var i = 0,
-          len = this._toRender.length,
-          key;
-      delete this._renderTimeout;
-      for (i = 0; i < len; i++) {
-        this._toRender.shift().notify();
+      _.bindAll(this, '_callOnComponent', '_listenToService');
+
+      this.cid = _reboundUtils.$.uniqueId('component');
+      this.attributes = {};
+      this.changed = {};
+      this.consumers = [];
+      this.services = {};
+      this.loadCallbacks = [];
+
+      if (options.isHydrated === false) {
+        this.isHydrated = false;
       }
-      this._toRender.added = {};
-      for (key in this.env.revalidateQueue) {
-        this.env.revalidateQueue[key].revalidate();
-      }
+
+      this.__parent__ = this.__root__ = this;
+      this.set(this.defaults || {});
+      this.set(data || {});
+      this.routes = _.defaults(options.routes || {}, this.routes);
+
+      _.each(this.routes, function (value, key, routes) {
+        if (typeof value !== 'string') {
+          throw 'Function name passed to routes in  ' + this.tagName + ' component must be a string!';
+        }
+
+        if (!this[value]) {
+          throw 'Callback function ' + value + ' does not exist on the  ' + this.tagName + ' component!';
+        }
+      }, this);
+
+      this.el = el || document.createDocumentFragment();
+      this.$el = _.isFunction(_backbone2.default.$) ? _backbone2.default.$(this.el) : false;
+      this.render();
+      (0, _reboundUtils.$)(this.el).markLinks();
+      this.initialize();
+      return this;
     },
-
     _callOnComponent: function _callOnComponent(name, event) {
       if (!_.isFunction(this[name])) {
-        throw "ERROR: No method named " + name + " on component " + this.__name + "!";
+        throw "ERROR: No method named " + name + " on component " + this.tagName + "!";
       }
+
       return this[name].call(this, event);
     },
-
     _listenToService: function _listenToService(key, service) {
       var _this = this;
 
       var self = this;
-      this.listenTo(service, 'all', function (type, model, value, options) {
+      this.listenTo(service, 'all', function (type, model, value) {
+        var options = arguments.length <= 3 || arguments[3] === undefined ? {} : arguments[3];
+
         var attr,
             path = model.__path(),
             changed;
+
+        options.service = key;
+
         if (type.indexOf('change:') === 0) {
           changed = model.changedAttributes();
+
           for (attr in changed) {
-            // TODO: Modifying arguments array is bad. change this
-            type = 'change:' + key + '.' + path + (path && '.') + attr; // jshint ignore:line
-            options.service = key;
+            type = 'change:' + key + '.' + path + (path && '.') + attr;
+
             _this.trigger.call(_this, type, model, value, options);
           }
-          return;
+
+          return void 0;
         }
+
         return _this.trigger.call(_this, type, model, value, options);
       });
     },
-
+    render: function render() {
+      (0, _reboundUtils.$)(this.el).empty();
+      this.el.appendChild((0, _render3.default)(this[_reboundUtils.REBOUND_SYMBOL].template, this).fragment);
+    },
     deinitialize: function deinitialize() {
       var _this2 = this;
 
-      if (this.consumers.length) return;
+      if (this.consumers.length) {
+        return void 0;
+      }
+
       _.each(this.services, function (service, key) {
         _.each(service.consumers, function (consumer, index) {
           if (consumer.component === _this2) service.consumers.splice(index, 1);
         });
       });
+
       delete this.services;
-      Rebound.Model.prototype.deinitialize.apply(this, arguments);
-    },
 
-    // LazyComponents have an onLoad function that calls all the registered callbacks
-    // after it has been hydrated. If we are calling onLoad on an already loaded
-    // component, just call the callback provided.
+      _reboundData.Model.prototype.deinitialize.apply(this, arguments);
+    },
     onLoad: function onLoad(cb) {
-      cb(this);
+      if (!this.isHydrated) {
+        this.loadCallbacks.push(cb);
+      } else {
+        cb(this);
+      }
     },
-
-    // Set is overridden on components to accept components as a valid input type.
-    // Components set on other Components are mixed in as a shared object. {raw: true}
-    // It also marks itself as a consumer of this component
     set: function set(key, val, options) {
       var attrs, attr, serviceOptions;
-      if (typeof key === 'object') {
+
+      if ((typeof key === "undefined" ? "undefined" : _typeof(key)) === 'object') {
         attrs = key.isModel ? key.attributes : key;
         options = val;
       } else (attrs = {})[key] = val;
-      options || (options = {});
 
-      // If reset option passed, do a reset. If nothing passed, return.
+      options || (options = {});
       if (options.reset === true) return this.reset(attrs, options);
       if (options.defaults === true) this.defaults = attrs;
-      if (_.isEmpty(attrs)) return;
 
-      // For each attribute passed:
+      if (_.isEmpty(attrs)) {
+        return void 0;
+      }
+
       for (key in attrs) {
         attr = attrs[key];
+
         if (attr && attr.isComponent) {
-          if (attr.isLazyComponent && attr._component) attr = attr._component;
-          serviceOptions || (serviceOptions = _.defaults(_.clone(options), { raw: true }));
-          attr.consumers.push({ key: key, component: this });
+          if (attr.isLazyComponent && attr._component) {
+            attr = attr._component;
+          }
+
+          serviceOptions || (serviceOptions = _.defaults(_.clone(options), {
+            raw: true
+          }));
+          attr.consumers.push({
+            key: key,
+            component: this
+          });
           this.services[key] = attr;
+
           this._listenToService(key, attr);
-          Rebound.Model.prototype.set.call(this, key, attr, serviceOptions);
+
+          _reboundData.Model.prototype.set.call(this, key, attr, serviceOptions);
         }
-        Rebound.Model.prototype.set.call(this, key, attr, options);
+
+        _reboundData.Model.prototype.set.call(this, key, attr, options);
       }
 
       return this;
     },
-
-    constructor: function constructor(options) {
-      var key,
-          attr,
-          self = this;
-      options = options || (options = {});
-      _.bindAll(this, '_callOnComponent', '_listenToService', '_render');
-      this.cid = _.uniqueId('component');
-      this.env = _hooks["default"].createChildEnv(_hooks["default"].createFreshEnv());
-      // Call on component is used by the {{on}} helper to call all event callbacks in the scope of the component
-      this.env.helpers._callOnComponent = this._callOnComponent;
-      this.attributes = {};
-      this.changed = {};
-      this.consumers = [];
-      this.services = {};
-      this.__parent__ = this.__root__ = this;
-      this.listenTo(this, 'all', this._onChange);
-
-      // Take our parsed data and add it to our backbone data structure. Does a deep defaults set.
-      // In the model, primatives (arrays, objects, etc) are converted to Backbone Objects
-      // Functions are compiled to find their dependancies and added as computed properties
-      // Set our component's context with the passed data merged with the component's defaults
-      if (options.debug) window.debug = true;
-      this.set(this.defaults || {});
-      if (options.debug) window.debug = false;
-      this.set(options.data || {});
-
-      // Get any additional routes passed in from options
-      this.routes = _.defaults(options.routes || {}, this.routes);
-      // Ensure that all route functions exist
-      _.each(this.routes, function (value, key, routes) {
-        if (typeof value !== 'string') {
-          throw 'Function name passed to routes in  ' + this.__name + ' component must be a string!';
-        }
-        if (!this[value]) {
-          throw 'Callback function ' + value + ' does not exist on the  ' + this.__name + ' component!';
-        }
-      }, this);
-
-      // Set our outlet and template if we have them
-      this.el = options.outlet || document.createDocumentFragment();
-      this.$el = _.isUndefined(window.Backbone.$) ? false : window.Backbone.$(this.el);
-      this.template = options.template || this.template;
-      this.el.data = this;
-
-      // Render our dom and place the dom in our custom element
-      // TODO: Check if template is a string, and if the compiler exists on the page, and compile if needed
-      if (this.template) {
-        this.template.reboundTemplate || (this.template = _hooks["default"].wrap(this.template));
-        this.template = this.template.render(this, this.env, { contextualElement: this.el }, {});
-        this.el.appendChild(this.template.fragment);
-
-        // Add active class to this newly rendered template's link elements that require it
-        (0, _$["default"])(this.el).markLinks();
-      }
-
-      // Our Component is fully created now, but not rendered. Call created callback.
-      if (_.isFunction(this.createdCallback)) this.createdCallback.call(this);
-
-      this.initialize();
-    },
-
     $: function $(selector) {
       if (!this.$el) {
         return console.error('No DOM manipulation library on the page!');
       }
+
       return this.$el.find(selector);
     },
-
-    // Trigger all events on both the component and the element
     trigger: function trigger(eventName) {
       if (this.el) {
-        (0, _$["default"])(this.el).trigger(eventName, arguments);
-      }
-      Backbone.Model.prototype.trigger.apply(this, arguments);
-    },
-
-    _onAttributeChange: function _onAttributeChange(attrName, oldVal, newVal) {
-      // Commented out because tracking attribute changes and making sure they dont infinite loop is hard.
-      // TODO: Make work.
-      // try{ newVal = JSON.parse(newVal); } catch (e){ newVal = newVal; }
-      //
-      // // data attributes should be referanced by their camel case name
-      // attrName = attrName.replace(/^data-/g, "").replace(/-([a-z])/g, function (g) { return g[1].toUpperCase(); });
-      //
-      // oldVal = this.get(attrName);
-      //
-      // if(newVal === null){ this.unset(attrName); }
-      //
-      // // If oldVal is a number, and newVal is only numerical, preserve type
-      // if(_.isNumber(oldVal) && _.isString(newVal) && newVal.match(/^[0-9]*$/i)){
-      //   newVal = parseInt(newVal);
-      // }
-      //
-      // else{ this.set(attrName, newVal, {quiet: true}); }
-    },
-
-    _onChange: function _onChange(type, model, collection, options) {
-      var shortcircuit = { change: 1, sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1, dirty: 1 };
-      if (shortcircuit[type]) return;
-
-      var data, changed;
-      model || (model = {});
-      collection || (collection = {});
-      options || (options = {});
-      !collection.isData && type.indexOf('change:') === -1 && (options = collection) && (collection = model);
-      this._toRender || (this._toRender = []);
-
-      if (type === 'reset' && options.previousAttributes || type.indexOf('change:') !== -1) {
-        data = model;
-        changed = model.changedAttributes();
-      } else if (type === 'add' || type === 'remove' || type === 'reset' && options.previousModels) {
-        data = collection;
-        changed = {
-          '@each': data
-        };
+        (0, _reboundUtils.$)(this.el).trigger(eventName, arguments);
       }
 
-      if (!data || !changed) return;
-
-      var push = function push(arr) {
-        var i,
-            len = arr.length;
-        this.added || (this.added = {});
-        for (i = 0; i < len; i++) {
-          if (this.added[arr[i].cid]) continue;
-          this.added[arr[i].cid] = 1;
-          this.push(arr[i]);
-        }
-      };
-      var context = this;
-      var basePath = data.__path();
-      // If this event came from within a service, include the service key in the base path
-      if (options.service) basePath = options.service + '.' + basePath;
-      var parts = _$["default"].splitPath(basePath);
-      var key, obsPath, path, observers;
-
-      // For each changed key, walk down the data tree from the root to the data
-      // element that triggered the event and add all relevent callbacks to this
-      // object's _toRender queue.
-      do {
-        for (key in changed) {
-          path = (basePath + (basePath && key && '.') + key).replace(context.__path(), '').replace(/\[[^\]]+\]/g, ".@each").replace(/^\./, '');
-          for (obsPath in context.__observers) {
-            observers = context.__observers[obsPath];
-            if (startsWith(obsPath, path)) {
-              // If this is a collection event, trigger everything, otherwise only trigger property change callbacks
-              if (_.isArray(changed[key]) || data.isCollection) push.call(this._toRender, observers.collection);
-              push.call(this._toRender, observers.model);
-            }
-          }
-        }
-      } while (context !== data && (context = context.get(parts.shift(), { isPath: true })));
-
-      // Queue our render callback to be called after the current call stack has been exhausted
-      window.clearTimeout(this._renderTimeout);
-      if (this.el && this.el.testing) return this._render();
-      this._renderTimeout = window.setTimeout(this._render, 0);
-    }
-
+      _backbone2.default.Model.prototype.trigger.apply(this, arguments);
+    },
+    _onAttributeChange: function _onAttributeChange(attrName, oldVal, newVal) {}
   });
 
-  Component.extend = function (protoProps, staticProps) {
-    var parent = this,
-        child,
-        reservedMethods = {
-      'trigger': 1, 'constructor': 1, 'get': 1, 'set': 1, 'has': 1,
-      'extend': 1, 'escape': 1, 'unset': 1, 'clear': 1, 'cid': 1,
-      'attributes': 1, 'changed': 1, 'toJSON': 1, 'validationError': 1, 'isValid': 1,
-      'isNew': 1, 'hasChanged': 1, 'changedAttributes': 1, 'previous': 1, 'previousAttributes': 1
+  function processProps(protoProps, staticProps) {
+    var reservedMethods = {
+      'trigger': 1,
+      'get': 1,
+      'set': 1,
+      'has': 1,
+      'escape': 1,
+      'unset': 1,
+      'clear': 1,
+      'cid': 1,
+      'attributes': 1,
+      'hasChanged': 1,
+      'changed': 1,
+      'toJSON': 1,
+      'isValid': 1,
+      'isNew': 1,
+      'validationError': 1,
+      'previous': 1,
+      'toggle': 1,
+      'previousAttributes': 1,
+      'changedAttributes': 1
     },
         configProperties = {
-      'routes': 1, 'template': 1, 'defaults': 1, 'outlet': 1, 'url': 1,
-      'urlRoot': 1, 'idAttribute': 1, 'id': 1, 'createdCallback': 1, 'attachedCallback': 1,
-      'detachedCallback': 1
+      'id': 1,
+      'idAttribute': 1,
+      'url': 1,
+      'urlRoot': 1,
+      'routes': 1,
+      'createdCallback': 1,
+      'attachedCallback': 1,
+      'detachedCallback': 1,
+      'attributeChangedCallback': 1,
+      'defaults': 1
     };
-
     protoProps || (protoProps = {});
-    staticProps || (staticProps = {});
     protoProps.defaults = {};
-    // staticProps.services = {};
+    staticProps || (staticProps = {});
+    staticProps.template || (staticProps.template = null);
+    staticProps.stylesheet || (staticProps.stylesheet = '');
 
-    // If given a constructor, use it, otherwise use the default one defined above
-    if (protoProps && _.has(protoProps, 'constructor')) {
-      child = protoProps.constructor;
-    } else {
-      child = function () {
-        return parent.apply(this, arguments);
-      };
-    }
+    _reboundUtils.$.extractComputedProps(protoProps);
 
-    // Our class should inherit everything from its parent, defined above
-    var Surrogate = function Surrogate() {
-      this.constructor = child;
-    };
-    Surrogate.prototype = parent.prototype;
-    child.prototype = new Surrogate();
-
-    _$["default"].extractComputedProps(protoProps);
-
-    // For each property passed into our component base class
     for (var key in protoProps) {
-      var get = undefined,
-          set = undefined;
-
-      // If a configuration property, or not actually on the obj, ignore it
-      if (!protoProps.hasOwnProperty(key) || configProperties[key]) continue;
-
       var value = protoProps[key];
 
-      // If a primative or backbone type object, or computed property (function which takes no arguments and returns a value) move it to our defaults
+      if (!protoProps.hasOwnProperty(key)) {
+        continue;
+      }
+
+      if (reservedMethods[key]) {
+        throw "ERROR: " + key + " is a reserved method name in " + staticProps.tagName + "!";
+      }
+
+      if (!protoProps.hasOwnProperty(key) || configProperties[key]) {
+        continue;
+      }
+
       if (!_.isFunction(value) || value.isComputedProto || value.isModel || value.isComponent) {
         protoProps.defaults[key] = value;
         delete protoProps[key];
       }
+    }
+  }
 
-      // If a reserved method, yell
-      if (reservedMethods[key]) {
-        throw "ERROR: " + key + " is a reserved method name in " + staticProps.__name + "!";
-      }
+  Component.hydrate = function hydrateComponent() {
+    var protoProps = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+    var staticProps = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
-      // All other values are component methods, leave them be unless already defined.
+    if (this.isHydrated) {
+      return void 0;
     }
 
-    // Extend our prototype with any remaining protoProps, overriting pre-defined ones
+    processProps(protoProps, staticProps);
+
     if (protoProps) {
-      _.extend(child.prototype, protoProps, staticProps);
+      _.extend(this.prototype, protoProps);
     }
 
-    // Set our ancestry
-    child.__super__ = parent.prototype;
+    if (staticProps) {
+      _.extend(this, staticProps);
+    }
 
-    return child;
+    this.prototype[_reboundUtils.REBOUND_SYMBOL] = {
+      type: staticProps.type || 'anonymous-component',
+      template: staticProps.template || null,
+      stylesheet: staticProps.stylesheet || '',
+      isHydrated: true
+    };
   };
 
-  Component.registerComponent = function registerComponent(name, options) {
-    var script = options.prototype;
-    var template = options.template;
-    var style = options.style;
-    name = name;
+  Component.extend = function extendComponent() {
+    var protoProps = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+    var staticProps = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
-    var component = this.extend(script, { __name: name });
-    var proto = Object.create(HTMLElement.prototype, {});
-
-    proto.createdCallback = function () {
-      new component({
-        debug: options.debug,
-        template: template,
-        outlet: this,
-        data: Rebound.seedData,
-        content: Rebound.content
-      });
+    var parent = this,
+        Component = function Component(type) {
+      var data = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+      var options = arguments.length <= 2 || arguments[2] === undefined ? {} : arguments[2];
+      return parent.call(this, type, data, options);
+    },
+        Surrogate = function Surrogate() {
+      this.constructor = Component;
     };
 
-    proto.attachedCallback = function () {
-      script.attachedCallback && script.attachedCallback.call(this.data);
-    };
+    Surrogate.prototype = parent.prototype;
+    Component.prototype = new Surrogate();
+    Component.__super__ = parent.prototype;
+    processProps(protoProps, staticProps);
 
-    proto.detachedCallback = function () {
-      script.detachedCallback && script.detachedCallback.call(this.data);
-    };
+    if (protoProps) {
+      _.extend(Component.prototype, protoProps);
+    }
 
-    proto.attributeChangedCallback = function (attrName, oldVal, newVal) {
-      this.data._onAttributeChange(attrName, oldVal, newVal);
-      script.attributeChangedCallback && script.attributeChangedCallback.call(this.data, attrName, oldVal, newVal);
-    };
+    if (staticProps) {
+      _.extend(Component, parent, staticProps);
+    }
 
-    return document.registerElement(name, { prototype: proto });
+    Component.prototype[_reboundUtils.REBOUND_SYMBOL] = {
+      type: staticProps.type || 'anonymous-component',
+      template: staticProps.template || null,
+      stylesheet: staticProps.stylesheet || '',
+      isHydrated: staticProps.hasOwnProperty('isHydrated') ? staticProps.isHydrated : true
+    };
+    return Component;
   };
 
-  _.bindAll(Component, 'registerComponent');
-
-  module.exports = Component;
+  exports.default = Component;
 });

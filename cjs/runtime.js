@@ -1,4 +1,29 @@
-//     Rebound.js 0.0.92
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _backbone = require("backbone");
+
+var _backbone2 = _interopRequireDefault(_backbone);
+
+var _reboundUtils = require("rebound-utils/rebound-utils");
+
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
+
+var _reboundData = require("rebound-data/rebound-data");
+
+var _reboundRouter = require("rebound-router/rebound-router");
+
+var _reboundHtmlbars = require("rebound-htmlbars/rebound-htmlbars");
+
+var _factory = require("rebound-component/factory");
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// If Backbone doesn't have an ajax method from an external DOM library, use ours
+//     Rebound.js v0.2.0
 
 //     (c) 2015 Adam Miller
 //     Rebound may be freely distributed under the MIT license.
@@ -8,58 +33,40 @@
 // Rebound Runtime
 // ----------------
 
-// If Backbone isn't preset on the page yet, or if `window.Rebound` is already
-// in use, throw an error
-"use strict";
+// Import Backbone
+_backbone2.default.ajax = _backbone2.default.$ && _backbone2.default.$.ajax && _backbone2.default.ajax || _reboundUtils2.default.ajax;
 
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+// Fetch Rebound's Config Object from Rebound's `script` tag
 
 // Load our **Utils**, helper environment, **Rebound Data**,
 // **Rebound Components** and the **Rebound Router**
+var Config = document.getElementById('Rebound');
+Config = Config ? JSON.parse(Config.innerHTML) : false;
 
-var _reboundComponentUtils = require("rebound-component/utils");
-
-var _reboundComponentUtils2 = _interopRequireDefault(_reboundComponentUtils);
-
-var _reboundComponentHelpers = require("rebound-component/helpers");
-
-var _reboundComponentHelpers2 = _interopRequireDefault(_reboundComponentHelpers);
-
-var _reboundDataReboundData = require("rebound-data/rebound-data");
-
-var _reboundComponentComponent = require("rebound-component/component");
-
-var _reboundComponentComponent2 = _interopRequireDefault(_reboundComponentComponent);
-
-var _reboundRouterReboundRouter = require("rebound-router/rebound-router");
-
-var _reboundRouterReboundRouter2 = _interopRequireDefault(_reboundRouterReboundRouter);
-
-// If Backbone doesn't have an ajax method from an external DOM library, use ours
-if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || _reboundComponentUtils2["default"].ajax;
-
-// Create Global Rebound Object
 var Rebound = window.Rebound = {
-  services: {},
-  registerHelper: _reboundComponentHelpers2["default"].registerHelper,
-  registerPartial: _reboundComponentHelpers2["default"].registerPartial,
-  registerComponent: _reboundComponentComponent2["default"].registerComponent,
-  Model: _reboundDataReboundData.Model,
-  Collection: _reboundDataReboundData.Collection,
-  ComputedProperty: _reboundDataReboundData.ComputedProperty,
-  Component: _reboundComponentComponent2["default"],
-  start: function start(options) {
-    var _this = this;
+  version: '0.2.0',
+  testing: window.Rebound && window.Rebound.testing || Config && Config.testing || false,
 
+  registerHelper: _reboundHtmlbars.registerHelper,
+  registerPartial: _reboundHtmlbars.registerPartial,
+  registerComponent: _factory.registerComponent,
+
+  Component: _factory.ComponentFactory,
+  Model: _reboundData.Model,
+  Collection: _reboundData.Collection,
+  ComputedProperty: _reboundData.ComputedProperty,
+
+  history: _backbone2.default.history,
+  services: _reboundRouter.services,
+  start: function start(options) {
+    var R = this;
     return new Promise(function (resolve, reject) {
       var run = function run() {
-        if (!document.body) return setTimeout(run.bind(_this), 1);
-        delete _this.router;
-        _this.router = new _reboundRouterReboundRouter2["default"](options, resolve);
+        if (!document.body) {
+          return setTimeout(run.bind(R), 1);
+        }
+        delete R.router;
+        R.router = new _reboundRouter.Router(options, resolve);
       };
       run();
     });
@@ -70,17 +77,9 @@ var Rebound = window.Rebound = {
   }
 };
 
-// Fetch Rebound's Config Object from Rebound's `script` tag
-var Config = document.getElementById('Rebound');
-Config = Config ? Config.innerHTML : false;
-
-// Set our require config
-requirejs.config({
-  baseUrl: "/"
-});
-
 // Start the router if a config object is preset
-if (Config) Rebound.start(JSON.parse(Config));
+if (Config) {
+  Rebound.start(Config);
+}
 
-exports["default"] = Rebound;
-module.exports = exports["default"];
+exports.default = Rebound;

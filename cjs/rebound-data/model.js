@@ -1,4 +1,6 @@
-// Rebound Model
+"use strict";
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; }; // Rebound Model
 // ----------------
 
 // Rebound **Models** are the basic data object in the framework - frequently
@@ -8,21 +10,23 @@
 // Backbone Models by enabling deep data nesting. You can now have **Rebound Collections**
 // and **Rebound Computed Properties** as properties of the Model.
 
-"use strict";
-
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+var _backbone = require("backbone");
 
-var _reboundDataComputedProperty = require("rebound-data/computed-property");
+var _backbone2 = _interopRequireDefault(_backbone);
 
-var _reboundDataComputedProperty2 = _interopRequireDefault(_reboundDataComputedProperty);
+var _computedProperty = require("rebound-data/computed-property");
 
-var _reboundComponentUtils = require("rebound-component/utils");
+var _computedProperty2 = _interopRequireDefault(_computedProperty);
 
-var _reboundComponentUtils2 = _interopRequireDefault(_reboundComponentUtils);
+var _reboundUtils = require("rebound-utils/rebound-utils");
+
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 // Returns a function that, when called, generates a path constructed from its
 // parent's path and the key it is assigned to. Keeps us from re-naming children
@@ -34,7 +38,7 @@ function pathGenerator(parent, key) {
   };
 }
 
-var Model = Backbone.Model.extend({
+var Model = _backbone2.default.Model.extend({
   // Set this object's data types
   isModel: true,
   isData: true,
@@ -47,11 +51,14 @@ var Model = Backbone.Model.extend({
 
   // Create a new Model with the specified attributes. The Model's lineage is set
   // up here to keep track of it's place in the data tree.
-  constructor: function constructor(attributes, options) {
+  constructor: function constructor(attributes) {
+    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
     var self = this;
-    if (attributes === null || attributes === undefined) attributes = {};
+    if (attributes === null || attributes === undefined) {
+      attributes = {};
+    }
     attributes.isModel && (attributes = attributes.attributes);
-    options || (options = {});
     this.helpers = {};
     this.defaults = this.defaults || {};
     this.setParent(options.parent || this);
@@ -59,9 +66,9 @@ var Model = Backbone.Model.extend({
     this.__path = options.path || this.__path;
 
     // Convert getters and setters to computed properties
-    _reboundComponentUtils2["default"].extractComputedProps(attributes);
+    _reboundUtils2.default.extractComputedProps(attributes);
 
-    Backbone.Model.call(this, attributes, options);
+    _backbone2.default.Model.call(this, attributes, options);
   },
 
   // New convenience function to toggle boolean values in the Model.
@@ -83,9 +90,15 @@ var Model = Backbone.Model.extend({
     };
 
     options.success = function (resp) {
-      if (wait) destroy();
-      if (success) success.call(options.context, model, resp, options);
-      if (!model.isNew()) model.trigger('sync', model, resp, options);
+      if (wait) {
+        destroy();
+      }
+      if (success) {
+        success.call(options.context, model, resp, options);
+      }
+      if (!model.isNew()) {
+        model.trigger('sync', model, resp, options);
+      }
     };
 
     var xhr = false;
@@ -95,7 +108,9 @@ var Model = Backbone.Model.extend({
       wrapError(this, options);
       xhr = this.sync('delete', this, options);
     }
-    if (!wait) destroy();
+    if (!wait) {
+      destroy();
+    }
     return xhr;
   },
 
@@ -119,7 +134,13 @@ var Model = Backbone.Model.extend({
     // - Otherwise, unset the attribute.
     for (key in this.attributes) {
       value = this.attributes[key];
-      if (value === obj[key]) continue;else if (_.isUndefined(value)) obj[key] && (changed[key] = obj[key]);else if (value.isComponent) continue;else if (value.isCollection || value.isModel || value.isComputedProperty) {
+      if (value === obj[key]) {
+        continue;
+      } else if (_.isUndefined(value)) {
+        obj[key] && (changed[key] = obj[key]);
+      } else if (value.isComponent) {
+        continue;
+      } else if (value.isCollection || value.isModel || value.isComputedProperty) {
         value.reset(obj[key] || [], { silent: true });
         if (value.isCollection) changed[key] = value.previousModels;else if (value.isModel && value.isComputedProperty) changed[key] = value.cache.model.changedAttributes();else if (value.isModel) changed[key] = value.changedAttributes();
       } else if (obj.hasOwnProperty(key)) {
@@ -142,7 +163,9 @@ var Model = Backbone.Model.extend({
 
     // Trigger custom reset event
     this.changed = changed;
-    if (!options.silent) this.trigger('reset', this, options);
+    if (!options.silent) {
+      this.trigger('reset', this, options);
+    }
 
     // Return new values
     return obj;
@@ -162,13 +185,17 @@ var Model = Backbone.Model.extend({
   // - If a `Model` or `Collection`, traverse to it.
   get: function get(key, options) {
     options || (options = {});
-    var parts = _reboundComponentUtils2["default"].splitPath(key),
+    var parts = _reboundUtils2.default.splitPath(key),
         result = this,
         i,
         l = parts.length;
 
-    if (_.isUndefined(key) || _.isNull(key)) return undefined;
-    if (key === '' || parts.length === 0) return result;
+    if (_.isUndefined(key) || _.isNull(key)) {
+      return void 0;
+    }
+    if (key === '' || parts.length === 0) {
+      return result;
+    }
 
     for (i = 0; i < l; i++) {
       if (result && result.isComputedProperty && options.raw) return result;
@@ -193,24 +220,26 @@ var Model = Backbone.Model.extend({
         destination,
         props = [];
 
-    if (typeof key === 'object') {
+    if ((typeof key === "undefined" ? "undefined" : _typeof(key)) === 'object') {
       attrs = key.isModel ? key.attributes : key;
       options = value;
     } else (attrs = {})[key] = value;
     options || (options = {});
 
     // Convert getters and setters to computed properties
-    _reboundComponentUtils2["default"].extractComputedProps(attrs);
+    _reboundUtils2.default.extractComputedProps(attrs);
 
     // If reset option passed, do a reset. If nothing passed, return.
     if (options.reset === true) return this.reset(attrs, options);
     if (options.defaults === true) this.defaults = attrs;
-    if (_.isEmpty(attrs)) return;
+    if (_.isEmpty(attrs)) {
+      return void 0;
+    }
 
     // For each attribute passed:
-    var _loop = function () {
+    var _loop = function _loop() {
       var val = attrs[key],
-          paths = _reboundComponentUtils2["default"].splitPath(key),
+          paths = _reboundUtils2.default.splitPath(key),
           attr = paths.pop() || '',
           // The key          ex: foo[0].bar --> bar
       target = _this.get(paths.join('.')),
@@ -235,7 +264,7 @@ var Model = Backbone.Model.extend({
         name: key,
         parent: target,
         root: _this.__root__,
-        path: pathGenerator(target, key),
+        path: pathGenerator(target, attr),
         silent: true,
         defaults: options.defaults
       };
@@ -255,7 +284,7 @@ var Model = Backbone.Model.extend({
 
       if (_.isNull(val) || _.isUndefined(val)) val = _this.defaults[key];
       if (val && val.isComputedProperty) val = val.value();
-      if (_.isNull(val) || _.isUndefined(val)) val = undefined;else if (val instanceof String) val = String(val);else if (val instanceof Number) val = Number(val);else if (val instanceof Boolean) val = Boolean(val.valueOf());else if (options.raw === true) val = val;else if (destination.isComputedProperty && destination.func === val) return "continue";else if (val.isComputedProto) val = new _reboundDataComputedProperty2["default"](val.get, val.set, lineage);else if (val.isData && target.hasParent(val)) val = val;else if (destination.isComputedProperty || destination.isCollection && (_.isArray(val) || val.isCollection) || destination.isModel && (_.isObject(val) || val.isModel)) {
+      if (_.isNull(val) || _.isUndefined(val)) val = undefined;else if (val instanceof String) val = String(val);else if (val instanceof Number) val = Number(val);else if (val instanceof Boolean) val = Boolean(val.valueOf());else if (options.raw === true) val = val;else if (destination.isComputedProperty && destination.func === val) return "continue";else if (val.isComputedProto) val = new _computedProperty2.default(val.get, val.set, lineage);else if (val.isData && target.hasParent(val)) val = val;else if (destination.isComputedProperty || destination.isCollection && (_.isArray(val) || val.isCollection) || destination.isModel && (_.isObject(val) || val.isModel)) {
         destination.set(val, options);
         return "continue";
       } else if (val.isData && options.clone !== false) val = new val.constructor(val.attributes || val.models, lineage);else if (_.isArray(val)) val = new Rebound.Collection(val, lineage); // TODO: Remove global referance
@@ -265,7 +294,7 @@ var Model = Backbone.Model.extend({
       _this._hasAncestry = val && val.isData || false;
 
       // Set the value
-      Backbone.Model.prototype.set.call(target, attr, val, options); // TODO: Event cleanup when replacing a model or collection with another value
+      _backbone2.default.Model.prototype.set.call(target, attr, val, options); // TODO: Event cleanup when replacing a model or collection with another value
     };
 
     for (key in attrs) {
@@ -280,12 +309,14 @@ var Model = Backbone.Model.extend({
   // Recursive `toJSON` function traverses the data tree returning a JSON object.
   // If there are any cyclic dependancies the object's `cid` is used instead of looping infinitely.
   toJSON: function toJSON() {
-    if (this._isSerializing) return this.id || this.cid;
+    if (this._isSerializing) {
+      return this.id || this.cid;
+    }
     this._isSerializing = true;
     var json = _.clone(this.attributes);
     _.each(json, function (value, name) {
       if (_.isNull(value) || _.isUndefined(value)) {
-        return;
+        return void 0;
       }
       _.isFunction(value.toJSON) && (json[name] = value.toJSON());
     });
@@ -297,9 +328,8 @@ var Model = Backbone.Model.extend({
 
 // If default properties are passed into extend, process the computed properties
 Model.extend = function (protoProps, staticProps) {
-  _reboundComponentUtils2["default"].extractComputedProps(protoProps.defaults);
-  return Backbone.Model.extend.call(this, protoProps, staticProps);
+  _reboundUtils2.default.extractComputedProps(protoProps.defaults);
+  return _backbone2.default.Model.extend.call(this, protoProps, staticProps);
 };
 
-exports["default"] = Model;
-module.exports = exports["default"];
+exports.default = Model;

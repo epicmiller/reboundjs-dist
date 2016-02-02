@@ -1,12 +1,12 @@
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
 // Rebound Template Parser
 // -----------------------
 
 // Remove the contents of the component's `script` tag.
-'use strict';
-
-Object.defineProperty(exports, '__esModule', {
-  value: true
-});
 function getScript(str) {
   var start = str.lastIndexOf('</template>');
   str = str.slice(start > -1 ? start : 0, str.length);
@@ -19,7 +19,9 @@ function getScript(str) {
 
 // Remove the contents of the component's `style` tag.
 function getStyle(str) {
-  return str.indexOf("<style>") > -1 && str.indexOf("</style>") > -1 ? str.replace(/([^]*<style>)([^]*)(<\/style>[^]*)/ig, "$2").replace(/"/g, "\\\"") : "";
+  var start = str.indexOf("<style>");
+  var end = str.indexOf("</style>");
+  return start > -1 && end > -1 ? str.substr(start + 7, end - (start + 7)).replace(/"/g, "\\\"") : "";
 }
 
 function stripLinkTags(str) {
@@ -55,34 +57,34 @@ function removeComments(str) {
 
 // TODO: This is messy, clean it up!
 function getDependancies(template) {
-  var base = arguments.length <= 1 || arguments[1] === undefined ? '' : arguments[1];
-
   var imports = [],
       partials = [],
       deps = [],
       match,
-      importsre = /<link [^h]*href=(['"]?)\/?([^.'"]*).html\1[^>]*>/gi,
-      partialsre = /\{\{>\s*?['"]?([^'"}\s]*)['"]?\s*?\}\}/gi,
+      importsre = /<link [^h]*href=(['"])?\/?([^.'"]*).html\1[^>]*>/gi,
+      partialsre = /\{\{>\s*?(['"])?([^'"}\s]*)\1\s*?\}\}/gi,
+      helpersre = /\{\{partial\s*?(['"])([^'"}\s]*)\1\s*?\}\}/gi,
       start = template.indexOf("<template>"),
       end = template.lastIndexOf('</template>');
-  if (start > -1 && end > -1) template = template.substring(start + 10, end);
 
-  // Assemple our component dependancies by finding link tags and parsing their src
-  while ((match = importsre.exec(template)) !== null) {
-    imports.push(match[2]);
+  if (start > -1 && end > -1) {
+    template = template.substring(start + 10, end);
   }
-  imports.forEach(function (importString, index) {
-    deps.push('"' + base + importString + '"');
+
+  // Assemble our imports dependancies
+  (template.match(importsre) || []).forEach(function (importString, index) {
+    deps.push(importString.replace(importsre, '$2'));
   });
 
   // Assemble our partial dependancies
-  partials = template.match(partialsre);
+  (template.match(partialsre) || []).forEach(function (partial, index) {
+    deps.push(partial.replace(partialsre, '$2'));
+  });
 
-  if (partials) {
-    partials.forEach(function (partial, index) {
-      deps.push('"' + base + partial.replace(/\{\{>[\s*]?['"]?([^'"]*)['"]?[\s*]?\}\}/gi, '$1') + '"');
-    });
-  }
+  // Assemble our partial dependancies
+  (template.match(helpersre) || []).forEach(function (partial, index) {
+    deps.push(partial.replace(helpersre, '$2'));
+  });
 
   return deps;
 }
@@ -95,10 +97,10 @@ function parse(str) {
     return {
       isPartial: false,
       name: getName(str),
-      style: getStyle(str),
+      stylesheet: getStyle(str),
       template: getTemplate(str),
       script: getScript(str),
-      deps: getDependancies(str, options.baseDest)
+      deps: getDependancies(str)
     };
   }
 
@@ -106,9 +108,8 @@ function parse(str) {
     isPartial: true,
     name: options.name,
     template: stripLinkTags(str),
-    deps: getDependancies(str, options.baseDest)
+    deps: getDependancies(str)
   };
 }
 
-exports['default'] = parse;
-module.exports = exports['default'];
+exports.default = parse;

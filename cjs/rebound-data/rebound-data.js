@@ -1,32 +1,33 @@
-// Rebound Data
-// ----------------
-// These are methods inherited by all Rebound data types: **Models**,
-// **Collections** and **Computed Properties**. Controls tree ancestry
-// tracking, deep event propagation and tree destruction.
-
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+exports.ComputedProperty = exports.Collection = exports.Model = undefined;
 
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+var _model = require("rebound-data/model");
 
-var _reboundDataModel = require("rebound-data/model");
+var _model2 = _interopRequireDefault(_model);
 
-var _reboundDataModel2 = _interopRequireDefault(_reboundDataModel);
+var _collection = require("rebound-data/collection");
 
-var _reboundDataCollection = require("rebound-data/collection");
+var _collection2 = _interopRequireDefault(_collection);
 
-var _reboundDataCollection2 = _interopRequireDefault(_reboundDataCollection);
+var _computedProperty = require("rebound-data/computed-property");
 
-var _reboundDataComputedProperty = require("rebound-data/computed-property");
+var _computedProperty2 = _interopRequireDefault(_computedProperty);
 
-var _reboundDataComputedProperty2 = _interopRequireDefault(_reboundDataComputedProperty);
+var _reboundUtils = require("rebound-utils/rebound-utils");
 
-var _reboundComponentUtils = require("rebound-component/utils");
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
 
-var _reboundComponentUtils2 = _interopRequireDefault(_reboundComponentUtils);
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// Rebound Data
+// ----------------
+// These are methods inherited by all Rebound data types: **Models**,
+// **Collections** and **Computed Properties**. Controls tree ancestry
+// tracking, deep event propagation and tree destruction.
 
 var sharedMethods = {
   // When a change event propagates up the tree it modifies the path part of
@@ -34,9 +35,13 @@ var sharedMethods = {
   // Ex: Would trigger `change:val`, `change:[0].val`, `change:arr[0].val` and `obj.arr[0].val`
   // on each parent as it is propagated up the tree.
   propagateEvent: function propagateEvent(type, model) {
-    if (this.__parent__ === this || type === 'dirty') return;
+    if (this.__parent__ === this || type === 'dirty') {
+      return void 0;
+    }
     if (type.indexOf('change:') === 0 && model.isModel) {
-      if (this.isCollection && ~type.indexOf('change:[')) return;
+      if (this.isCollection && ~type.indexOf('change:[')) {
+        return void 0;
+      }
       var key,
           path = model.__path().replace(this.__parent__.__path(), '').replace(/^\./, ''),
           changed = model.changedAttributes();
@@ -46,7 +51,7 @@ var sharedMethods = {
         arguments[0] = 'change:' + path + (path && '.') + key; // jshint ignore:line
         this.__parent__.trigger.apply(this.__parent__, arguments);
       }
-      return;
+      return void 0;
     }
     return this.__parent__.trigger.apply(this.__parent__, arguments);
   },
@@ -54,10 +59,14 @@ var sharedMethods = {
   // Set this data object's parent to `parent` and, as long as a data object is
   // not its own parent, propagate every event triggered on `this` up the tree.
   setParent: function setParent(parent) {
-    if (this.__parent__) this.off('all', this.propagateEvent);
+    if (this.__parent__) {
+      this.off('all', this.propagateEvent);
+    }
     this.__parent__ = parent;
     this._hasAncestry = true;
-    if (parent !== this) this.on('all', this.__parent__.propagateEvent);
+    if (parent !== this) {
+      this.on('all', this.__parent__.propagateEvent);
+    }
     return parent;
   },
 
@@ -92,10 +101,18 @@ var sharedMethods = {
     var _this = this;
 
     // Undelegate Backbone Events from this data object
-    if (this.undelegateEvents) this.undelegateEvents();
-    if (this.stopListening) this.stopListening();
-    if (this.off) this.off();
-    if (this.unwire) this.unwire();
+    if (this.undelegateEvents) {
+      this.undelegateEvents();
+    }
+    if (this.stopListening) {
+      this.stopListening();
+    }
+    if (this.off) {
+      this.off();
+    }
+    if (this.unwire) {
+      this.unwire();
+    }
 
     // Destroy this data object's lineage
     delete this.__parent__;
@@ -107,11 +124,17 @@ var sharedMethods = {
     // and then remove the element referance itself.
     if (this.el) {
       _.each(this.el.__listeners, function (handler, eventType) {
-        if (this.el.removeEventListener) this.el.removeEventListener(eventType, handler, false);
-        if (this.el.detachEvent) this.el.detachEvent('on' + eventType, handler);
+        if (this.el.removeEventListener) {
+          this.el.removeEventListener(eventType, handler, false);
+        }
+        if (this.el.detachEvent) {
+          this.el.detachEvent('on' + eventType, handler);
+        }
       }, this);
-      (0, _reboundComponentUtils2["default"])(this.el).walkTheDOM(function (el) {
-        if (el.__lazyValue && el.__lazyValue.destroy()) n.__lazyValue.destroy();
+      (0, _reboundUtils2.default)(this.el).walkTheDOM(function (el) {
+        if (el.__lazyValue && el.__lazyValue.destroy()) {
+          n.__lazyValue.destroy();
+        }
       });
       delete this.el.__listeners;
       delete this.el.__events;
@@ -144,9 +167,11 @@ var sharedMethods = {
 };
 
 // Extend all of the **Rebound Data** prototypes with these shared methods
-_.extend(_reboundDataModel2["default"].prototype, sharedMethods);
-_.extend(_reboundDataCollection2["default"].prototype, sharedMethods);
-_.extend(_reboundDataComputedProperty2["default"].prototype, sharedMethods);
+_.extend(_model2.default.prototype, sharedMethods);
+_.extend(_collection2.default.prototype, sharedMethods);
+_.extend(_computedProperty2.default.prototype, sharedMethods);
 
-exports["default"] = { Model: _reboundDataModel2["default"], Collection: _reboundDataCollection2["default"], ComputedProperty: _reboundDataComputedProperty2["default"] };
-module.exports = exports["default"];
+exports.Model = _model2.default;
+exports.Collection = _collection2.default;
+exports.ComputedProperty = _computedProperty2.default;
+exports.default = { Model: _model2.default, Collection: _collection2.default, ComputedProperty: _computedProperty2.default };

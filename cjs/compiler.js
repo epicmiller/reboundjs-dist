@@ -1,33 +1,28 @@
-//     Rebound.js 0.0.92
-
-//     (c) 2015 Adam Miller
-//     Rebound may be freely distributed under the MIT license.
-//     For all details and documentation:
-//     http://reboundjs.com
-
-// Rebound Compiletime
-// ----------------
-
-// If Backbone isn't preset on the page yet, or if `window.Rebound` is already
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+var _runtime = require("runtime");
 
-var _runtime = require('runtime');
+var Rebound = _interopRequireWildcard(_runtime);
 
-var _runtime2 = _interopRequireDefault(_runtime);
+var _compile = require("rebound-compiler/compile");
+
+var _compile2 = _interopRequireDefault(_compile);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key]; } } newObj.default = obj; return newObj; } }
+
+// Rebound Compiletime
+// ----------------
+
+// Import the runtime
+
+Rebound.compiler = _compile2.default;
 
 // Load our **compiler**
 
-var _reboundCompilerCompile = require("rebound-compiler/compile");
-
-var _reboundCompilerCompile2 = _interopRequireDefault(_reboundCompilerCompile);
-
-_runtime2["default"].compiler = _reboundCompilerCompile2["default"];
-
-exports["default"] = _runtime2["default"];
-module.exports = exports["default"];
+exports.default = Rebound;

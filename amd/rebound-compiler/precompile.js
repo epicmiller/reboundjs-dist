@@ -1,12 +1,18 @@
-define("rebound-compiler/precompile", ["exports", "module", "./parser", "htmlbars"], function (exports, module, _parser, _htmlbars) {
-  // Rebound Pre-Compiler
-  // ----------------
-
+define("rebound-compiler/precompile", ["exports", "./parser", "../rebound-htmlbars/compile"], function (exports, _parser, _compile) {
   "use strict";
 
-  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+  exports.default = precompile;
 
-  var _parse = _interopRequireDefault(_parser);
+  var _parser2 = _interopRequireDefault(_parser);
+
+  function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : {
+      default: obj
+    };
+  }
 
   function precompile(str) {
     var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
@@ -16,22 +22,18 @@ define("rebound-compiler/precompile", ["exports", "module", "./parser", "htmlbar
     }
 
     var template;
-    str = (0, _parse["default"])(str, options);
+    str = (0, _parser2.default)(str, options);
+    str.template = '' + (0, _compile.precompile)(str.template);
 
-    // Compile
-    str.template = '' + (0, _htmlbars.compileSpec)(str.template);
-
-    // If is a partial
     if (str.isPartial) {
-      template = "\n      define( [ " + str.deps.join(', ') + " ], function(){\n        var template = " + str.template + ";\n        window.Rebound.registerPartial(\"" + str.name + "\", template);\n      });";
+      template = ["(function(R){", "  R.router._loadDeps([ " + (str.deps.length ? '"' + str.deps.join('", "') + '"' : '') + " ]);", "  R.registerPartial(\"" + str.name + "\", " + str.template + ");", "})(window.Rebound);"].join('\n');
+    } else {
+      template = ["(function(R){", "  R.router._loadDeps([ " + (str.deps.length ? '"' + str.deps.join('", "') + '"' : '') + " ]);", "  document.currentScript.setAttribute(\"data-name\", \"" + str.name + "\");", "  return R.registerComponent(\"" + str.name + "\", {", "    prototype: " + str.script + ",", "    template: " + str.template + ",", "    stylesheet: \"" + str.stylesheet + "\"", "   });", "})(window.Rebound);"].join('\n');
     }
-    // Else, is a component
-    else {
-        template = "\n      define( [ " + str.deps.join(', ') + " ], function(){\n        return window.Rebound.registerComponent(\"" + str.name + "\", {\n          prototype: " + str.script + ",\n          template: " + str.template + ",\n          style: \"" + str.style + "\"\n        });\n      });";
-      }
 
-    return template;
+    return {
+      src: template,
+      deps: str.deps
+    };
   }
-
-  module.exports = precompile;
 });

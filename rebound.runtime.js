@@ -1,20 +1,346 @@
-// jshint ignore: start
-/*! @source http://purl.eligrey.com/github/classList.js/blob/master/classList.js*/
-;if("document" in self&&!("classList" in document.createElement("_"))){(function(j){"use strict";if(!("Element" in j)){return}var a="classList",f="prototype",m=j.Element[f],b=Object,k=String[f].trim||function(){return this.replace(/^\s+|\s+$/g,"")},c=Array[f].indexOf||function(q){var p=0,o=this.length;for(;p<o;p++){if(p in this&&this[p]===q){return p}}return -1},n=function(o,p){this.name=o;this.code=DOMException[o];this.message=p},g=function(p,o){if(o===""){throw new n("SYNTAX_ERR","An invalid or illegal string was specified")}if(/\s/.test(o)){throw new n("INVALID_CHARACTER_ERR","String contains an invalid character")}return c.call(p,o)},d=function(s){var r=k.call(s.getAttribute("class")||""),q=r?r.split(/\s+/):[],p=0,o=q.length;for(;p<o;p++){this.push(q[p])}this._updateClassName=function(){s.setAttribute("class",this.toString())}},e=d[f]=[],i=function(){return new d(this)};n[f]=Error[f];e.item=function(o){return this[o]||null};e.contains=function(o){o+="";return g(this,o)!==-1};e.add=function(){var s=arguments,r=0,p=s.length,q,o=false;do{q=s[r]+"";if(g(this,q)===-1){this.push(q);o=true}}while(++r<p);if(o){this._updateClassName()}};e.remove=function(){var t=arguments,s=0,p=t.length,r,o=false;do{r=t[s]+"";var q=g(this,r);if(q!==-1){this.splice(q,1);o=true}}while(++s<p);if(o){this._updateClassName()}};e.toggle=function(p,q){p+="";var o=this.contains(p),r=o?q!==true&&"remove":q!==false&&"add";if(r){this[r](p)}return !o};e.toString=function(){return this.join(" ")};if(b.defineProperty){var l={get:i,enumerable:true,configurable:true};try{b.defineProperty(m,a,l)}catch(h){if(h.number===-2146823252){l.enumerable=false;b.defineProperty(m,a,l)}}}else{if(b[f].__defineGetter__){m.__defineGetter__(a,i)}}}(self))};
-// IE8+ support of matchesSelector
+// Console-polyfill. MIT license.
+// https://github.com/paulmillr/console-polyfill
+// Make it safe to do console.log() always.
+(function(global) {
+  'use strict';
+  global.console = global.console || {};
+  var con = global.console;
+  var prop, method;
+  var empty = {};
+  var dummy = function() {};
+  var properties = 'memory'.split(',');
+  var methods = ('assert,clear,count,debug,dir,dirxml,error,exception,group,' +
+     'groupCollapsed,groupEnd,info,log,markTimeline,profile,profiles,profileEnd,' +
+     'show,table,time,timeEnd,timeline,timelineEnd,timeStamp,trace,warn').split(',');
+  while (prop = properties.pop()) if (!con[prop]) con[prop] = empty;
+  while (method = methods.pop()) if (!con[method]) con[method] = dummy;
+})(typeof window === 'undefined' ? this : window);
+// Using `this` for web workers while maintaining compatibility with browser
+// targeted script loaders such as Browserify or Webpack where the only way to
+// get to the global object is via `window`.
+
+// http://paulirish.com/2011/requestanimationframe-for-smart-animating/
+// http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
+
+// requestAnimationFrame polyfill by Erik Möller. fixes from Paul Irish and Tino Zijdel
+
+// MIT license
+
+(function() {
+    var lastTime = 0;
+    var vendors = ['ms', 'moz', 'webkit', 'o'];
+    for(var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
+        window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
+        window.cancelAnimationFrame = window[vendors[x]+'CancelAnimationFrame'] 
+                                   || window[vendors[x]+'CancelRequestAnimationFrame'];
+    }
+ 
+    if (!window.requestAnimationFrame)
+        window.requestAnimationFrame = function(callback, element) {
+            var currTime = new Date().getTime();
+            var timeToCall = Math.max(0, 16 - (currTime - lastTime));
+            var id = window.setTimeout(function() { callback(currTime + timeToCall); }, 
+              timeToCall);
+            lastTime = currTime + timeToCall;
+            return id;
+        };
+ 
+    if (!window.cancelAnimationFrame)
+        window.cancelAnimationFrame = function(id) {
+            clearTimeout(id);
+        };
+}());
+// document.currentScript polyfill by Adam Miller
+
+// MIT license
+
+(function(document){
+  var currentScript = "currentScript",
+      scripts = document.getElementsByTagName('script'); // Live NodeList collection
+
+  // If browser needs currentScript polyfill, add get currentScript() to the document object
+  if (!(currentScript in document)) {
+    Object.defineProperty(document, currentScript, {
+      get: function(){
+
+        // IE 6-10 supports script readyState
+        // IE 10+ support stack trace
+        try { throw new Error(); }
+        catch (err) {
+
+          // Find the second match for the "at" string to get file src url from stack.
+          // Specifically works with the format of stack traces in IE.
+          var i, res = ((/.*at [^\(]*\((.*):.+:.+\)$/ig).exec(err.stack) || [false])[1];
+
+          // For all scripts on the page, if src matches or if ready state is interactive, return the script tag
+          for(i in scripts){
+            if(scripts[i].src == res || scripts[i].readyState == "interactive"){
+              return scripts[i];
+            }
+          }
+
+          // If no match, return null
+          return null;
+        }
+      }
+    });
+  }
+})(document);
+
+/*
+ * classList.js: Cross-browser full element.classList implementation.
+ * 1.1.20150312
+ *
+ * By Eli Grey, http://eligrey.com
+ * License: Dedicated to the public domain.
+ *   See https://github.com/eligrey/classList.js/blob/master/LICENSE.md
+ */
+
+/*global self, document, DOMException */
+
+/*! @source http://purl.eligrey.com/github/classList.js/blob/master/classList.js */
+
+if ("document" in self) {
+
+// Full polyfill for browsers with no classList support
+// Including IE < Edge missing SVGElement.classList
+if (!("classList" in document.createElement("_")) 
+	|| document.createElementNS && !("classList" in document.createElementNS("http://www.w3.org/2000/svg","g"))) {
+
+(function (view) {
+
+"use strict";
+
+if (!('Element' in view)) return;
+
+var
+	  classListProp = "classList"
+	, protoProp = "prototype"
+	, elemCtrProto = view.Element[protoProp]
+	, objCtr = Object
+	, strTrim = String[protoProp].trim || function () {
+		return this.replace(/^\s+|\s+$/g, "");
+	}
+	, arrIndexOf = Array[protoProp].indexOf || function (item) {
+		var
+			  i = 0
+			, len = this.length
+		;
+		for (; i < len; i++) {
+			if (i in this && this[i] === item) {
+				return i;
+			}
+		}
+		return -1;
+	}
+	// Vendors: please allow content code to instantiate DOMExceptions
+	, DOMEx = function (type, message) {
+		this.name = type;
+		this.code = DOMException[type];
+		this.message = message;
+	}
+	, checkTokenAndGetIndex = function (classList, token) {
+		if (token === "") {
+			throw new DOMEx(
+				  "SYNTAX_ERR"
+				, "An invalid or illegal string was specified"
+			);
+		}
+		if (/\s/.test(token)) {
+			throw new DOMEx(
+				  "INVALID_CHARACTER_ERR"
+				, "String contains an invalid character"
+			);
+		}
+		return arrIndexOf.call(classList, token);
+	}
+	, ClassList = function (elem) {
+		var
+			  trimmedClasses = strTrim.call(elem.getAttribute("class") || "")
+			, classes = trimmedClasses ? trimmedClasses.split(/\s+/) : []
+			, i = 0
+			, len = classes.length
+		;
+		for (; i < len; i++) {
+			this.push(classes[i]);
+		}
+		this._updateClassName = function () {
+			elem.setAttribute("class", this.toString());
+		};
+	}
+	, classListProto = ClassList[protoProp] = []
+	, classListGetter = function () {
+		return new ClassList(this);
+	}
+;
+// Most DOMException implementations don't allow calling DOMException's toString()
+// on non-DOMExceptions. Error's toString() is sufficient here.
+DOMEx[protoProp] = Error[protoProp];
+classListProto.item = function (i) {
+	return this[i] || null;
+};
+classListProto.contains = function (token) {
+	token += "";
+	return checkTokenAndGetIndex(this, token) !== -1;
+};
+classListProto.add = function () {
+	var
+		  tokens = arguments
+		, i = 0
+		, l = tokens.length
+		, token
+		, updated = false
+	;
+	do {
+		token = tokens[i] + "";
+		if (checkTokenAndGetIndex(this, token) === -1) {
+			this.push(token);
+			updated = true;
+		}
+	}
+	while (++i < l);
+
+	if (updated) {
+		this._updateClassName();
+	}
+};
+classListProto.remove = function () {
+	var
+		  tokens = arguments
+		, i = 0
+		, l = tokens.length
+		, token
+		, updated = false
+		, index
+	;
+	do {
+		token = tokens[i] + "";
+		index = checkTokenAndGetIndex(this, token);
+		while (index !== -1) {
+			this.splice(index, 1);
+			updated = true;
+			index = checkTokenAndGetIndex(this, token);
+		}
+	}
+	while (++i < l);
+
+	if (updated) {
+		this._updateClassName();
+	}
+};
+classListProto.toggle = function (token, force) {
+	token += "";
+
+	var
+		  result = this.contains(token)
+		, method = result ?
+			force !== true && "remove"
+		:
+			force !== false && "add"
+	;
+
+	if (method) {
+		this[method](token);
+	}
+
+	if (force === true || force === false) {
+		return force;
+	} else {
+		return !result;
+	}
+};
+classListProto.toString = function () {
+	return this.join(" ");
+};
+
+if (objCtr.defineProperty) {
+	var classListPropDesc = {
+		  get: classListGetter
+		, enumerable: true
+		, configurable: true
+	};
+	try {
+		objCtr.defineProperty(elemCtrProto, classListProp, classListPropDesc);
+	} catch (ex) { // IE 8 doesn't support enumerable:true
+		if (ex.number === -0x7FF5EC54) {
+			classListPropDesc.enumerable = false;
+			objCtr.defineProperty(elemCtrProto, classListProp, classListPropDesc);
+		}
+	}
+} else if (objCtr[protoProp].__defineGetter__) {
+	elemCtrProto.__defineGetter__(classListProp, classListGetter);
+}
+
+}(self));
+
+} else {
+// There is full or partial native classList support, so just check if we need
+// to normalize the add/remove and toggle APIs.
+
+(function () {
+	"use strict";
+
+	var testElement = document.createElement("_");
+
+	testElement.classList.add("c1", "c2");
+
+	// Polyfill for IE 10/11 and Firefox <26, where classList.add and
+	// classList.remove exist but support only one argument at a time.
+	if (!testElement.classList.contains("c2")) {
+		var createMethod = function(method) {
+			var original = DOMTokenList.prototype[method];
+
+			DOMTokenList.prototype[method] = function(token) {
+				var i, len = arguments.length;
+
+				for (i = 0; i < len; i++) {
+					token = arguments[i];
+					original.call(this, token);
+				}
+			};
+		};
+		createMethod('add');
+		createMethod('remove');
+	}
+
+	testElement.classList.toggle("c3", false);
+
+	// Polyfill for IE 10 and Firefox <24, where classList.toggle does not
+	// support the second argument.
+	if (testElement.classList.contains("c3")) {
+		var _toggle = DOMTokenList.prototype.toggle;
+
+		DOMTokenList.prototype.toggle = function(token, force) {
+			if (1 in arguments && !this.contains(token) === !force) {
+				return force;
+			} else {
+				return _toggle.call(this, token);
+			}
+		};
+
+	}
+
+	testElement = null;
+}());
+
+}
+
+}
+
+
 this.Element && function(ElementPrototype) {
-  ElementPrototype.matchesSelector = ElementPrototype.matchesSelector ||
-  ElementPrototype.mozMatchesSelector ||
-  ElementPrototype.msMatchesSelector ||
-  ElementPrototype.oMatchesSelector ||
-  ElementPrototype.webkitMatchesSelector ||
-  function (selector) {
-    var node = this, nodes = (node.parentNode || node.document).querySelectorAll(selector), i = -1;
+	ElementPrototype.matchesSelector = ElementPrototype.matchesSelector || 
+	ElementPrototype.mozMatchesSelector ||
+	ElementPrototype.msMatchesSelector ||
+	ElementPrototype.oMatchesSelector ||
+	ElementPrototype.webkitMatchesSelector ||
+	function (selector) {
+		var node = this, nodes = (node.parentNode || node.document).querySelectorAll(selector), i = -1;
 
-    while (nodes[++i] && nodes[i] != node);
+		while (nodes[++i] && nodes[i] != node);
 
-    return !!nodes[i];
-  };
+		return !!nodes[i];
+	}
 }(Element.prototype);
 /*!
 Copyright (C) 2014-2015 by WebReflection
@@ -212,6 +538,9 @@ var
   doesNotSupportDOMAttrModified = true,
   dropDomContentLoaded = true,
 
+  // needed for the innerHTML helper
+  notFromInnerHTMLHelper = true,
+
   // optionally defined later on
   onSubtreeModified,
   callDOMAttrModified,
@@ -222,8 +551,7 @@ var
   // will check proto or the expando attribute
   // in order to setup the node once
   patchIfNotAlready,
-  patch,
-  notFromInnerHTMLHelper
+  patch
 ;
 
 if (sPO || hasProto) {
@@ -455,16 +783,18 @@ function onDOMAttrModified(e) {
   var
     node = e.currentTarget,
     attrChange = e.attrChange,
-    prevValue = e.prevValue,
-    newValue = e.newValue
+    attrName = e.attrName,
+    target = e.target
   ;
   if (notFromInnerHTMLHelper &&
+      (!target || target === node) &&
       node.attributeChangedCallback &&
-      e.attrName !== 'style') {
+      attrName !== 'style' &&
+      e.prevValue !== e.newValue) {
     node.attributeChangedCallback(
-      e.attrName,
-      attrChange === e[ADDITION] ? null : prevValue,
-      attrChange === e[REMOVAL] ? null : newValue
+      attrName,
+      attrChange === e[ADDITION] ? null : e.prevValue,
+      attrChange === e[REMOVAL] ? null : e.newValue
     );
   }
 }
@@ -523,10 +853,15 @@ function purge() {
   ) {
     node = targets[i];
     if (!documentElement.contains(node)) {
-      targets.splice(i, 1);
+      length--;
+      targets.splice(i--, 1);
       verifyAndSetupAndAction(node, DETACHED);
     }
   }
+}
+
+function throwTypeError(type) {
+  throw new Error('A ' + type + ' type is already registered');
 }
 
 function verifyAndSetupAndAction(node, action) {
@@ -568,7 +903,7 @@ document[REGISTER_ELEMENT] = function registerElement(type, options) {
         }
         return new MutationObserver(function (records) {
           for (var
-            current, node,
+            current, node, newValue,
             i = 0, length = records.length; i < length; i++
           ) {
             current = records[i];
@@ -580,11 +915,14 @@ document[REGISTER_ELEMENT] = function registerElement(type, options) {
               if (notFromInnerHTMLHelper &&
                   node.attributeChangedCallback &&
                   current.attributeName !== 'style') {
-                node.attributeChangedCallback(
-                  current.attributeName,
-                  current.oldValue,
-                  node.getAttribute(current.attributeName)
-                );
+                newValue = node.getAttribute(current.attributeName);
+                if (newValue !== current.oldValue) {
+                  node.attributeChangedCallback(
+                    current.attributeName,
+                    current.oldValue,
+                    newValue
+                  );
+                }
               }
             }
           }
@@ -651,7 +989,7 @@ document[REGISTER_ELEMENT] = function registerElement(type, options) {
     indexOf.call(types, PREFIX_IS + upperType) +
     indexOf.call(types, PREFIX_TAG + upperType)
   )) {
-    throw new Error('A ' + type + ' type is already registered');
+    throwTypeError(type);
   }
 
   if (!validName.test(upperType) || -1 < indexOf.call(invalidNames, upperType)) {
@@ -667,9 +1005,17 @@ document[REGISTER_ELEMENT] = function registerElement(type, options) {
     opt = options || OP,
     extending = hOP.call(opt, EXTENDS),
     nodeName = extending ? options[EXTENDS].toUpperCase() : upperType,
-    i = types.push((extending ? PREFIX_IS : PREFIX_TAG) + upperType) - 1,
-    upperType
+    upperType,
+    i
   ;
+
+  if (extending && -1 < (
+    indexOf.call(types, PREFIX_TAG + nodeName)
+  )) {
+    throwTypeError(nodeName);
+  }
+
+  i = types.push((extending ? PREFIX_IS : PREFIX_TAG) + upperType) - 1;
 
   query = query.concat(
     query.length ? ',' : '',
@@ -1100,6 +1446,8039 @@ document[REGISTER_ELEMENT] = function registerElement(type, options) {
 	}
 
 })(this);
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _acorn = require('acorn');
+
+function tokenizer(input, options) {
+  return new _acorn.Parser(options, input);
+} // Property Compiler
+// ----------------
+
+var TERMINATORS = [';', ',', '==', '>', '<', '>=', '<=', '>==', '<==', '!=', '!==', '===', '&&', '||', '+', '-', '/', '*', '{', '}'];
+
+function reduceMemos(memo, paths) {
+  var newMemo = [];
+  paths = !_.isArray(paths) ? [paths] : paths;
+  _.each(paths, function (path) {
+    _.each(memo, function (mem) {
+      newMemo.push(_.compact([mem, path]).join('.').replace('.[', '['));
+    });
+  });
+  return newMemo;
+}
+
+// TODO: Make this farrrrrr more robust...very minimal right now
+
+function compile(prop, name) {
+  var output = {};
+
+  if (prop.__params) return prop.__params;
+
+  var str = prop.toString(),
+      //.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s;])+\/\/(?:.*)$)/gm, '$1'), // String representation of function sans comments
+  token = tokenizer(str, {
+    ecmaVersion: 6,
+    sourceType: 'script'
+  }),
+      finishedPaths = [],
+      listening = 0,
+      paths = [],
+      attrs = [],
+      workingpath = [];
+
+  do {
+
+    // console.log(token.type.label, token.value);
+    token.nextToken();
+
+    if (token.value === 'this') {
+      listening++;
+      workingpath = [];
+    }
+
+    // TODO: handle gets on collections
+    if (token.value === 'get') {
+      token.nextToken();
+      while (_.isUndefined(token.value)) {
+        token.nextToken();
+      }
+      // Replace any access to a collection with the generic @each placeholder and push dependancy
+      workingpath.push(token.value.replace(/\[.+\]/g, ".@each").replace(/^\./, ''));
+    }
+
+    if (token.value === 'pluck') {
+      token.nextToken();
+      while (_.isUndefined(token.value)) {
+        token.nextToken();
+      }
+
+      workingpath.push('@each.' + token.value);
+    }
+
+    if (token.value === 'slice' || token.value === 'clone' || token.value === 'filter') {
+      token.nextToken();
+      if (token.type.label === '(') workingpath.push('@each');
+    }
+
+    if (token.value === 'at') {
+      token.nextToken();
+      while (_.isUndefined(token.value)) {
+        token.nextToken();
+      }
+      workingpath.push('@each');
+    }
+
+    if (token.value === 'where' || token.value === 'findWhere') {
+      workingpath.push('@each');
+      token.nextToken();
+      attrs = [];
+      var itr = 0;
+      while (token.type.label !== ')') {
+        if (token.value) {
+          if (itr % 2 === 0) {
+            attrs.push(token.value);
+          }
+          itr++;
+        }
+        token.nextToken();
+      }
+      workingpath.push(attrs);
+    }
+
+    if (listening && (_.indexOf(TERMINATORS, token.type.label) > -1 || _.indexOf(TERMINATORS, token.value) > -1)) {
+      workingpath = _.reduce(workingpath, reduceMemos, ['']);
+      finishedPaths = _.compact(_.union(finishedPaths, workingpath));
+      workingpath = [];
+      listening--;
+    }
+  } while (token.start !== token.end && token.type !== _acorn.tokTypes.eof);
+
+  // Save our finished paths directly on the function
+  prop.__params = finishedPaths;
+
+  // Return the dependancies list
+  return finishedPaths;
+}
+
+exports.default = { compile: compile };
+},{"acorn":40}],2:[function(require,module,exports){
+"use strict";
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; }; // Rebound Component
+// ----------------
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _backbone = require("backbone");
+
+var _backbone2 = _interopRequireDefault(_backbone);
+
+var _reboundUtils = require("rebound-utils/rebound-utils");
+
+var _reboundData = require("rebound-data/rebound-data");
+
+var _render2 = require("rebound-htmlbars/render");
+
+var _render3 = _interopRequireDefault(_render2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// New Backbone Component
+var Component = _reboundData.Model.extend({
+
+  isComponent: true,
+  isHydrated: true,
+  defaults: {},
+
+  constructor: function constructor(el, data, options) {
+
+    // Ensure options is an object
+    options || (options = {});
+
+    // Bind certian methods to ensure they are run in the context of our Component
+    _.bindAll(this, '_callOnComponent', '_listenToService');
+
+    // Set instance cid and caches for this Component
+    this.cid = _reboundUtils.$.uniqueId('component');
+    this.attributes = {};
+    this.changed = {};
+    this.consumers = [];
+    this.services = {};
+    this.loadCallbacks = [];
+
+    // If we are told this is not a hydrated component, mark it as such
+    if (options.isHydrated === false) {
+      this.isHydrated = false;
+    }
+
+    // Components are always the top of their data tree. Set parent and root to itself.
+    this.__parent__ = this.__root__ = this;
+
+    // Take our parsed data and add it to our backbone data structure. Does a deep defaults set.
+    // In the model, primatives (arrays, objects, etc) are converted to Backbone Objects
+    // Functions are compiled to find their dependancies and added as computed properties
+    // Set our component's context with the passed data merged with the component's defaults
+    this.set(this.defaults || {});
+    this.set(data || {});
+
+    // Get any additional routes passed in from options
+    this.routes = _.defaults(options.routes || {}, this.routes);
+
+    // Ensure that all route functions exist
+    _.each(this.routes, function (value, key, routes) {
+      if (typeof value !== 'string') {
+        throw 'Function name passed to routes in  ' + this.tagName + ' component must be a string!';
+      }
+      if (!this[value]) {
+        throw 'Callback function ' + value + ' does not exist on the  ' + this.tagName + ' component!';
+      }
+    }, this);
+
+    // Set or create our element and template if we have them
+    this.el = el || document.createDocumentFragment();
+    this.$el = _.isFunction(_backbone2.default.$) ? _backbone2.default.$(this.el) : false;
+
+    // Render our dom and place the dom in our custom element
+    this.render();
+
+    // Add active class to this newly rendered template's link elements that require it
+    (0, _reboundUtils.$)(this.el).markLinks();
+
+    // Call user provided initialize
+    this.initialize();
+
+    return this;
+  },
+  _callOnComponent: function _callOnComponent(name, event) {
+    if (!_.isFunction(this[name])) {
+      throw "ERROR: No method named " + name + " on component " + this.tagName + "!";
+    }
+    return this[name].call(this, event);
+  },
+  _listenToService: function _listenToService(key, service) {
+    var _this = this;
+
+    var self = this;
+    this.listenTo(service, 'all', function (type, model, value) {
+      var options = arguments.length <= 3 || arguments[3] === undefined ? {} : arguments[3];
+
+      var attr,
+          path = model.__path(),
+          changed;
+
+      // Send the service's key via options
+      // TODO: Find a better way to get service keys in their path() method
+      options.service = key;
+
+      if (type.indexOf('change:') === 0) {
+        changed = model.changedAttributes();
+        for (attr in changed) {
+          // TODO: Modifying arguments array is bad. change this
+          type = 'change:' + key + '.' + path + (path && '.') + attr; // jshint ignore:line
+          _this.trigger.call(_this, type, model, value, options);
+        }
+        return void 0;
+      }
+
+      return _this.trigger.call(_this, type, model, value, options);
+    });
+  },
+
+  // Render our dom and place the dom in our custom element
+  // TODO: Check if template is a string, and if the compiler exists on the page, and compile if needed
+  render: function render() {
+    (0, _reboundUtils.$)(this.el).empty();
+    this.el.appendChild((0, _render3.default)(this[_reboundUtils.REBOUND_SYMBOL].template, this).fragment);
+  },
+  deinitialize: function deinitialize() {
+    var _this2 = this;
+
+    if (this.consumers.length) {
+      return void 0;
+    }
+    _.each(this.services, function (service, key) {
+      _.each(service.consumers, function (consumer, index) {
+        if (consumer.component === _this2) service.consumers.splice(index, 1);
+      });
+    });
+    delete this.services;
+    _reboundData.Model.prototype.deinitialize.apply(this, arguments);
+  },
+
+  // LazyComponents have an onLoad function that calls all the registered callbacks
+  // after it has been hydrated. If we are calling onLoad on an already loaded
+  // component, just call the callback provided.
+  onLoad: function onLoad(cb) {
+    if (!this.isHydrated) {
+      this.loadCallbacks.push(cb);
+    } else {
+      cb(this);
+    }
+  },
+
+  // Set is overridden on components to accept components as a valid input type.
+  // Components set on other Components are mixed in as a shared object. {raw: true}
+  // It also marks itself as a consumer of this component
+  set: function set(key, val, options) {
+    var attrs, attr, serviceOptions;
+    if ((typeof key === "undefined" ? "undefined" : _typeof(key)) === 'object') {
+      attrs = key.isModel ? key.attributes : key;
+      options = val;
+    } else (attrs = {})[key] = val;
+    options || (options = {});
+
+    // If reset option passed, do a reset. If nothing passed, return.
+    if (options.reset === true) return this.reset(attrs, options);
+    if (options.defaults === true) this.defaults = attrs;
+    if (_.isEmpty(attrs)) {
+      return void 0;
+    }
+
+    // For each attribute passed:
+    for (key in attrs) {
+      attr = attrs[key];
+      if (attr && attr.isComponent) {
+        if (attr.isLazyComponent && attr._component) {
+          attr = attr._component;
+        }
+        serviceOptions || (serviceOptions = _.defaults(_.clone(options), { raw: true }));
+        attr.consumers.push({ key: key, component: this });
+        this.services[key] = attr;
+        this._listenToService(key, attr);
+        _reboundData.Model.prototype.set.call(this, key, attr, serviceOptions);
+      }
+      _reboundData.Model.prototype.set.call(this, key, attr, options);
+    }
+
+    return this;
+  },
+  $: function $(selector) {
+    if (!this.$el) {
+      return console.error('No DOM manipulation library on the page!');
+    }
+    return this.$el.find(selector);
+  },
+
+  // Trigger all events on both the component and the element
+  trigger: function trigger(eventName) {
+    if (this.el) {
+      (0, _reboundUtils.$)(this.el).trigger(eventName, arguments);
+    }
+    _backbone2.default.Model.prototype.trigger.apply(this, arguments);
+  },
+  _onAttributeChange: function _onAttributeChange(attrName, oldVal, newVal) {
+    // Commented out because tracking attribute changes and making sure they dont infinite loop is hard.
+    // TODO: Make work.
+    // try{ newVal = JSON.parse(newVal); } catch (e){ newVal = newVal; }
+    //
+    // // data attributes should be referanced by their camel case name
+    // attrName = attrName.replace(/^data-/g, "").replace(/-([a-z])/g, function (g) { return g[1].toUpperCase(); });
+    //
+    // oldVal = this.get(attrName);
+    //
+    // if(newVal === null){ this.unset(attrName); }
+    //
+    // // If oldVal is a number, and newVal is only numerical, preserve type
+    // if(_.isNumber(oldVal) && _.isString(newVal) && newVal.match(/^[0-9]*$/i)){
+    //   newVal = parseInt(newVal);
+    // }
+    //
+    // else{ this.set(attrName, newVal, {quiet: true}); }
+  }
+});
+
+function processProps(protoProps, staticProps) {
+
+  var reservedMethods = {
+    'trigger': 1, 'get': 1, 'set': 1, 'has': 1, 'escape': 1,
+    'unset': 1, 'clear': 1, 'cid': 1, 'attributes': 1, 'hasChanged': 1,
+    'changed': 1, 'toJSON': 1, 'isValid': 1, 'isNew': 1, 'validationError': 1,
+    'previous': 1, 'toggle': 1, 'previousAttributes': 1, 'changedAttributes': 1
+  },
+      configProperties = {
+    'id': 1, 'idAttribute': 1, 'url': 1, 'urlRoot': 1,
+    'routes': 1, 'createdCallback': 1, 'attachedCallback': 1, 'detachedCallback': 1,
+    'attributeChangedCallback': 1, 'defaults': 1
+  };
+
+  // These properties exist on all instances of the Component
+  protoProps || (protoProps = {});
+  protoProps.defaults = {};
+
+  // These properties exist on the custom Component constructor
+  // Ensure every constructor has a template and stylesheet
+  staticProps || (staticProps = {});
+  staticProps.template || (staticProps.template = null);
+  staticProps.stylesheet || (staticProps.stylesheet = '');
+
+  // Convert computed properties (getters and setters on this object) to Computed
+  // Property primitives
+  _reboundUtils.$.extractComputedProps(protoProps);
+
+  // For each property passed into our component base class determine if it is
+  // intended as a default value (move it into the defaults hash) or a component
+  // method (leave it alone).
+  for (var key in protoProps) {
+    var value = protoProps[key];
+
+    // If this isn't an actual property, keep going
+    if (!protoProps.hasOwnProperty(key)) {
+      continue;
+    }
+
+    // If this is a reserved property name, yell
+    if (reservedMethods[key]) {
+      throw "ERROR: " + key + " is a reserved method name in " + staticProps.tagName + "!";
+    }
+
+    // If a configuration property, or not actually on the obj, ignore it
+    if (!protoProps.hasOwnProperty(key) || configProperties[key]) {
+      continue;
+    }
+
+    // If a primative, backbone type object, or computed property, move it to our defaults
+    if (!_.isFunction(value) || value.isComputedProto || value.isModel || value.isComponent) {
+      protoProps.defaults[key] = value;
+      delete protoProps[key];
+    }
+
+    // All other values are component methods, leave them be.
+  }
+}
+
+Component.hydrate = function hydrateComponent() {
+  var protoProps = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+  var staticProps = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+  // If already hydrated, return.
+  if (this.isHydrated) {
+    return void 0;
+  }
+
+  // Process our new properties objects
+  processProps(protoProps, staticProps);
+
+  // Extend our prototype with any protoProps, overriting pre-defined ones
+  if (protoProps) {
+    _.extend(this.prototype, protoProps);
+  }
+
+  // Add any static props to the function object itself
+  if (staticProps) {
+    _.extend(this, staticProps);
+  }
+
+  // Ensure we have a type, template and stylesheet
+  this.prototype[_reboundUtils.REBOUND_SYMBOL] = {
+    type: staticProps.type || 'anonymous-component',
+    template: staticProps.template || null,
+    stylesheet: staticProps.stylesheet || '',
+    isHydrated: true
+  };
+};
+
+Component.extend = function extendComponent() {
+  var protoProps = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+  var staticProps = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+  var parent = this,
+
+  // Call our parent Component constructor and pass through the instance specific
+  // name, template and stylesheet via options if no other name, template or
+  // stylesheet is present.
+  Component = function Component(type) {
+    var data = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+    var options = arguments.length <= 2 || arguments[2] === undefined ? {} : arguments[2];
+
+    return parent.call(this, type, data, options);
+  },
+
+  // Surrogate constructor allows us to inherit everything from the parent and
+  // retain a referance to our component specific constructor as `this.constructor`
+  // on component instances' prototype chains. This is also the object we augment
+  // with additional protoProps on component hydration if needed.
+  Surrogate = function Surrogate() {
+    this.constructor = Component;
+  };
+
+  // Our class should inherit everything from its parent, defined above
+  Surrogate.prototype = parent.prototype;
+  Component.prototype = new Surrogate();
+
+  // Set our ancestry
+  Component.__super__ = parent.prototype;
+
+  // Process our new properties objects
+  processProps(protoProps, staticProps);
+
+  // Extend our prototype with any remaining protoProps, overriting pre-defined ones
+  if (protoProps) {
+    _.extend(Component.prototype, protoProps);
+  }
+
+  // Add any static props to the function object itself
+  if (staticProps) {
+    _.extend(Component, parent, staticProps);
+  }
+
+  // Ensure we hae a type, template and stylesheet
+  Component.prototype[_reboundUtils.REBOUND_SYMBOL] = {
+    type: staticProps.type || 'anonymous-component',
+    template: staticProps.template || null,
+    stylesheet: staticProps.stylesheet || '',
+    isHydrated: staticProps.hasOwnProperty('isHydrated') ? staticProps.isHydrated : true
+  };
+
+  return Component;
+};
+
+exports.default = Component;
+},{"backbone":41,"rebound-data/rebound-data":7,"rebound-htmlbars/render":31,"rebound-utils/rebound-utils":37}],3:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.ComponentFactory = undefined;
+exports.registerComponent = registerComponent;
+
+var _reboundUtils = require("rebound-utils/rebound-utils");
+
+var _component = require("rebound-component/component");
+
+var _component2 = _interopRequireDefault(_component);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// Rebound Component Factory
+// ----------------
+
+var REGISTRY = {};
+var DUMMY_TEMPLATE = false;
+
+// Used to transport component specific data to the native element created callback
+// in leu of a good API for passing initialization data to document.createElement.
+// When registry.create is called, it stashes instance data on this object in a
+// shared scope. After createElement is finished, it cleans this transport object
+var ELEMENT_DATA;
+
+function registerComponent(type) {
+  var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+  // Ensure our options are set nicely and extract the prototype provided to us
+  var proto = options.prototype || {};
+  delete options.prototype;
+  options.type = type;
+  options.isHydrated = true;
+
+  // If the component exists in the registry, and is already hydrated, then this
+  // is a conflicting component name – exit and log an error.
+  if (REGISTRY[type] && REGISTRY[type].isHydrated) {
+    return console.error('A component of type', type, 'already exists!');
+  }
+
+  // If there is a non-hydrated component in the registry, hydrate it with the
+  // newly provided prototype.
+  if (REGISTRY[type]) {
+    REGISTRY[type].hydrate(proto, options);
+  }
+
+  // Otherwise, create and save a new component subclass and register the element
+  else {
+      REGISTRY[type] = _component2.default.extend(proto, options);
+    }
+
+  // Create our new element prototype object
+  var element = Object.create(HTMLElement.prototype, {});
+
+  // On element creation, make a new instance of the component and attach it
+  // to the element object as `data`
+  element.createdCallback = function () {
+    var _this = this;
+
+    // If `this.data` already exists on this element, then it was present on the
+    // page via a `new Component(component-name);` call before this component was
+    // actually registered. Now, we need to finish hydrating this instance of the
+    // component data object.
+    if (this.data) {
+      this.data.reset(this.data.toJSON());
+      this.data.render();
+      this.data.isHydrated = true;
+      this.data.loadCallbacks.forEach(function (cb) {
+        cb(_this.data);
+      });
+    }
+
+    // If we have element data, then we have come from a `new Component(component-name);`
+    // call and may have been provided data to initialize with. Call the component
+    // constructor with the provided properties. We don't need `new` here because
+    // the instance we are building is provided for us, so we use `component.call`
+    // to call the component constructor using that scope.
+    else if (ELEMENT_DATA) {
+        this.data = new REGISTRY[type](this, ELEMENT_DATA.data, ELEMENT_DATA.options);
+      }
+
+      // Otherwise, this is an upgraded instance of the element that was pre-existing
+      // in the dom, or just created using `document.createElement`. Go ahead and
+      // give it a new component object.
+      else {
+          this.data = new REGISTRY[type](this);
+        }
+
+    // Call user provided `attachedCallback`
+    _.isFunction(proto.createdCallback) && proto.createdCallback.call(this.data);
+  };
+
+  // Call user provided `attachedCallback`
+  element.attachedCallback = function () {
+    _.isFunction(proto.attachedCallback) && proto.attachedCallback.call(this.data);
+  };
+
+  // Call user provided `detachedCallback`
+  element.detachedCallback = function () {
+    _.isFunction(proto.detachedCallback) && proto.detachedCallback.call(this.data);
+  };
+
+  // Call user provided `attributeChangedCallback`
+  element.attributeChangedCallback = function (attrName, oldVal, newVal) {
+    this.data._onAttributeChange(attrName, oldVal, newVal);
+    _.isFunction(proto.attributeChangedCallback) && proto.attributeChangedCallback.call(this.data, attrName, oldVal, newVal);
+  };
+
+  // Register our new element
+  document.registerElement(type, { prototype: element });
+
+  // Return the new component constructor
+  return REGISTRY[type];
+}
+
+var ComponentFactory = exports.ComponentFactory = function ComponentFactory(type) {
+  var data = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+  var options = arguments.length <= 2 || arguments[2] === undefined ? {} : arguments[2];
+
+  // If type is not a valid component name, error
+  if (typeof type !== 'string') {
+    return console.error('Invalid component type provided to createComponent. Instead received:', type);
+  }
+
+  var el;
+
+  // If this component is not in the registry, register a dehydrated component
+  // as a placeholder. Once the actual component is loaded, all running instances
+  // of this component type will be hydrated.
+  if (!REGISTRY[type] || !REGISTRY[type].isHydrated) {
+    el = document.createElement(type);
+    options.isHydrated = false;
+    REGISTRY[type] = _component2.default.extend({}, {
+      isHydrated: false,
+      type: type,
+      template: DUMMY_TEMPLATE
+    });
+    el.data = new REGISTRY[type](el, data, options);
+  }
+
+  // If this component is in the registry, save the instance specific data to
+  // deliver to the createElement call, and create the element. As part of the
+  // `createdCallback` a new instance of
+  else {
+      ELEMENT_DATA = { data: data, options: options };
+      el = document.createElement(type);
+      ELEMENT_DATA = void 0;
+    }
+
+  return el.data;
+};
+
+ComponentFactory.registerComponent = registerComponent;
+
+exports.default = ComponentFactory;
+},{"rebound-component/component":2,"rebound-utils/rebound-utils":37}],4:[function(require,module,exports){
+"use strict";
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; }; // Rebound Collection
+// ----------------
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _backbone = require("backbone");
+
+var _backbone2 = _interopRequireDefault(_backbone);
+
+var _model = require("rebound-data/model");
+
+var _model2 = _interopRequireDefault(_model);
+
+var _reboundUtils = require("rebound-utils/rebound-utils");
+
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function pathGenerator(collection) {
+  return function () {
+    return collection.__path() + '[' + collection.indexOf(collection._byId[this.cid]) + ']';
+  };
+}
+
+var Collection = _backbone2.default.Collection.extend({
+
+  isCollection: true,
+  isData: true,
+
+  model: _model2.default,
+
+  __path: function __path() {
+    return '';
+  },
+
+  constructor: function constructor(models, options) {
+    models || (models = []);
+    options || (options = {});
+    this._byValue = {};
+    this.helpers = {};
+    this.cid = _reboundUtils2.default.uniqueId('collection');
+
+    // Set lineage
+    this.setParent(options.parent || this);
+    this.setRoot(options.root || this);
+    this.__path = options.path || this.__path;
+
+    _backbone2.default.Collection.apply(this, arguments);
+
+    // When a model is removed from its original collection, destroy it
+    // TODO: Fix this. Computed properties now somehow allow collection to share a model. They may be removed from one but not the other. That is bad.
+    // The clone = false options is the culprit. Find a better way to copy all of the collections custom attributes over to the clone.
+    this.on('remove', function (model, collection, options) {
+      // model.deinitialize();
+    });
+  },
+
+  get: function get(key, options) {
+    var _this = this;
+
+    // Split the path at all '.', '[' and ']' and find the value referanced.
+    var parts = _.isString(key) ? _reboundUtils2.default.splitPath(key) : [],
+        result = this,
+        l = parts.length,
+        i = 0;
+    options || (options = {});
+
+    // If the key is a number or object, or just a single string that is not a path,
+    // get by id and return the first occurance
+    if (typeof key == 'number' || (typeof key === "undefined" ? "undefined" : _typeof(key)) == 'object' || parts.length == 1 && !options.isPath) {
+      if (key === null) {
+        return void 0;
+      }
+      var id = this.modelId(this._isModel(key) ? key.attributes : key);
+      var responses = [].concat(this._byValue[key], this._byId[key] || this._byId[id] || this._byId[key.cid]);
+      var res = responses[0],
+          idx = Infinity;
+
+      responses.forEach(function (value) {
+        if (!value) {
+          return void 0;
+        }
+        var i = _.indexOf(_this.models, value);
+        if (i > -1 && i < idx) {
+          idx = i;res = value;
+        }
+      });
+
+      return res;
+    }
+
+    // If key is not a string, return undefined
+    if (!_.isString(key)) {
+      return void 0;
+    }
+
+    if (_.isUndefined(key) || _.isNull(key)) {
+      return key;
+    }
+    if (key === '' || parts.length === 0) {
+      return result;
+    }
+
+    if (parts.length > 0) {
+      for (i = 0; i < l; i++) {
+        // If returning raw, always return the first computed property found. If undefined, you're done.
+        if (result && result.isComputedProperty && options.raw) return result;
+        if (result && result.isComputedProperty) result = result.value();
+        if (_.isUndefined(result) || _.isNull(result)) return result;
+        if (parts[i] === '@parent') result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result.hasOwnProperty(parts[i])) result = result[parts[i]];
+      }
+    }
+
+    if (result && result.isComputedProperty && !options.raw) result = result.value();
+
+    return result;
+  },
+
+  set: function set(models, options) {
+    var newModels = [],
+        parts = _.isString(models) ? _reboundUtils2.default.splitPath(models) : [],
+        res,
+        lineage = {
+      parent: this,
+      root: this.__root__,
+      path: pathGenerator(this),
+      silent: true
+    };
+    options = options || {},
+
+    // If no models passed, implies an empty array
+    models || (models = []);
+
+    // If models is a string, and it has parts, call set at that path
+    if (_.isString(models) && parts.length > 1 && !isNaN(Number(parts[0]))) {
+      var index = Number(parts[0]);
+      return this.at(index).set(parts.splice(1, parts.length).join('.'), options);
+    }
+
+    // If another collection, treat like an array
+    models = models.isCollection ? models.models : models;
+    // Ensure models is an array
+    models = !_.isArray(models) ? [models] : models;
+
+    // If the model already exists in this collection, or we are told not to clone it, let Backbone handle the merge
+    // Otherwise, create our copy of this model, give them the same cid so our helpers treat them as the same object
+    // Use the more unique of the two constructors. If our Model has a custom constructor, use that. Otherwise, use
+    // Collection default Model constructor.
+    _.each(models, function (data, index) {
+      if (data.isModel && options.clone === false || this._byId[data.cid]) return newModels[index] = data;
+      var constructor = data.constructor !== Object && data.constructor !== Rebound.Model ? data.constructor : this.model;
+      newModels[index] = new constructor(data, _.defaults(lineage, options));
+      data.isModel && (newModels[index].cid = data.cid);
+    }, this);
+
+    // Ensure that this element now knows that it has children now. Without this cyclic dependancies cause issues
+    this._hasAncestry || (this._hasAncestry = newModels.length > 0);
+
+    // Call original set function with model duplicates
+    return _backbone2.default.Collection.prototype.set.call(this, newModels, options);
+  }
+
+});
+
+exports.default = Collection;
+},{"backbone":41,"rebound-data/model":6,"rebound-utils/rebound-utils":37}],5:[function(require,module,exports){
+"use strict";
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; }; // Rebound Computed Property
+// ----------------
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _backbone = require("backbone");
+
+var _backbone2 = _interopRequireDefault(_backbone);
+
+var _propertyCompiler = require("property-compiler/property-compiler");
+
+var _propertyCompiler2 = _interopRequireDefault(_propertyCompiler);
+
+var _reboundUtils = require("rebound-utils/rebound-utils");
+
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var NOOP = function NOOP() {
+  return void 0;
+};
+
+var TO_CALL = [];
+var CALL_TIMEOUT;
+
+// Returns true if str starts with test
+function startsWith(str, test) {
+  if (str === test) {
+    return true;
+  }
+  return str.substring(0, test.length + 1) === test + '.';
+}
+
+// Push all elements in `arr` to the end of an array. Mark all Computed Properties
+// as dirty on their way in.
+function push(arr) {
+  var i,
+      len = arr.length;
+  this.added || (this.added = {});
+  for (i = 0; i < len; i++) {
+    arr[i].markDirty();
+    if (this.added[arr[i].cid]) continue;
+    this.added[arr[i].cid] = 1;
+    this.push(arr[i]);
+  }
+}
+
+// Called after callstack is exausted to call all of this computed property's
+// dependants that need to be recomputed
+function recomputeCallback() {
+  var len = TO_CALL.length;
+  CALL_TIMEOUT = null;
+  while (len--) {
+    (TO_CALL.shift() || NOOP).call();
+  }
+
+  TO_CALL.added = {};
+}
+
+var ComputedProperty = function ComputedProperty(getter, setter) {
+  var options = arguments.length <= 2 || arguments[2] === undefined ? {} : arguments[2];
+
+  if (!_.isFunction(getter) && !_.isFunction(setter)) {
+    return console.error('ComputedProperty constructor must be passed getter and setter functions!', getter, 'and', setter, 'Found instead.');
+  }
+
+  this.cid = _reboundUtils2.default.uniqueId('computedPropety');
+  this.name = options.name;
+  this.returnType = null;
+  this.waiting = {};
+
+  this.isChanging = false;
+  this.isDirty = true;
+  _.bindAll(this, 'onModify', 'markDirty');
+
+  if (getter) {
+    this.getter = getter;
+  }
+  if (setter) {
+    this.setter = setter;
+  }
+  this.deps = _propertyCompiler2.default.compile(this.getter, this.name);
+
+  // Create lineage to pass to our cache objects
+  var lineage = {
+    parent: this.setParent(options.parent || this),
+    root: this.setRoot(options.root || options.parent || this),
+    path: this.__path = options.path || this.__path
+  };
+
+  // Results Cache Objects
+  // These data objects will never be re-created for the lifetime of the Computed Proeprty
+  // On Recompute they are updated with new values.
+  // On Change their new values are pushed to the object it is tracking
+  this.cache = {
+    model: new Rebound.Model({}, lineage),
+    collection: new Rebound.Collection([], lineage),
+    value: undefined
+  };
+
+  // Listen to objects in the cache and push changes to them on modify
+  this.listenTo(this.cache.model, 'all', this.onModify);
+  this.listenTo(this.cache.collection, 'all', this.onModify);
+
+  this.wire();
+};
+
+_.extend(ComputedProperty.prototype, _backbone2.default.Events, {
+
+  isComputedProperty: true,
+  isData: true,
+  __path: function __path() {
+    return '';
+  },
+
+  getter: NOOP,
+  setter: NOOP,
+
+  // If the Computed Property is not already dirty, mark it as such and trigger
+  // a `dirty` event.
+  markDirty: function markDirty() {
+    if (this.isDirty) {
+      return void 0;
+    }
+    this.isDirty = true;
+    this.trigger('dirty', this);
+  },
+
+  // Attached to listen to all events where this Computed Property's dependancies
+  // are stored. See wire(). Will re-evaluate any computed properties that
+  // depend on the changed data value which triggered this callback.
+  onRecompute: function onRecompute(type, model, collection, options) {
+    var shortcircuit = { change: 1, sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1, dirty: 1 };
+    if (shortcircuit[type] || !model.isData) {
+      return void 0;
+    }
+    model || (model = {});
+    collection || (collection = {});
+    options || (options = {});
+    !collection.isData && (options = collection) && (collection = model);
+    var path, vector;
+
+    // Compute the path to this data object that triggered the event
+    // TODO: Figure out a better way to prefix service data paths with their local path name
+    vector = path = (options.service ? options.service + "." : '') + collection.__path().replace(/\.?\[.*\]/ig, '.@each');
+
+    // If a reset event on a Model, check for computed properties that depend
+    // on each changed attribute's full path.
+    if (type === 'reset' && options.previousAttributes) {
+      _.each(options.previousAttributes, function (value, key) {
+        vector = path + (path && '.') + key;
+        _.each(this.__computedDeps, function (dependants, dependancy) {
+          startsWith(vector, dependancy) && push.call(TO_CALL, dependants);
+        }, this);
+      }, this);
+    }
+
+    // If a reset event on a Collction, check for computed properties that depend
+    // on anything inside that collection.
+    else if (type === 'reset' && options.previousModels) {
+        _.each(this.__computedDeps, function (dependants, dependancy) {
+          startsWith(dependancy, vector) && push.call(TO_CALL, dependants);
+        }, this);
+      }
+
+      // If an add or remove event, check for computed properties that depend on
+      // anything inside that collection or that contains that collection.
+      else if (type === 'add' || type === 'remove') {
+          _.each(this.__computedDeps, function (dependants, dependancy) {
+            if (startsWith(dependancy, vector) || startsWith(vector, dependancy)) push.call(TO_CALL, dependants);
+          }, this);
+        }
+
+        // If a change event, trigger anything that depends on that changed path.
+        else if (type.indexOf('change:') === 0) {
+            vector = type.replace('change:', '').replace(/\.?\[.*\]/ig, '.@each');
+            _.each(this.__computedDeps, function (dependants, dependancy) {
+              startsWith(vector, dependancy) && push.call(TO_CALL, dependants);
+            }, this);
+          }
+
+    // Notifies all computed properties in the dependants array to recompute.
+    // Push all recomputes to the end of our stack trace so all Computed Properties
+    // already queued for recompute get a chance to.
+    if (!CALL_TIMEOUT) {
+      CALL_TIMEOUT = setTimeout(_.bind(recomputeCallback, this), 0);
+    }
+  },
+
+  // Called when a Computed Property's active cache object changes.
+  // Pushes any changes to Computed Property that returns a data object back to
+  // the original object.
+  // TODO: Will be a hair faster with individual callbacks for each event type
+  onModify: function onModify(type) {
+    var model = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+    var collection = arguments.length <= 2 || arguments[2] === undefined ? {} : arguments[2];
+    var options = arguments.length <= 3 || arguments[3] === undefined ? {} : arguments[3];
+
+    var shortcircuit = { sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1 };
+    if (this.isChanging || !this.tracking || shortcircuit[type] || ~type.indexOf('change:')) {
+      return void 0;
+    }
+    !collection.isData && _.isObject(collection) && (options = collection) && (collection = model);
+
+    var path = collection.__path().replace(this.__path(), '').replace(/^\./, '');
+
+    // Need to pass isPath: true here because when syncing across computed properties
+    // that return collections we may just be passing the model index for the path.
+    var dest = this.tracking.get(path, { raw: true, isPath: true });
+
+    if (_.isUndefined(dest)) {
+      return void 0;
+    }
+    if (type === 'change' && model.changedAttributes()) {
+      dest.set && dest.set(model.changedAttributes());
+    } else if (type === 'reset') {
+      dest.reset && dest.reset(model);
+    } else if (type === 'update') {
+      dest.set && dest.set(model);
+    } else if (type === 'add') {
+      dest.add && dest.add(model);
+    } else if (type === 'remove') {
+      dest.remove && dest.remove(model);
+    }
+    // TODO: Add sort
+  },
+
+  // Adds a litener to the root object and tells it what properties this
+  // Computed Property depend on.
+  // The listener will re-compute this Computed Property when any are changed.
+  wire: function wire() {
+    var root = this.__root__;
+    var context = this.__parent__;
+    root.__computedDeps || (root.__computedDeps = {});
+
+    _.each(this.deps, function (path) {
+
+      // For each dependancy, mark ourselves as dirty if they become dirty
+      var dep = root.get(path, { raw: true, isPath: true });
+      if (dep && dep.isComputedProperty) {
+        dep.on('dirty', this.markDirty);
+      }
+
+      // Find actual context and path from relative paths
+      var split = _reboundUtils2.default.splitPath(path);
+      while (split[0] === '@parent') {
+        context = context.__parent__;
+        split.shift();
+      }
+      path = context.__path().replace(/\.?\[.*\]/ig, '.@each');
+      path = path + (path && '.') + split.join('.');
+
+      // Add ourselves as dependants
+      root.__computedDeps[path] || (root.__computedDeps[path] = []);
+      root.__computedDeps[path].push(this);
+    }, this);
+
+    // Ensure we only have one listener per Model at a time.
+    context.off('all', this.onRecompute).on('all', this.onRecompute);
+  },
+
+  unwire: function unwire() {
+    var root = this.__root__;
+    var context = this.__parent__;
+
+    _.each(this.deps, function (path) {
+      var dep = root.get(path, { raw: true, isPath: true });
+      if (!dep || !dep.isComputedProperty) {
+        return void 0;
+      }
+      dep.off('dirty', this.markDirty);
+    }, this);
+
+    context.off('all', this.onRecompute);
+  },
+
+  // Call this computed property like you would with Function.call()
+  call: function call() {
+    var args = Array.prototype.slice.call(arguments),
+        context = args.shift();
+    return this.apply(context, args);
+  },
+
+  // Call this computed property like you would with Function.apply()
+  // Only properties that are marked as dirty and are not already computing
+  // themselves are evaluated to prevent cyclic callbacks. If any dependants
+  // aren't finished computeding, we add ourselved to their waiting list.
+  // Vanilla objects returned from the function are promoted to Rebound Objects.
+  // Then, set the proper return type for future fetches from the cache and set
+  // the new computed value. Track changes to the cache to push it back up to
+  // the original object and return the value.
+  apply: function apply(context, params) {
+
+    context || (context = this.__parent__);
+
+    // Only re-evaluate this Computed Property if this value is dirty, not already
+    // evaluating, and part of a data tree.
+    if (!this.isDirty || this.isChanging || !context) {
+      return void 0;
+    }
+
+    // Mark this Computed Property as in the process of changing
+    this.isChanging = true;
+
+    // Check all of our dependancies to see if they are evaluating.
+    // If we have a dependancy that is dirty and this isnt its first run,
+    // Let this dependancy know that we are waiting for it.
+    // It will re-run this Computed Property after it finishes.
+    _.each(this.deps, function (dep) {
+      var dependancy = context.get(dep, { raw: true, isPath: true });
+      if (!dependancy || !dependancy.isComputedProperty) {
+        return void 0;
+      }
+      if (dependancy.isDirty && dependancy.returnType !== null) {
+        dependancy.waiting[this.cid] = this;
+        dependancy.apply(); // Try to re-evaluate this dependancy if it is dirty
+        if (dependancy.isDirty) {
+          return this.isChanging = false;
+        }
+      }
+      delete dependancy.waiting[this.cid];
+      // TODO: There can be a check here looking for cyclic dependancies.
+    }, this);
+
+    if (!this.isChanging) {
+      return void 0;
+    }
+
+    // Run our getter method to fetch the new result value and retreive current
+    // value from the cache
+    var result = this.getter.apply(context, params);
+    var value = this.cache[this.returnType];
+
+    // Promote vanilla objects to Rebound Data keeping the same original objects
+    if (_.isArray(result)) {
+      result = new Rebound.Collection(result, { clone: false });
+    } else if (_.isObject(result) && !result.isData) {
+      result = new Rebound.Model(result, { clone: false });
+    }
+
+    // If result is undefined, reset our cache item
+    if (_.isUndefined(result) || _.isNull(result)) {
+      this.returnType = 'value';
+      this.isCollection = this.isModel = false;
+      this.set(undefined);
+    }
+
+    // Set result and return types, bind events
+    // Use .set instead of .reset to trigger individual changes for internal models
+    else if (result.isCollection) {
+        this.returnType = 'collection';
+        this.isCollection = true;
+        this.isModel = false;
+        this.set(result);
+        this.track(result);
+      }
+
+      // If this is a model, set the return types and bind events.
+      // If this model is the same as a previus run, just apply the changes to it.
+      // If this is a different model, reset all of the values to the new ones.
+      else if (result.isModel) {
+          this.returnType = 'model';
+          this.isCollection = false;
+          this.isModel = true;
+          this.reset(result);
+          this.track(result);
+        }
+
+        // Otherwise, result is a primitive. Set values appropreately.
+        else {
+            this.returnType = 'value';
+            this.isCollection = this.isModel = false;
+            this.set(result);
+          }
+
+    return this.value();
+  },
+
+  // When we receive a new model to set in our cache, unbind the tracker from
+  // the previous cache object, sync the objects' cids so helpers think they
+  // are the same object, save a referance to the object we are tracking,
+  // and re-bind our onModify hook.
+  track: function track(object) {
+    var target = this.value();
+    if (!object || !target || !target.isData || !object.isData) {
+      return void 0;
+    }
+    target._cid || (target._cid = target.cid);
+    object._cid || (object._cid = object.cid);
+    target.cid = object.cid;
+    this.tracking = object;
+  },
+
+  // Get from the Computed Property's cache
+  get: function get(key) {
+    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+    if (this.returnType === 'value') {
+      return console.error('Called get on the `' + this.name + '` computed property which returns a primitive value.');
+    }
+    return this.value().get(key, options);
+  },
+
+  // Set the Computed Property's cache to a new value and trigger appropreate events.
+  // Changes will propagate back to the original object if a Rebound Data Object and re-compute.
+  // If Computed Property returns a value, all downstream dependancies will re-compute.
+  set: function set(key, val) {
+    var options = arguments.length <= 2 || arguments[2] === undefined ? {} : arguments[2];
+
+    if (this.returnType === null) {
+      return void 0;
+    }
+    var attrs = key;
+    var value = this.value();
+
+    // Noralize the data passed in
+    if (this.returnType === 'model') {
+      if ((typeof key === "undefined" ? "undefined" : _typeof(key)) === 'object') {
+        attrs = key.isModel ? key.attributes : key;
+        options = val || {};
+      } else {
+        (attrs = {})[key] = val;
+      }
+    }
+    if (this.returnType !== 'model') {
+      options = val || {};
+    }
+    attrs = attrs && attrs.isComputedProperty ? attrs.value() : attrs;
+
+    // If a new value, set it and trigger events
+    this.setter && this.setter.call(this.__root__, attrs);
+
+    if (this.returnType === 'value' && this.cache.value !== attrs) {
+      this.cache.value = attrs;
+      if (!options.quiet) {
+        // If set was called not through computedProperty.call(), this is a fresh new event burst.
+        if (!this.isDirty && !this.isChanging) this.__parent__.changed = {};
+        this.__parent__.changed[this.name] = attrs;
+        this.trigger('change', this.__parent__);
+        this.trigger('change:' + this.name, this.__parent__, attrs);
+        delete this.__parent__.changed[this.name];
+      }
+    } else if (this.returnType !== 'value' && options.reset) {
+      key = value.reset(attrs, options);
+    } else if (this.returnType !== 'value') {
+      key = value.set(attrs, options);
+    }
+    this.isDirty = this.isChanging = false;
+
+    // Call all reamining computed properties waiting for this value to resolve.
+    _.each(this.waiting, function (prop) {
+      prop && prop.call();
+    });
+
+    return key;
+  },
+
+  // Return the current value from the cache, running if dirty.
+  value: function value() {
+    if (this.isDirty) {
+      this.apply();
+    }
+    return this.cache[this.returnType];
+  },
+
+  // Reset the current value in the cache, unless if first run.
+  reset: function reset(obj) {
+    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+    if (_.isNull(this.returnType)) {
+      return void 0;
+    }
+    options.reset = true;
+    return this.set(obj, options);
+  },
+
+  // Cyclic dependancy safe toJSON method.
+  toJSON: function toJSON() {
+    if (this._isSerializing) {
+      return this.cid;
+    }
+    var val = this.value();
+    this._isSerializing = true;
+    var json = val && _.isFunction(val.toJSON) ? val.toJSON() : val;
+    this._isSerializing = false;
+    return json;
+  }
+
+});
+
+exports.default = ComputedProperty;
+},{"backbone":41,"property-compiler/property-compiler":1,"rebound-utils/rebound-utils":37}],6:[function(require,module,exports){
+"use strict";
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; }; // Rebound Model
+// ----------------
+
+// Rebound **Models** are the basic data object in the framework - frequently
+// representing a row in a table in a database on your server. The inherit from
+// Backbone Models and have all of the same useful methods you are used to for
+// performing computations and transformations on that data. Rebound augments
+// Backbone Models by enabling deep data nesting. You can now have **Rebound Collections**
+// and **Rebound Computed Properties** as properties of the Model.
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _backbone = require("backbone");
+
+var _backbone2 = _interopRequireDefault(_backbone);
+
+var _computedProperty = require("rebound-data/computed-property");
+
+var _computedProperty2 = _interopRequireDefault(_computedProperty);
+
+var _reboundUtils = require("rebound-utils/rebound-utils");
+
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// Returns a function that, when called, generates a path constructed from its
+// parent's path and the key it is assigned to. Keeps us from re-naming children
+// when parents change.
+function pathGenerator(parent, key) {
+  return function () {
+    var path = parent.__path();
+    return path + (path === '' ? '' : '.') + key;
+  };
+}
+
+var Model = _backbone2.default.Model.extend({
+  // Set this object's data types
+  isModel: true,
+  isData: true,
+
+  // A method that returns a root path by default. Meant to be overridden on
+  // instantiation.
+  __path: function __path() {
+    return '';
+  },
+
+  // Create a new Model with the specified attributes. The Model's lineage is set
+  // up here to keep track of it's place in the data tree.
+  constructor: function constructor(attributes) {
+    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+    var self = this;
+    if (attributes === null || attributes === undefined) {
+      attributes = {};
+    }
+    attributes.isModel && (attributes = attributes.attributes);
+    this.helpers = {};
+    this.defaults = this.defaults || {};
+    this.setParent(options.parent || this);
+    this.setRoot(options.root || this);
+    this.__path = options.path || this.__path;
+
+    // Convert getters and setters to computed properties
+    _reboundUtils2.default.extractComputedProps(attributes);
+
+    _backbone2.default.Model.call(this, attributes, options);
+  },
+
+  // New convenience function to toggle boolean values in the Model.
+  toggle: function toggle(attr, options) {
+    options = options ? _.clone(options) : {};
+    var val = this.get(attr);
+    if (!_.isBoolean(val)) console.error('Tried to toggle non-boolean value ' + attr + '!', this);
+    return this.set(attr, !val, options);
+  },
+
+  destroy: function destroy(options) {
+    options = options ? _.clone(options) : {};
+    var model = this;
+    var success = options.success;
+    var wait = options.wait;
+
+    var destroy = function destroy() {
+      model.trigger('destroy', model, model.collection, options);
+    };
+
+    options.success = function (resp) {
+      if (wait) {
+        destroy();
+      }
+      if (success) {
+        success.call(options.context, model, resp, options);
+      }
+      if (!model.isNew()) {
+        model.trigger('sync', model, resp, options);
+      }
+    };
+
+    var xhr = false;
+    if (this.isNew()) {
+      _.defer(options.success);
+    } else {
+      wrapError(this, options);
+      xhr = this.sync('delete', this, options);
+    }
+    if (!wait) {
+      destroy();
+    }
+    return xhr;
+  },
+
+  // Model Reset does a deep reset on the data tree starting at this Model.
+  // A `previousAttributes` property is set on the `options` property with the Model's
+  // old values.
+  reset: function reset(obj, options) {
+    var changed = {},
+        key,
+        value;
+    options || (options = {});
+    options.reset = true;
+    obj = obj && obj.isModel && obj.attributes || obj || {};
+    options.previousAttributes = _.clone(this.attributes);
+
+    // Iterate over the Model's attributes:
+    // - If the property is the `idAttribute`, skip.
+    // - If the property is a `Model`, `Collection`, or `ComputedProperty`, reset it.
+    // - If the passed object has the property, set it to the new value.
+    // - If the Model has a default value for this property, set it back to default.
+    // - Otherwise, unset the attribute.
+    for (key in this.attributes) {
+      value = this.attributes[key];
+      if (value === obj[key]) {
+        continue;
+      } else if (_.isUndefined(value)) {
+        obj[key] && (changed[key] = obj[key]);
+      } else if (value.isComponent) {
+        continue;
+      } else if (value.isCollection || value.isModel || value.isComputedProperty) {
+        value.reset(obj[key] || [], { silent: true });
+        if (value.isCollection) changed[key] = value.previousModels;else if (value.isModel && value.isComputedProperty) changed[key] = value.cache.model.changedAttributes();else if (value.isModel) changed[key] = value.changedAttributes();
+      } else if (obj.hasOwnProperty(key)) {
+        changed[key] = obj[key];
+      } else if (this.defaults.hasOwnProperty(key) && !_.isFunction(this.defaults[key])) {
+        changed[key] = obj[key] = this.defaults[key];
+      } else {
+        changed[key] = undefined;
+        this.unset(key, { silent: true });
+      }
+    }
+
+    // Any unset changed values will be set to obj[key]
+    _.each(obj, function (value, key, obj) {
+      changed[key] = changed[key] || obj[key];
+    });
+
+    // Reset our model
+    obj = this.set(obj, _.extend({}, options, { silent: true, reset: false }));
+
+    // Trigger custom reset event
+    this.changed = changed;
+    if (!options.silent) {
+      this.trigger('reset', this, options);
+    }
+
+    // Return new values
+    return obj;
+  },
+
+  // **Model.Get** is overridden to provide support for getting from a deep data tree.
+  // `key` may now be any valid json-like identifier. Ex: `obj.coll[3].value`.
+  // It needs to traverse `Models`, `Collections` and `Computed Properties` to
+  // find the correct value.
+  // - If key is undefined, return `undefined`.
+  // - If key is empty string, return `this`.
+  //
+  // For each part:
+  // - If a `Computed Property` and `options.raw` is true, return it.
+  // - If a `Computed Property` traverse to its value.
+  // - If not set, return its falsy value.
+  // - If a `Model` or `Collection`, traverse to it.
+  get: function get(key, options) {
+    options || (options = {});
+    var parts = _reboundUtils2.default.splitPath(key),
+        result = this,
+        i,
+        l = parts.length;
+
+    if (_.isUndefined(key) || _.isNull(key)) {
+      return void 0;
+    }
+    if (key === '' || parts.length === 0) {
+      return result;
+    }
+
+    for (i = 0; i < l; i++) {
+      if (result && result.isComputedProperty && options.raw) return result;
+      if (result && result.isComputedProperty) result = result.value();
+      if (_.isUndefined(result) || _.isNull(result)) return result;
+      if (parts[i] === '@parent') result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result && result.hasOwnProperty(parts[i])) result = result[parts[i]];
+    }
+
+    if (result && result.isComputedProperty && !options.raw) result = result.value();
+    return result;
+  },
+
+  // **Model.Set** is overridden to provide support for getting from a deep data tree.
+  // `key` may now be any valid json-like identifier. Ex: `obj.coll[3].value`.
+  // It needs to traverse `Models`, `Collections` and `Computed Properties` to
+  // find the correct value to call the original `Backbone.Set` on.
+  set: function set(key, value, options) {
+    var _this = this;
+
+    var attrs,
+        newKey,
+        destination,
+        props = [];
+
+    if ((typeof key === "undefined" ? "undefined" : _typeof(key)) === 'object') {
+      attrs = key.isModel ? key.attributes : key;
+      options = value;
+    } else (attrs = {})[key] = value;
+    options || (options = {});
+
+    // Convert getters and setters to computed properties
+    _reboundUtils2.default.extractComputedProps(attrs);
+
+    // If reset option passed, do a reset. If nothing passed, return.
+    if (options.reset === true) return this.reset(attrs, options);
+    if (options.defaults === true) this.defaults = attrs;
+    if (_.isEmpty(attrs)) {
+      return void 0;
+    }
+
+    // For each attribute passed:
+    var _loop = function _loop() {
+      var val = attrs[key],
+          paths = _reboundUtils2.default.splitPath(key),
+          attr = paths.pop() || '',
+          // The key          ex: foo[0].bar --> bar
+      target = _this.get(paths.join('.')),
+          // The element    ex: foo.bar.baz --> foo.bar
+      lineage = undefined;
+
+      // If target currently doesnt exist, construct its tree
+      if (_.isUndefined(target)) {
+        target = _this;
+        _.each(paths, function (part) {
+          var tmp = target.get(part);
+          if (_.isUndefined(tmp)) tmp = target.set(part, {}).get(part);
+          target = tmp;
+        }, _this);
+      }
+
+      // The old value of `attr` in `target`
+      destination = target.get(attr, { raw: true }) || {};
+
+      // Create this new object's lineage.
+      lineage = {
+        name: key,
+        parent: target,
+        root: _this.__root__,
+        path: pathGenerator(target, attr),
+        silent: true,
+        defaults: options.defaults
+      };
+      // - If val is `null` or `undefined`, set to default value.
+      // - If val is a `Computed Property`, get its current cache object.
+      // - If val (default value or evaluated computed property) is `null`, set to default value or (fallback `undefined`).
+      // - Else If val is a primitive object instance, convert to primitive value.
+      // - Else If `{raw: true}` option is passed, set the exact object that was passed. No promotion to a Rebound Data object.
+      // - Else If this function is the same as the current computed property, continue.
+      // - Else If this value is a `Function`, turn it into a `Computed Property`.
+      // - Else If this is going to be a cyclical dependancy, use the original object, don't make a copy.
+      // - Else If updating an existing object with its respective data type, let Backbone handle the merge.
+      // - Else If this value is a `Model` or `Collection`, create a new copy of it using its constructor, preserving its defaults while ensuring no shared memory between objects.
+      // - Else If this value is an `Array`, turn it into a `Collection`.
+      // - Else If this value is a `Object`, turn it into a `Model`.
+      // - Else val is a primitive value, set it accordingly.
+
+      if (_.isNull(val) || _.isUndefined(val)) val = _this.defaults[key];
+      if (val && val.isComputedProperty) val = val.value();
+      if (_.isNull(val) || _.isUndefined(val)) val = undefined;else if (val instanceof String) val = String(val);else if (val instanceof Number) val = Number(val);else if (val instanceof Boolean) val = Boolean(val.valueOf());else if (options.raw === true) val = val;else if (destination.isComputedProperty && destination.func === val) return "continue";else if (val.isComputedProto) val = new _computedProperty2.default(val.get, val.set, lineage);else if (val.isData && target.hasParent(val)) val = val;else if (destination.isComputedProperty || destination.isCollection && (_.isArray(val) || val.isCollection) || destination.isModel && (_.isObject(val) || val.isModel)) {
+        destination.set(val, options);
+        return "continue";
+      } else if (val.isData && options.clone !== false) val = new val.constructor(val.attributes || val.models, lineage);else if (_.isArray(val)) val = new Rebound.Collection(val, lineage); // TODO: Remove global referance
+      else if (_.isObject(val)) val = new Model(val, lineage);
+
+      // If val is a data object, let this object know it is now a parent
+      _this._hasAncestry = val && val.isData || false;
+
+      // Set the value
+      _backbone2.default.Model.prototype.set.call(target, attr, val, options); // TODO: Event cleanup when replacing a model or collection with another value
+    };
+
+    for (key in attrs) {
+      var _ret = _loop();
+
+      if (_ret === "continue") continue;
+    }
+
+    return this;
+  },
+
+  // Recursive `toJSON` function traverses the data tree returning a JSON object.
+  // If there are any cyclic dependancies the object's `cid` is used instead of looping infinitely.
+  toJSON: function toJSON() {
+    if (this._isSerializing) {
+      return this.id || this.cid;
+    }
+    this._isSerializing = true;
+    var json = _.clone(this.attributes);
+    _.each(json, function (value, name) {
+      if (_.isNull(value) || _.isUndefined(value)) {
+        return void 0;
+      }
+      _.isFunction(value.toJSON) && (json[name] = value.toJSON());
+    });
+    this._isSerializing = false;
+    return json;
+  }
+
+});
+
+// If default properties are passed into extend, process the computed properties
+Model.extend = function (protoProps, staticProps) {
+  _reboundUtils2.default.extractComputedProps(protoProps.defaults);
+  return _backbone2.default.Model.extend.call(this, protoProps, staticProps);
+};
+
+exports.default = Model;
+},{"backbone":41,"rebound-data/computed-property":5,"rebound-utils/rebound-utils":37}],7:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.ComputedProperty = exports.Collection = exports.Model = undefined;
+
+var _model = require("rebound-data/model");
+
+var _model2 = _interopRequireDefault(_model);
+
+var _collection = require("rebound-data/collection");
+
+var _collection2 = _interopRequireDefault(_collection);
+
+var _computedProperty = require("rebound-data/computed-property");
+
+var _computedProperty2 = _interopRequireDefault(_computedProperty);
+
+var _reboundUtils = require("rebound-utils/rebound-utils");
+
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// Rebound Data
+// ----------------
+// These are methods inherited by all Rebound data types: **Models**,
+// **Collections** and **Computed Properties**. Controls tree ancestry
+// tracking, deep event propagation and tree destruction.
+
+var sharedMethods = {
+  // When a change event propagates up the tree it modifies the path part of
+  // `change:<path>` to reflect the fully qualified path relative to that object.
+  // Ex: Would trigger `change:val`, `change:[0].val`, `change:arr[0].val` and `obj.arr[0].val`
+  // on each parent as it is propagated up the tree.
+  propagateEvent: function propagateEvent(type, model) {
+    if (this.__parent__ === this || type === 'dirty') {
+      return void 0;
+    }
+    if (type.indexOf('change:') === 0 && model.isModel) {
+      if (this.isCollection && ~type.indexOf('change:[')) {
+        return void 0;
+      }
+      var key,
+          path = model.__path().replace(this.__parent__.__path(), '').replace(/^\./, ''),
+          changed = model.changedAttributes();
+
+      for (key in changed) {
+        // TODO: Modifying arguments array is bad. change this
+        arguments[0] = 'change:' + path + (path && '.') + key; // jshint ignore:line
+        this.__parent__.trigger.apply(this.__parent__, arguments);
+      }
+      return void 0;
+    }
+    return this.__parent__.trigger.apply(this.__parent__, arguments);
+  },
+
+  // Set this data object's parent to `parent` and, as long as a data object is
+  // not its own parent, propagate every event triggered on `this` up the tree.
+  setParent: function setParent(parent) {
+    if (this.__parent__) {
+      this.off('all', this.propagateEvent);
+    }
+    this.__parent__ = parent;
+    this._hasAncestry = true;
+    if (parent !== this) {
+      this.on('all', this.__parent__.propagateEvent);
+    }
+    return parent;
+  },
+
+  // Recursively set a data tree's root element starting with `this` to the deepest child.
+  // TODO: I dont like this recursively setting elements root when one element's root changes. Fix this.
+  setRoot: function setRoot(root) {
+    var obj = this;
+    obj.__root__ = root;
+    var val = obj.models || obj.attributes || obj.cache;
+    _.each(val, function (value, key) {
+      if (value && value.isData) {
+        value.setRoot(root);
+      }
+    });
+    return root;
+  },
+
+  // Tests to see if `this` has a parent `obj`.
+  hasParent: function hasParent(obj) {
+    var tmp = this;
+    while (tmp !== obj) {
+      tmp = tmp.__parent__;
+      if (_.isUndefined(tmp)) return false;
+      if (tmp === obj) return true;
+      if (tmp.__parent__ === tmp) return false;
+    }
+    return true;
+  },
+
+  // De-initializes a data tree starting with `this` and recursively calling `deinitialize()` on each child.
+  deinitialize: function deinitialize() {
+    var _this = this;
+
+    // Undelegate Backbone Events from this data object
+    if (this.undelegateEvents) {
+      this.undelegateEvents();
+    }
+    if (this.stopListening) {
+      this.stopListening();
+    }
+    if (this.off) {
+      this.off();
+    }
+    if (this.unwire) {
+      this.unwire();
+    }
+
+    // Destroy this data object's lineage
+    delete this.__parent__;
+    delete this.__root__;
+    delete this.__path;
+
+    // If there is a dom element associated with this data object, destroy all listeners associated with it.
+    // Remove all event listeners from this dom element, recursively remove element lazyvalues,
+    // and then remove the element referance itself.
+    if (this.el) {
+      _.each(this.el.__listeners, function (handler, eventType) {
+        if (this.el.removeEventListener) {
+          this.el.removeEventListener(eventType, handler, false);
+        }
+        if (this.el.detachEvent) {
+          this.el.detachEvent('on' + eventType, handler);
+        }
+      }, this);
+      (0, _reboundUtils2.default)(this.el).walkTheDOM(function (el) {
+        if (el.__lazyValue && el.__lazyValue.destroy()) {
+          n.__lazyValue.destroy();
+        }
+      });
+      delete this.el.__listeners;
+      delete this.el.__events;
+      delete this.$el;
+      delete this.el;
+    }
+
+    // Clean up Hook callback references
+    delete this.__observers;
+
+    // Mark as deinitialized so we don't loop on cyclic dependancies.
+    this.deinitialized = true;
+
+    // Destroy all children of this data object.
+    // If a Collection, de-init all of its Models, if a Model, de-init all of its
+    // Attributes that aren't services, if a Computed Property, de-init its Cache objects.
+    _.each(this.models, function (val) {
+      val && val.deinitialize && val.deinitialize();
+    });
+    this.models && (this.models.length = 0);
+    _.each(this.attributes, function (val, key) {
+      delete _this.attributes[key];
+      val && !val.isComponent && val.deinitialize && val.deinitialize();
+    });
+    if (this.cache) {
+      this.cache.collection.deinitialize();
+      this.cache.model.deinitialize();
+    }
+  }
+};
+
+// Extend all of the **Rebound Data** prototypes with these shared methods
+_.extend(_model2.default.prototype, sharedMethods);
+_.extend(_collection2.default.prototype, sharedMethods);
+_.extend(_computedProperty2.default.prototype, sharedMethods);
+
+exports.Model = _model2.default;
+exports.Collection = _collection2.default;
+exports.ComputedProperty = _computedProperty2.default;
+exports.default = { Model: _model2.default, Collection: _collection2.default, ComputedProperty: _computedProperty2.default };
+},{"rebound-data/collection":4,"rebound-data/computed-property":5,"rebound-data/model":6,"rebound-utils/rebound-utils":37}],8:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.hasHelper = hasHelper;
+exports.lookupHelper = lookupHelper;
+exports.registerHelper = registerHelper;
+
+var _reboundUtils = require("rebound-utils/rebound-utils");
+
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
+
+var _lazyValue = require("rebound-htmlbars/lazy-value");
+
+var _lazyValue2 = _interopRequireDefault(_lazyValue);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// Rebound Helpers
+// ----------------
+
+var HELPERS = {};
+
+function NOOP() {
+  return '';
+}
+
+function hasHelper(env, scope, name) {
+  env && env.helpers || (env = { helpers: HELPERS });
+  return !!(HELPERS[name] || env.helpers[name]);
+}
+
+// lookupHelper returns the given function from the helpers object. Manual checks prevent user from overriding reserved words.
+function lookupHelper(env, scope, name) {
+  if (_.isString(env)) {
+    name = env;
+  }
+  env && env.helpers || (env = { helpers: HELPERS });
+
+  // If `name` is a reserved helper, return it
+  if (name === 'length') return HELPERS.length;
+  if (name === 'if') return HELPERS.if;
+  if (name === 'unless') return HELPERS.unless;
+  if (name === 'each') return HELPERS.each;
+  if (name === 'on') return HELPERS.on;
+  if (name === 'debugger') return HELPERS.debugger;
+  if (name === 'log') return HELPERS.log;
+
+  // If not a reserved helper, check env, then global helpers, or return undefined.
+  if (!hasHelper(env, null, name)) {
+    console.error('No helper named', name, 'registered with Rebound');
+  }
+  return HELPERS[name] || env.helpers[name] || NOOP;
+}
+
+function registerHelper(name, callback, env) {
+  if (!_.isString(name)) return console.error('Name provided to registerHelper must be a string!');
+  if (!_.isFunction(callback)) return console.error('Callback provided to regierHelper must be a function!');
+  if (hasHelper(env, null, name)) return console.error('A helper called "' + name + '" is already registered!');
+
+  HELPERS[name] = callback;
+}
+
+/*******************************
+        Default helpers
+********************************/
+
+HELPERS.debugger = function debuggerHelper(params, hash, options, env) {
+  /* jshint -W087 */
+  debugger;
+  return '';
+};
+
+HELPERS.log = function logHelper(params, hash, options, env) {
+  console.log.apply(console, params);
+  return '';
+};
+
+HELPERS.on = function onHelper(params, hash, options, env) {
+  var i,
+      callback,
+      delegate,
+      element,
+      eventName = params[0],
+      len = params.length;
+
+  // By default everything is delegated on the parent component
+  if (len === 2) {
+    callback = params[1];
+    delegate = options.element;
+    element = options.element;
+  }
+  // If a selector is provided, delegate on the helper's element
+  else if (len === 3) {
+      callback = params[2];
+      delegate = params[1];
+      element = options.element;
+    }
+
+  // Attach event
+  (0, _reboundUtils2.default)(element).on(eventName, delegate, hash, function (event) {
+    if (!_.isFunction(env.root[callback])) {
+      throw "ERROR: No method named " + callback + " on component " + env.root.tagName + "!";
+    }
+    return env.root[callback].call(env.root, event);
+  });
+};
+
+HELPERS.length = function lengthHelper(params, hash, options, env) {
+  return params[0] && params[0].length || 0;
+};
+
+function isTruthy(condition) {
+
+  if (condition === true || condition === false) {
+    return condition;
+  }
+
+  // Handle null values
+  if (condition === undefined || condition === null) {
+    return false;
+  }
+
+  // Handle models
+  if (condition.isModel) {
+    return true;
+  }
+
+  // Handle arrays and collection
+  if (_.isArray(condition) || condition.isCollection) {
+    return !!condition.length;
+  }
+
+  // Handle string values
+  if (condition === 'true') {
+    return true;
+  }
+  if (condition === 'false') {
+    return false;
+  }
+
+  return false;
+}
+
+HELPERS.if = function ifHelper(params, hash, templates) {
+
+  var condition = isTruthy(params[0]);
+
+  // If yield does not exist, this is not a block helper.
+  if (!this.yield) {
+    return condition ? params[1] : params[2] || '';
+  }
+
+  // Render the apropreate block statement
+  if (condition && this.yield) {
+    this.yield();
+  } else if (!condition && templates.inverse && templates.inverse.yield) {
+    templates.inverse.yield();
+  } else {
+    return '';
+  }
+};
+
+// Unless proxies to the if helper with an inverted conditional value.
+HELPERS.unless = function unlessHelper(params, hash, templates) {
+  params[0] = !isTruthy(params[0]);
+  return HELPERS.if.apply(this, [params, hash, templates]);
+};
+
+HELPERS.each = function eachHelper(params, hash, templates) {
+
+  // Accepts collections, arrays, models, or objects
+  var value = params[0].isCollection ? params[0].models : params[0].isModel ? params[0].attributes : params[0];
+
+  // If the scope has values, render them
+  if (value && (_.isArray(value) && value.length > 0 || _.isObject(value) && Object.keys(value).length > 0)) {
+    // For each value in the array, yield using that data model
+    for (var key in value) {
+      var eachId = value[key] && value[key].isData ? value[key].cid : params[0].cid + key;
+      if (value.hasOwnProperty(key)) {
+        this.yieldItem(eachId, [value[key], key]);
+      }
+    }
+  }
+
+  // Otherwise, render the inverse template
+  else {
+      if (templates.inverse && templates.inverse["yield"]) {
+        templates.inverse["yield"]();
+      }
+    }
+};
+
+exports.default = HELPERS;
+},{"rebound-htmlbars/lazy-value":29,"rebound-utils/rebound-utils":37}],9:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _reboundUtils = require("rebound-utils/rebound-utils");
+
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
+
+var _hooks = require("htmlbars-runtime/hooks");
+
+var _hooks2 = _interopRequireDefault(_hooks);
+
+var _render2 = require("htmlbars-runtime/render");
+
+var _render3 = _interopRequireDefault(_render2);
+
+var _createFreshEnv = require("rebound-htmlbars/hooks/createFreshEnv");
+
+var _createFreshEnv2 = _interopRequireDefault(_createFreshEnv);
+
+var _createChildEnv = require("rebound-htmlbars/hooks/createChildEnv");
+
+var _createChildEnv2 = _interopRequireDefault(_createChildEnv);
+
+var _createFreshScope = require("rebound-htmlbars/hooks/createFreshScope");
+
+var _createFreshScope2 = _interopRequireDefault(_createFreshScope);
+
+var _createChildScope = require("rebound-htmlbars/hooks/createChildScope");
+
+var _createChildScope2 = _interopRequireDefault(_createChildScope);
+
+var _bindScope = require("rebound-htmlbars/hooks/bindScope");
+
+var _bindScope2 = _interopRequireDefault(_bindScope);
+
+var _linkRenderNode = require("rebound-htmlbars/hooks/linkRenderNode");
+
+var _linkRenderNode2 = _interopRequireDefault(_linkRenderNode);
+
+var _cleanupRenderNode = require("rebound-htmlbars/hooks/cleanupRenderNode");
+
+var _cleanupRenderNode2 = _interopRequireDefault(_cleanupRenderNode);
+
+var _destroyRenderNode = require("rebound-htmlbars/hooks/destroyRenderNode");
+
+var _destroyRenderNode2 = _interopRequireDefault(_destroyRenderNode);
+
+var _willCleanupTree = require("rebound-htmlbars/hooks/willCleanupTree");
+
+var _willCleanupTree2 = _interopRequireDefault(_willCleanupTree);
+
+var _didCleanupTree = require("rebound-htmlbars/hooks/didCleanupTree");
+
+var _didCleanupTree2 = _interopRequireDefault(_didCleanupTree);
+
+var _get = require("rebound-htmlbars/hooks/get");
+
+var _get2 = _interopRequireDefault(_get);
+
+var _getValue = require("rebound-htmlbars/hooks/getValue");
+
+var _getValue2 = _interopRequireDefault(_getValue);
+
+var _invokeHelper = require("rebound-htmlbars/hooks/invokeHelper");
+
+var _invokeHelper2 = _interopRequireDefault(_invokeHelper);
+
+var _subexpr = require("rebound-htmlbars/hooks/subexpr");
+
+var _subexpr2 = _interopRequireDefault(_subexpr);
+
+var _concat = require("rebound-htmlbars/hooks/concat");
+
+var _concat2 = _interopRequireDefault(_concat);
+
+var _content = require("rebound-htmlbars/hooks/content");
+
+var _content2 = _interopRequireDefault(_content);
+
+var _attribute = require("rebound-htmlbars/hooks/attribute");
+
+var _attribute2 = _interopRequireDefault(_attribute);
+
+var _partial = require("rebound-htmlbars/hooks/partial");
+
+var _partial2 = _interopRequireDefault(_partial);
+
+var _component = require("rebound-htmlbars/hooks/component");
+
+var _component2 = _interopRequireDefault(_component);
+
+var _helpers = require("rebound-htmlbars/helpers");
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// __Environment Hooks__ create and modify the template environment objects
+
+_hooks2.default.createFreshEnv = _createFreshEnv2.default; // Rebound Hooks
+// ----------------
+// Here we augment HTMLBars' default hooks to make use of Rebound's evented data
+// objects for automatic databinding.
+
+_hooks2.default.createChildEnv = _createChildEnv2.default;
+
+// __Scope Hooks__ create, access and modify the template scope and data objects
+
+_hooks2.default.createFreshScope = _createFreshScope2.default;
+_hooks2.default.createChildScope = _createChildScope2.default;
+_hooks2.default.bindScope = _bindScope2.default;
+
+// __Lifecycle Hooks__ construct, deconstruct and clean up render nodes over their lifecycles
+
+_hooks2.default.linkRenderNode = _linkRenderNode2.default;
+_hooks2.default.willCleanupTree = _willCleanupTree2.default;
+_hooks2.default.cleanupRenderNode = _cleanupRenderNode2.default;
+_hooks2.default.destroyRenderNode = _cleanupRenderNode2.default;
+_hooks2.default.didCleanupTree = _didCleanupTree2.default;
+
+// __Streaming Hooks__ create streams via LazyValues for data values, helpers, subexpressions and concat groups
+
+_hooks2.default.get = _get2.default;
+_hooks2.default.getValue = _getValue2.default;
+_hooks2.default.invokeHelper = _invokeHelper2.default;
+_hooks2.default.subexpr = _subexpr2.default;
+_hooks2.default.concat = _concat2.default;
+
+// __Render Hooks__ interact with the DOM to output content and bind to form elements for two way databinding
+
+_hooks2.default.content = _content2.default;
+_hooks2.default.attribute = _attribute2.default;
+_hooks2.default.partial = _partial2.default;
+_hooks2.default.registerPartial = _partial.registerPartial;
+_hooks2.default.component = _component2.default;
+
+// __Helper Hooks__ manage the environment's registered helpers
+
+_hooks2.default.hasHelper = _helpers.hasHelper;
+_hooks2.default.lookupHelper = _helpers.lookupHelper;
+_hooks2.default.registerHelper = _helpers.registerHelper;
+
+// Bind local binds a local variable to the scope object and tracks the scope
+// level at which that local was added. See `createChildScope` for description
+// of scope levels
+_hooks2.default.bindLocal = function bindLocal(env, scope, name, value) {
+  scope.localPresent[name] = scope.level;
+  scope.locals[name] = value;
+};
+
+// __buildRenderResult__ is a wrapper for the native HTMLBars render function. It
+// ensures every template is rendered with its own child environment, every environment
+// saves a referance to its unique render result for re-renders, and every render
+// result has a unique id.
+_hooks2.default.buildRenderResult = function buildRenderResult(template, env, scope, options) {
+  var render = _render3.default.default || _render3.default; // Fix for stupid Babel imports
+  env = _hooks2.default.createChildEnv(env);
+  env.template = render(template, env, scope, options);
+  env.template.uid = _reboundUtils2.default.uniqueId('template');
+  return env.template;
+};
+
+exports.default = _hooks2.default;
+},{"htmlbars-runtime/hooks":49,"htmlbars-runtime/render":52,"rebound-htmlbars/helpers":8,"rebound-htmlbars/hooks/attribute":10,"rebound-htmlbars/hooks/bindScope":11,"rebound-htmlbars/hooks/cleanupRenderNode":12,"rebound-htmlbars/hooks/component":13,"rebound-htmlbars/hooks/concat":14,"rebound-htmlbars/hooks/content":15,"rebound-htmlbars/hooks/createChildEnv":16,"rebound-htmlbars/hooks/createChildScope":17,"rebound-htmlbars/hooks/createFreshEnv":18,"rebound-htmlbars/hooks/createFreshScope":19,"rebound-htmlbars/hooks/destroyRenderNode":20,"rebound-htmlbars/hooks/didCleanupTree":21,"rebound-htmlbars/hooks/get":22,"rebound-htmlbars/hooks/getValue":23,"rebound-htmlbars/hooks/invokeHelper":24,"rebound-htmlbars/hooks/linkRenderNode":25,"rebound-htmlbars/hooks/partial":26,"rebound-htmlbars/hooks/subexpr":27,"rebound-htmlbars/hooks/willCleanupTree":28,"rebound-utils/rebound-utils":37}],10:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = attribute;
+
+var _reboundUtils = require("rebound-utils/rebound-utils");
+
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// All valid HTML attributes
+var ATTRIBUTES = { abbr: 1, "accept-charset": 1, accept: 1, accesskey: 1, action: 1,
+  align: 1, alink: 1, alt: 1, archive: 1, axis: 1,
+  background: 1, bgcolor: 1, border: 1, cellpadding: 1, cellspacing: 1,
+  char: 1, charoff: 1, charset: 1, checked: 1, cite: 1,
+  class: 1, classid: 1, clear: 1, code: 1, codebase: 1,
+  codetype: 1, color: 1, cols: 1, colspan: 1, compact: 1,
+  content: 1, coords: 1, data: 1, datetime: 1, declare: 1,
+  defer: 1, dir: 1, disabled: 1, enctype: 1, face: 1,
+  for: 1, frame: 1, frameborder: 1, headers: 1, height: 1,
+  href: 1, hreflang: 1, hspace: 1, "http-equiv": 1, id: 1,
+  ismap: 1, label: 1, lang: 1, language: 1, link: 1,
+  longdesc: 1, marginheight: 1, marginwidth: 1, maxlength: 1, media: 1,
+  method: 1, multiple: 1, name: 1, nohref: 1, noresize: 1,
+  noshade: 1, nowrap: 1, object: 1, onblur: 1, onchange: 1,
+  onclick: 1, ondblclick: 1, onfocus: 1, onkeydown: 1, onkeypress: 1,
+  onkeyup: 1, onload: 1, onmousedown: 1, onmousemove: 1, onmouseout: 1,
+  onmouseover: 1, onmouseup: 1, onreset: 1, onselect: 1, onsubmit: 1,
+  onunload: 1, profile: 1, prompt: 1, readonly: 1, rel: 1,
+  rev: 1, rows: 1, rowspan: 1, rules: 1, scheme: 1,
+  scope: 1, scrolling: 1, selected: 1, shape: 1, size: 1,
+  span: 1, src: 1, standby: 1, start: 1, style: 1,
+  summary: 1, tabindex: 1, target: 1, text: 1, title: 1,
+  type: 1, usemap: 1, valign: 1, value: 1, valuetype: 1,
+  version: 1, vlink: 1, vspace: 1, width: 1 };
+
+// All valid text based HTML input types
+// ### Attribute Hook
+
+var TEXT_INPUTS = { "null": 1, text: 1, email: 1, password: 1,
+  search: 1, url: 1, tel: 1, hidden: 1,
+  number: 1, color: 1, date: 1, datetime: 1,
+  month: 1, range: 1, time: 1, week: 1,
+  "datetime-local": 1
+};
+
+// All valid boolean HTML input types
+var BOOLEAN_INPUTS = { checkbox: 1, radio: 1 };
+
+// Attribute Hook
+function attribute(attrMorph, env, scope, name, value) {
+
+  var val = value.isLazyValue ? value.value : value,
+      el = attrMorph.element,
+      tagName = el.tagName,
+      type = el.getAttribute("type");
+
+  // If this is a text input element's value prop, wire up our databinding
+  if (tagName === 'INPUT' && TEXT_INPUTS[type] && name === 'value') {
+
+    // If our input events have not been bound yet, bind them
+    if (!attrMorph.eventsBound) {
+      (0, _reboundUtils2.default)(el).on('change input propertychange', function (event) {
+        value.set(value.path, this.value);
+      });
+      attrMorph.eventsBound = true;
+    }
+
+    // Set the value property of the input
+    el.value = val ? String(val) : '';
+  } else if (tagName === 'INPUT' && BOOLEAN_INPUTS[type] && name === 'checked') {
+
+    // If our input events have not been bound yet, bind them
+    if (!attrMorph.eventsBound) {
+      (0, _reboundUtils2.default)(el).on('change propertychange', function (event) {
+        value.set(value.path, this.checked ? true : false);
+      });
+      attrMorph.eventsBound = true;
+    }
+
+    el.checked = val ? true : undefined;
+  }
+
+  // Special case for link elements with dynamic classes.
+  // If the router has assigned it a truthy 'active' property, ensure that the extra class is present on re-render.
+  else if (tagName === 'A' && name === 'class' && el.active) {
+      val = val ? String(val) + ' active' : 'active';
+    }
+
+  // Set the attribute on our element for visual referance
+  val ? el.setAttribute(name, String(val)) : el.removeAttribute(name);
+
+  this.linkRenderNode(attrMorph, env, scope, '@attribute', [value], {});
+}
+},{"rebound-utils/rebound-utils":37}],11:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = bindScope;
+// ### Bind-Scope Hook
+
+// Make scope available on the environment object to allow hooks to cache streams on it.
+function bindScope(env, scope) {
+  env.scope = scope;
+}
+},{}],12:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = cleanupRenderNode;
+// ### Cleanup-Render-Node Hook
+
+// Called before destroying any render node
+function cleanupRenderNode(morph) {
+  // morph.lazyValue && morph.lazyValue.destroy();
+}
+},{}],13:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = component;
+
+var _reboundUtils = require("rebound-utils/rebound-utils");
+
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
+
+var _factory = require("rebound-component/factory");
+
+var _factory2 = _interopRequireDefault(_factory);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function component(morph, env, scope, tagName, params, attrs, templates, visitor) {
+  var _this = this;
+
+  // Components are only ever rendered once
+  if (morph.componentIsRendered) {
+    return void 0;
+  }
+
+  if (this.hasHelper(env, scope, tagName)) {
+    return this.block(morph, env, scope, tagName, params, attrs, templates.default, templates.inverse, visitor);
+  }
+
+  var component,
+      element,
+      outlet,
+      render = this.buildRenderResult,
+      seedData = {},
+      componentData = {},
+      componentScope = this.createFreshScope();
+
+  // Create a plain data object to pass to our new component as seed data
+  for (var key in attrs) {
+    seedData[key] = this.getValue(attrs[key]);
+  }
+
+  // For each param passed to our shared component, add it to our custom element
+  component = (0, _factory2.default)(tagName, seedData);
+  element = component.el;
+  componentScope.self = component;
+
+  var _loop = function _loop(key) {
+
+    // For each param passed to our component, create its lazyValue
+    componentData[key] = _this.get(component.env, componentScope, key);
+
+    // Set up two way binding between component and original context
+    if (componentData[key].isLazyValue && attrs[key].isLazyValue) {
+
+      // For each lazy param passed to our component, have it update the original context when changed.
+      componentData[key].onNotify(function () {
+        attrs[key].set(attrs[key].path, componentData[key].value);
+      });
+
+      // For each lazy param passed to our component, have it update the component when changed.
+      attrs[key].onNotify(function () {
+        componentData[key].set(key, attrs[key].value);
+      });
+
+      // Seed the cache
+      componentData[key].value;
+    }
+  };
+
+  for (var key in seedData) {
+    _loop(key);
+  }
+
+  /** The attributeChangedCallback on our custom element updates the component's data. **/
+
+  // Walk the dom, without traversing into other custom elements, and search for
+  // `<content>` outlets to render templates into.
+  (0, _reboundUtils2.default)(element).walkTheDOM(function (el) {
+    if (element === el) {
+      return true;
+    }
+    if (el.tagName === 'CONTENT') {
+      outlet = el;
+    }
+    if (el.tagName.indexOf('-') > -1) {
+      return false;
+    }
+    return true;
+  });
+
+  // If a `<content>` outlet is present in component's template, and a template
+  // is provided, render it into the outlet
+  if (templates.default && _.isElement(outlet)) {
+    (0, _reboundUtils2.default)(outlet).empty();
+    outlet.appendChild(render(templates.default, env, scope, {}).fragment);
+  }
+
+  morph.setNode(element);
+  morph.componentIsRendered = true;
+}
+},{"rebound-component/factory":3,"rebound-utils/rebound-utils":37}],14:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = concat;
+
+var _lazyValue = require("rebound-htmlbars/lazy-value");
+
+var _lazyValue2 = _interopRequireDefault(_lazyValue);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// ### Concat Hook
+
+// The `concat` hook creates a LazyValue for adjacent expressions so they may be
+// used as a single data point in its parent expression. For example:
+// ```
+// <div class="{{foo}} active {{bar}}"></div>
+// ```
+// The div's attribute expression is passed a concat LazyValue that alerts its
+// subscribers whenever any of its dynamic values change.
+
+var CONCAT_CACHE = {};
+
+function concat(env, params) {
+
+  // If the concat expression only contains a single value, return it.
+  if (params.length === 1) {
+    return params[0];
+  }
+
+  // Each concat LazyValue is unique to its inputs. Compute it's unique name.
+  var name = "concat: ";
+  _.each(params, function (param, index) {
+    name += "" + (param && param.isLazyValue ? param.cid : param);
+  });
+
+  // Check the streams cache and return if this LazyValue has already been made
+  if (CONCAT_CACHE[name]) {
+    return CONCAT_CACHE[name];
+  }
+
+  // Create a lazyvalue that returns the concatted values of all input params
+  // Add it to the streams cache and return
+  return CONCAT_CACHE[name] = new _lazyValue2.default(function (params) {
+    return params.join('');
+  }, {
+    context: params[0].context,
+    path: name,
+    params: params
+  });
+}
+},{"rebound-htmlbars/lazy-value":29}],15:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = content;
+// ### Content Hook
+
+// Content Hook
+function content(morph, env, context, path, lazyValue) {
+  var el = morph.contextualElement;
+
+  // Two way databinding for textareas
+  if (el.tagName === 'TEXTAREA') {
+    lazyValue.onNotify(function updateTextarea(lazyValue) {
+      el.value = lazyValue.value;
+    });
+    $(el).on('change keyup', function updateTextareaLazyValue(event) {
+      lazyValue.set(lazyValue.path, this.value);
+    });
+  }
+
+  morph.lazyValue = lazyValue;
+
+  return lazyValue.value;
+}
+},{}],16:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = createChildEnv;
+// ### Create-Child-Environment Hook
+
+// Create an environment object that will inherit everything from its parent
+// environment until written over with a local variable.
+function createChildEnv(parent) {
+  var env = Object.create(parent);
+  env.helpers = Object.create(parent.helpers);
+  return env;
+}
+},{}],17:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = createChildScope;
+// ### Create-Child-Scope Hook
+
+// Create a scope object that will inherit everything from its parent
+// scope until written over with a local variable.
+function createChildScope(parent) {
+  var scope = Object.create(parent);
+  scope.level = parent.level + 1;
+  scope.locals = Object.create(parent.locals);
+  scope.localPresent = Object.create(parent.localPresent);
+  scope.streams = Object.create(parent.streams);
+  return scope;
+}
+},{}],18:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = createFreshEnv;
+
+var _domHelper = require("dom-helper");
+
+var _domHelper2 = _interopRequireDefault(_domHelper);
+
+var _helpers = require("rebound-htmlbars/helpers");
+
+var _helpers2 = _interopRequireDefault(_helpers);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// ### Create-Fresh-Environment Hook
+
+// Rebound's default environment
+// The application environment is propagated down each render call and
+// augmented with helpers as it goes
+
+var DOMHelper = _domHelper2.default.default || _domHelper2.default; // Fix for stupid Babel imports
+
+function createFreshEnv() {
+  return {
+    isReboundEnv: true,
+    cid: _.uniqueId('env'),
+    root: null,
+    helpers: _helpers2.default,
+    hooks: this,
+    dom: new DOMHelper(),
+    revalidateQueue: {},
+    observers: {}
+  };
+}
+},{"dom-helper":44,"rebound-htmlbars/helpers":8}],19:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = createFreshScope;
+// ### Create-Fresh-Scope Hook
+
+// Rebound's default scope object.
+// The scope object is propagated down each block expression or render call and
+// augmented with local variables as it goes. LazyValues are cached as streams
+// here as well. Because `in` checks have unpredictable performance, keep a
+// separate dictionary to track whether a local was bound.
+function createFreshScope() {
+  return {
+    level: 1,
+    self: null,
+    locals: {},
+    localPresent: {},
+    streams: {}
+  };
+}
+},{}],20:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = destroyRenderNode;
+// ### Destroy-Render-Node Hook
+
+// Called when destroying a render node
+function destroyRenderNode(morph) {}
+},{}],21:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = didCleanupTree;
+// ### Did-Cleanup-Tree Hook
+
+// Called after destroying any node tree
+function didCleanupTree(env, morph, destroySelf) {}
+},{}],22:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = get;
+
+var _reboundUtils = require("rebound-utils/rebound-utils");
+
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
+
+var _lazyValue = require("rebound-htmlbars/lazy-value");
+
+var _lazyValue2 = _interopRequireDefault(_lazyValue);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// ### Get Hook
+
+// The get hook streams a property at a named path from a given scope. It returns
+// a `LazyValue` that other code can subscribe to and be alerted when values change.
+function get(env, scope, path) {
+  var context = scope.self;
+
+  // The special word `this` should referance empty string
+  if (path === 'this') {
+    path = '';
+  }
+
+  // If this path referances a block param, use that as the context instead.
+  var rest = _reboundUtils2.default.splitPath(path);
+  var key = rest.shift();
+  if (scope.localPresent[key]) {
+    context = scope.locals[key];
+    path = rest.join('.');
+  }
+
+  // If this value is not a local value, and there is a stream present
+  // If this value is a local, but not at this scope layer, and there is
+  if (scope.streams[path] && (!scope.streams[path].layer && !scope.localPresent[key] || scope.streams[path].layer === scope.localPresent[key])) {
+    return scope.streams[path];
+  }
+
+  // Given a context and a path, create a LazyValue object that returns
+  // the value of object at path and add an observer to the context at path.
+  return scope.streams[path] = new _lazyValue2.default(function () {
+    return this.context.get(this.path, { isPath: true });
+  }, {
+    context: context,
+    path: path,
+    layer: scope.localPresent[key]
+  }).addObserver(path, context, env);
+}
+},{"rebound-htmlbars/lazy-value":29,"rebound-utils/rebound-utils":37}],23:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = getValue;
+// ### Get Value Hook
+
+// The getValue hook retreives the value of the passed in referance.
+// It will return the propper value regardless of if the referance passed is the
+// value itself, or a LazyValue.
+function getValue(referance) {
+  return referance && referance.isLazyValue ? referance.value : referance;
+}
+},{}],24:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = invokeHelper;
+
+var _reboundUtils = require("rebound-utils/rebound-utils");
+
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
+
+var _lazyValue = require("rebound-htmlbars/lazy-value");
+
+var _lazyValue2 = _interopRequireDefault(_lazyValue);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// ### Invoke-Helper Hook
+
+// The `invokeHelper` hook streams a the result of a helper function. It returns
+// a `LazyValue` that other code can subscribe to and be alerted when values change.
+function invokeHelper(morph, env, scope, visitor, params, hash, helper, templates, context) {
+
+  // If this is not a valid helper, log an error and return an empty string value.
+  if (!_.isFunction(helper)) {
+    console.error('Invalid helper!', helper);
+    return { value: '' };
+  }
+
+  // Each helper LazyValue is unique to its inputs. Compute it's unique name.
+  var name = helper.name + ":";
+  _.each(params, function (param, index) {
+    name += " " + (param && param.isLazyValue ? param.cid : param);
+  });
+  _.each(hash, function (hash, key) {
+    name += " " + key + "=" + hash.cid;
+  });
+
+  // Check the stream cache for this LazyValue, return it if it exists.
+  if (scope.streams[name]) {
+    return scope.streams[name];
+  }
+
+  // Create a LazyValue that returns the value of our evaluated helper.
+  var lazyValue = new _lazyValue2.default(function (params, hash) {
+    return helper.call(context || {}, params, hash, templates, env);
+  }, {
+    path: name,
+    params: params,
+    hash: hash
+  });
+
+  // If this is not a block or element helper, cache the new lazyValue.
+  // Only block helpers will have a context set passed. Non-element helpers will
+  // have the morph set. Block and morph helpers have re-rendered dom that must
+  // be fresh in the LazyValue's closure each run.
+  if (!context && morph) {
+    scope.streams[name] = lazyValue;
+  }
+
+  // Seed the cache and return the new LazyValue
+  lazyValue.value;
+  return lazyValue;
+}
+},{"rebound-htmlbars/lazy-value":29,"rebound-utils/rebound-utils":37}],25:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = linkRenderNode;
+// ### Link-Render-Node Hook
+
+// Called on first creation of any expressions that interact directly with the DOM.
+// Whenever it is notified of any changes to it's dependant values, mark the node
+// as dirty and add it to the environment's revalidation queue to be rerendered
+// during the next animation frame.
+function linkRenderNode(renderNode, env, scope, path, params, hash) {
+
+  function rerender(path, node, lazyValue, env) {
+    lazyValue.onNotify(function () {
+      node.isDirty = true;
+      env.template && (env.revalidateQueue[env.template.uid] = env.template);
+    });
+  }
+
+  // Save the path on our render node for easier debugging
+  renderNode.path = path;
+
+  // For every parameter or hash value passed to this render node, if it is a data
+  // stream, subscribe to notifications from it and when notified of a change,
+  // mark the node as dirty and queue it up for revalidation.
+  if (params && params.length) {
+    for (var i = 0; i < params.length; i++) {
+      if (params[i].isLazyValue) {
+        rerender(path, renderNode, params[i], env);
+      }
+    }
+  }
+  if (hash) {
+    for (var key in hash) {
+      if (hash.hasOwnProperty(key) && hash[key].isLazyValue) {
+        rerender(path, renderNode, hash[key], env);
+      }
+    }
+  }
+  return 1;
+}
+},{}],26:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.registerPartial = registerPartial;
+exports.default = partial;
+
+var _reboundUtils = require("rebound-utils/rebound-utils");
+
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
+
+var _loader = require("rebound-router/loader");
+
+var _loader2 = _interopRequireDefault(_loader);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var PARTIALS = {};
+
+function registerPartial(name, template) {
+  if (template && _.isString(name)) {
+
+    // If this partial has a callback list associated with its name, call all of
+    // the callbacks before registering the partial.
+    if (Array.isArray(PARTIALS[name])) {
+      PARTIALS[name].forEach(function (cb) {
+        cb(template);
+      });
+    }
+
+    // Save the partial template in our cache and return it
+    _loader2.default.register('/' + name + '.js');
+    return PARTIALS[name] = template;
+  }
+}
+
+function partial(renderNode, env, scope, path) {
+
+  // If no path is passed, yell
+  if (!path) {
+    console.error('Partial hook must be passed path!');
+  }
+
+  // Resolve the value of path
+  path = path.isLazyValue ? path.value : path;
+
+  // Create new child scope for partial
+  scope = this.createChildScope(scope);
+
+  var render = this.buildRenderResult;
+
+  // If a partial is registered with this path name, render it
+  if (PARTIALS[path] && !Array.isArray(PARTIALS[path])) {
+    return render(PARTIALS[path], env, scope, { contextualElement: renderNode }).fragment;
+  }
+
+  // If this partial is not yet registered, add it to a callback list to be called
+  // when registered. When registered, replace the dummy node we created with the
+  // rendered partial template.
+  var node = document.createTextNode('');
+  PARTIALS[path] || (PARTIALS[path] = []);
+  PARTIALS[path].push(function partialCallback(template) {
+    if (!node.parentNode) {
+      return void 0;
+    }
+    node.parentNode.replaceChild(render(template, env, scope, { contextualElement: renderNode }).fragment, node);
+  });
+  return node;
+}
+},{"rebound-router/loader":32,"rebound-utils/rebound-utils":37}],27:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = subexpr;
+// ### Subexpr Hook
+
+// The `subexpr` hook creates a LazyValue for a nexted expression so it may be
+// used as a single data point in its parent expression. For example:
+// ```
+// {{#if (equal (add 1 2) 3)}}True!{{/if}}
+// ```
+// The `if` block expression contains a subexpression that is the evalued value
+// of the `equal` helper, which in turn contains a subexpression that is the
+// evalued value of the `add` helper. Each subexpression is represented internally
+// by a single LazyValue that notifies its subscribers when it changes.
+function subexpr(env, scope, helperName, params, hash) {
+  var helper = this.lookupHelper(helperName, env);
+
+  // Return the apropreate LazyValue for this subexpression type.
+  if (helper) {
+    return this.invokeHelper(null, env, scope, null, params, hash, helper, {}, undefined);
+  }
+
+  return this.get(env, scope, helperName);
+}
+},{}],28:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = willCleanupTree;
+// ### Will-Cleanup-Tree Hook
+
+// Called before destroying any node tree
+function willCleanupTree(env, morph, destroySelf) {}
+},{}],29:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _reboundUtils = require('rebound-utils/rebound-utils');
+
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var NIL = function NIL() {},
+    EMPTY_ARRAY = []; // Rebound Lazy Value
+// ----------------
+
+var LAZYVALUE_COUNT = 0;
+
+function LazyValue(fn) {
+  var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+  this.cid = _reboundUtils2.default.uniqueId('lazyValue');
+  this.valueFn = fn;
+  this.cache = NIL;
+  this.context = options.context || null;
+  this.children = [];
+  this.hash = {};
+  this.subscribers = [];
+  this.observers = [];
+  this.referance = 0;
+  _.extend(this, options);
+
+  // For each param or hash value passed to our helper's LazyValue, add it to the
+  // dependant list. The helper's LazyValue will re-evaluate when one changes.
+  _.each(options.params, function (param, index) {
+    param || (param = '');
+    this.children.push(param);
+    param.isLazyValue && param.onNotify(this);
+  }, this);
+
+  _.each(options.hash, function (value, key) {
+    value || (value = '');
+    value.isLazyValue && value.onNotify(this);
+    this.hash[key] = value;
+  }, this);
+}
+
+LazyValue.prototype = {
+
+  isLazyValue: true,
+
+  get value() {
+
+    // If cache is already computed, return it
+    if (this.cache !== NIL) {
+      return this.cache;
+    }
+
+    // Assemble our args and hash variables for the helper. For each LazyValue
+    // param or hash, insert the evaluated value so helpers don't need to have any
+    // concept of lazyvalues.
+    var params = new Array(this.children.length),
+        hash = {};
+
+    for (var i = 0, l = this.children.length; i < l; i++) {
+      var child = this.children[i];
+      params[i] = child && child.isLazyValue ? child.value : child;
+    }
+
+    for (var key in this.hash) {
+      if (!this.hash.hasOwnProperty(key)) {
+        continue;
+      }
+      var child = this.hash[key];
+      hash[key] = child && child.isLazyValue ? child.value : child;
+    }
+
+    return this.cache = this.valueFn(params, hash);
+  },
+
+  set: function set(key, value, options) {
+    return this.context && this.context.set(key, value, options) || null;
+  },
+
+  addObserver: function addObserver(path, context, env) {
+
+    if (!_.isObject(context) || !_.isString(path)) {
+      return console.error('Error adding observer for', context, path);
+    }
+    var origin = context.__path().replace(/\[[^\]]+\]/g, ".@each");
+    var cache = env.observers[origin] || (env.observers[origin] = {});
+    cache[path] || (cache[path] = []);
+    var position = cache[path].push(this) - 1;
+
+    this.observers.push({ env: env, origin: origin, path: path, index: position });
+
+    return this;
+  },
+
+  // Mark this LazyValue, and all who depend on it, as dirty by setting its cache
+  // to NIL. This will force a full re-compute of its value when next requests rather
+  // than just returning the cache object.
+  makeDirty: function makeDirty() {
+    if (this.cache === NIL) {
+      return void 0;
+    }
+    this.cache = NIL;
+    for (var i = 0, l = this.subscribers.length; i < l; i++) {
+      this.subscribers[i].isLazyValue && this.subscribers[i].makeDirty();
+    }
+  },
+
+  // Ensure that this node and all of its dependants are dirty, then call each
+  // of its dependants. If a dependant is a LazyValue, and marked as destroyed,
+  // remove it fromt the array
+  notify: function notify() {
+    this.makeDirty();
+    for (var i = 0, l = this.subscribers.length; i < l; i++) {
+      if (!this.subscribers[i]) {
+        continue;
+      } else if (this.subscribers[i].isLazyValue) {
+        this.subscribers[i].destroyed ? this.subscribers[i] = void 0 : this.subscribers[i].notify();
+      } else {
+        this.subscribers[i](this);
+      }
+    }
+  },
+
+  onNotify: function onNotify(callback) {
+    this.subscribers.push(callback);
+    this.referance++;
+    return this;
+  },
+
+  destroy: function destroyLazyValue() {
+    this.destroyed = true;
+
+    _.each(this.children, function (child) {
+      if (!child || !child.isLazyValue) {
+        return void 0;
+      }
+      if (--child.referance === 0) {
+        child.destroy();
+      }
+    });
+    _.each(this.hash, function (child) {
+      if (!child || !child.isLazyValue) {
+        return void 0;
+      }
+      if (--child.referance === 0) {
+        child.destroy();
+      }
+    });
+
+    this.subscribers = [];
+    this.valueFn = NIL;
+    this.cache = NIL;
+    this.children = [];
+    this.cache = {};
+
+    _.each(this.observers, function (observer) {
+      if (observer.env.observers[observer.origin] && observer.env.observers[observer.origin][observer.path]) {
+        delete observer.env.observers[observer.origin][observer.path][observer.index];
+      }
+      delete observer.env;
+    });
+
+    this.observers = null;
+  }
+};
+
+exports.default = LazyValue;
+},{"rebound-utils/rebound-utils":37}],30:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.registerPartial = exports.registerHelper = undefined;
+
+var _hooks = require("rebound-htmlbars/hooks");
+
+var _hooks2 = _interopRequireDefault(_hooks);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var registerHelper = exports.registerHelper = _hooks2.default.registerHelper;
+var registerPartial = exports.registerPartial = _hooks2.default.registerPartial;
+},{"rebound-htmlbars/hooks":9}],31:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = render;
+
+var _reboundUtils = require("rebound-utils/rebound-utils");
+
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
+
+var _hooks2 = require("rebound-htmlbars/hooks");
+
+var _hooks3 = _interopRequireDefault(_hooks2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var RENDER_TIMEOUT;
+var TO_RENDER = [];
+var ENV_QUEUE = [];
+
+// A convenience method to push only unique eleents in an array of objects to
+// the TO_RENDER queue. If the element is a Lazy Value, it marks it as dirty in
+// the process
+var push = function push(arr) {
+  var _this = this;
+
+  var i,
+      len = arr.length;
+  this.added || (this.added = {});
+  arr.forEach(function (item) {
+    if (_this.added[item.cid]) {
+      return;
+    }
+    _this.added[item.cid] = 1;
+    if (item.isLazyValue) {
+      item.makeDirty();
+    }
+    _this.push(item);
+  });
+};
+
+// Called on animation frame. TO_RENDER is a list of lazy-values to notify.
+// When notified, they mark themselves as dirty. Then, call revalidate on all
+// dirty expressions for each environment we need to re-render. Use `while(queue.length)`
+// to accomodate synchronous renders where the render queue callbacks may trigger
+// nested calls of `renderCallback`.
+function renderCallback() {
+
+  while (TO_RENDER.length) {
+    TO_RENDER.shift().notify();
+  }
+
+  TO_RENDER.added = {};
+
+  while (ENV_QUEUE.length) {
+    var env = ENV_QUEUE.shift();
+    for (var key in env.revalidateQueue) {
+      env.revalidateQueue[key].revalidate();
+    }
+  }
+  ENV_QUEUE.added = {};
+}
+
+// Listens for `change` events and calls `trigger` with the correct values
+function onChange(model, options) {
+  trigger.call(this, 'change', model, model.changedAttributes());
+}
+
+// Listens for `reset` events and calls `trigger` with the correct values
+function onReset(data, options) {
+  trigger.call(this, 'reset', data, data.isModel ? data.changedAttributes() : { '@each': data }, options);
+}
+
+// Listens for `update` events and calls `trigger` with the correct values
+function onUpdate(collection, options) {
+  trigger.call(this, 'update', collection, { '@each': collection }, options);
+}
+
+function trigger(type, data, changed) {
+  var options = arguments.length <= 3 || arguments[3] === undefined ? {} : arguments[3];
+
+  // If nothing has changed, exit.
+  if (!data || !changed) {
+    return void 0;
+  }
+
+  var basePath = data.__path();
+
+  // If this event came from within a service, include the service key in the base path
+  if (options.service) {
+    basePath = options.service + '.' + basePath;
+  }
+
+  // For each changed key, walk down the data tree from the root to the data
+  // element that triggered the event and add all relevent callbacks to this
+  // object's TO_RENDER queue.
+  basePath = basePath.replace(/\[[^\]]+\]/g, ".@each");
+  var parts = _reboundUtils2.default.splitPath(basePath);
+  var context = [];
+
+  while (1) {
+    var pre = context.join('.');
+    var post = parts.join('.');
+
+    for (var key in changed) {
+      var path = post + (post && key && '.') + key;
+      for (var testPath in this.env.observers[pre]) {
+        if (_reboundUtils2.default.startsWith(testPath, path)) {
+          push.call(TO_RENDER, this.env.observers[pre][testPath]);
+          push.call(ENV_QUEUE, [this.env]);
+        }
+      }
+    }
+    if (parts.length === 0) {
+      break;
+    }
+    context.push(parts.shift());
+  }
+
+  // If Rebound is loaded in a testing environment, call renderCallback syncronously
+  // so that changes to the data reflect in the DOM immediately.
+  // TODO: Make tests async so this is not required
+  if (window.Rebound && window.Rebound.testing) {
+    return renderCallback();
+  }
+
+  // Otherwise, queue our render callback to be called on the next animation frame,
+  // after the current call stack has been exhausted.
+  window.cancelAnimationFrame(RENDER_TIMEOUT);
+  RENDER_TIMEOUT = window.requestAnimationFrame(renderCallback);
+}
+
+// A render function that will merge user provided helpers and hooks with our defaults
+// and bind a method that re-renders dirty expressions on data change and executes
+// other delegated listeners added by our hooks.
+function render(template, data) {
+  var options = arguments.length <= 2 || arguments[2] === undefined ? {} : arguments[2];
+
+  // Fix for stupid Babel module importer
+  // TODO: Fix this. This is dumb. Modules don't resolve in by time of this file's
+  // execution because of the dependancy tree so babel doesn't get a chance to
+  // interop the default value of these imports. We need to do this at runtime instead.
+  var hooks = _hooks3.default.default || _hooks3.default;
+
+  // If no data is passed to render, exit with an error
+  if (!data) {
+    return console.error('No data passed to render function.');
+  }
+
+  // Create a fresh scope if it doesn't exist
+  var scope = scope || hooks.createFreshScope();
+
+  // Every component's template is rendered using a unique environment
+  var env = hooks.createChildEnv(options.env || hooks.createFreshEnv());
+
+  // Add template specific hepers to env
+  _.extend(env.helpers, options.helpers);
+
+  // Save env on component data to trigger lazy-value streams on data change
+  data.env = env;
+
+  // Save data on env to allow helpers / hooks access to component methods
+  env.root = data;
+
+  // Ensure we have a contextual element to pass to render
+  options.contextualElement || (options.contextualElement = data.el || document.body);
+  options.self = data;
+
+  // If data is an eventable object, run the onChange helper on any change
+  if (data.listenTo) {
+    data.stopListening(null, null, onChange).stopListening(null, null, onReset).stopListening(null, null, onUpdate);
+    data.listenTo(data, 'change', onChange).listenTo(data, 'reset', onReset).listenTo(data, 'update', onUpdate);
+  }
+
+  // If this is a real template, run it with our merged helpers and hooks
+  // If there is no template, just return an empty fragment
+  return env.template = template ? hooks.buildRenderResult(template, env, scope, options) : { fragment: document.createDocumentFragment() };
+}
+},{"rebound-htmlbars/hooks":9,"rebound-utils/rebound-utils":37}],32:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _reboundUtils = require('rebound-utils/rebound-utils');
+
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var MODULE_CACHE = {};
+
+var loader = {
+
+  // If this JS element is not on the page already, it hasn't been loaded before -
+  // create the element and load the JS resource.
+  // Else if the JS resource has been loaded before, resolve with the element
+
+  loadJS: function loadJS(url, id) {
+
+    // Always return a promise for a load request
+    return new Promise(function (resolve, reject) {
+
+      // If we have already tried to load this js module, resolve or reject appropreately
+      if (MODULE_CACHE[url]) {
+        if (_.isElement(MODULE_CACHE[url]) && MODULE_CACHE[url].hasAttribute('data-error')) {
+          return reject();
+        }
+        return resolve(MODULE_CACHE[url]);
+      }
+
+      // Construct the script element and save it in the `MODULE_CACHE`
+      var e = document.createElement('script');
+      e.setAttribute('type', 'text/javascript');
+      e.setAttribute('src', url);
+      e.setAttribute('id', id || _.uniqueId('module'));
+      MODULE_CACHE[url] = e;
+
+      // All browsers support loading events on `<script>` elements, bind to these
+      // events and resolve our promise appropreately
+      (0, _reboundUtils2.default)(e).on('load', function () {
+        resolve(this);
+      });
+      (0, _reboundUtils2.default)(e).on('error', function (err) {
+        reject(err);
+      });
+
+      // And add it do to the dom
+      document.head.appendChild(e);
+    });
+  },
+
+  // If this CSS element is not on the page already, it hasn't been loaded before -
+  // create the element and load the CSS resource.
+  // Else if the CSS resource has been loaded before, resolve with the element
+  loadCSS: function loadCSS(url, id) {
+
+    // Always return a promise for a load request
+    return new Promise(function (resolve, reject) {
+
+      // If we have already tried to load this js module, resolve or reject appropreately
+      if (MODULE_CACHE[url]) {
+        if (_.isElement(MODULE_CACHE[url]) && MODULE_CACHE[url].hasAttribute('data-error')) {
+          return reject();
+        }
+        return resolve(MODULE_CACHE[url]);
+      }
+
+      // Construct our `<link>` element.
+      var e = document.createElement('link');
+      e.setAttribute('type', 'text/css');
+      e.setAttribute('rel', 'stylesheet');
+      e.setAttribute('href', url);
+      e.setAttribute('id', id);
+      MODULE_CACHE[url] = e;
+
+      // Older browsers and phantomJS < 2.0 don't support the onLoad event for
+      // `<link>` tags. Poll stylesheets array as a fallback. Timeout at 5s.
+      var count = 0,
+          ti = setInterval(function () {
+        for (var i = 0; i < document.styleSheets.length; i++) {
+          count = count + 50;
+          if ((document.styleSheets[i].href || '').indexOf(url) > -1) {
+            successCallback();
+          } else if (count >= 5000) {
+            errorCallback('CSS Timeout');
+          }
+        }
+      }, 50);
+
+      // On successful load, clearInterval and resolve.
+      // On failed load, clearInterval and reject.
+      var successCallback = function successCallback() {
+        clearInterval(ti);
+        resolve(e);
+      };
+      var errorCallback = function errorCallback(err) {
+        clearInterval(ti);
+        e.setAttribute('data-error', '');
+        reject(err);
+      };
+
+      // Modern browsers support loading events on `<link>` elements, bind these
+      // events. These will be callsed before our interval is called and they will
+      // clearInterval so the resolve/reject handlers aren't called twice.
+      (0, _reboundUtils2.default)(e).on('load', successCallback);
+      (0, _reboundUtils2.default)(e).on('error', errorCallback);
+      (0, _reboundUtils2.default)(e).on('readystatechange', function () {
+        clearInterval(ti);
+      });
+
+      // Add our `<link>` element to the page.
+      document.head.appendChild(e);
+    });
+  },
+
+  // Load multiple dependancies
+  // Given an array of dependancy urls, add them all to the head in their own script tags
+  load: function load(deps) {
+    if (!deps) {
+      return void 0;
+    }
+    deps = _.isArray(deps) ? deps : [deps];
+
+    // For each dependancy passed, call loadJS
+    deps.forEach(function (url) {
+      url = url.trim();
+      url = '/' + url + '.js';
+      loader.loadJS(url);
+    });
+  },
+  register: function register(url) {
+    MODULE_CACHE[url] = true;
+  }
+};
+
+exports.default = loader;
+},{"rebound-utils/rebound-utils":37}],33:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.services = exports.Router = undefined;
+
+var _backbone = require("backbone");
+
+var _backbone2 = _interopRequireDefault(_backbone);
+
+var _reboundUtils = require("rebound-utils/rebound-utils");
+
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
+
+var _service = require("rebound-router/service");
+
+var _factory = require("rebound-component/factory");
+
+var _factory2 = _interopRequireDefault(_factory);
+
+var _loader = require("rebound-router/loader");
+
+var _loader2 = _interopRequireDefault(_loader);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// If no error page is defined for an app, this is the default 404 page
+var DEFAULT_404_PAGE = "<div style=\"display: block;text-align: center;font-size: 22px;\">\n  <h1 style=\"margin-top: 60px;\">\n    Oops! We couldn't find this page.\n  </h1>\n  <a href=\"#\" onclick=\"window.history.back();return false;\" style=\"display: block;text-decoration: none;margin-top: 30px;\">\n    Take me back\n  </a>\n</div>"; // Rebound Router
+// ----------------
+
+var ERROR_ROUTE_NAME = 'error';
+var SUCCESS = 'success';
+var ERROR = 'error';
+var LOADING = 'loading';
+
+// Regexp to validate remote URLs
+var IS_REMOTE_URL = /^([a-z]+:)|^(\/\/)|^([^\/]+\.)/;
+var STRIP_SLASHES = /(^\/+|\/+$)/mg;
+
+function normalizeUrl() {
+  var url = '';
+  var args = Array.prototype.slice.call(arguments);
+  args.forEach(function (val) {
+    if (!val || val === '/') {
+      return void 0;
+    }
+    url += '/' + val.replace(STRIP_SLASHES, '');
+  });
+  return url || '/';
+}
+
+// Overload Backbone's loadUrl so it returns the value of the routed callback
+// Only ever compare the current path (excludes the query params) to the route regexp
+_backbone2.default.history.loadUrl = function (fragment) {
+  var key,
+      resp = false;
+  this.fragment = this.getFragment(fragment).split('?')[0];
+  for (key in this.handlers) {
+    if (this.handlers[key].route.test(this.fragment)) {
+      return this.handlers[key].callback(this.fragment);
+    }
+  }
+};
+
+// Remove the hash up to a `?` character. In IE9, which does not support the
+// History API, we need to allow query params to be set both on the URL itself
+// and in the hash, giving precedence to the query params in the URL.
+_backbone2.default.history.getSearch = function () {
+  var match = this.location.href.replace(/#[^\?]*/, '').match(/\?.+/);
+  return match ? match[0] : '';
+};
+
+// Router Constructor
+var Router = _backbone2.default.Router.extend({
+
+  status: SUCCESS, // loading, success or error
+  _currentRoute: '', // The route path that triggered the current page
+  _previousRoute: '',
+
+  // By default there is one route. The wildcard route fetches the required
+  // page assets based on user-defined naming convention.
+  routes: {
+    '*route': 'wildcardRoute'
+  },
+
+  _loadDeps: _loader2.default.load,
+
+  // Called when no matching routes are found. Extracts root route and fetches it's resources
+  wildcardRoute: function wildcardRoute(route) {
+
+    // Save the previous route value
+    this._previousRoute = this._currentRoute;
+
+    // Fetch Resources
+    document.body.classList.add("loading");
+    return this._fetchResource(route, this.config.container).then(function (res) {
+      document.body.classList.remove('loading');
+      return res;
+    });
+  },
+
+  // Modify navigate to default to `trigger=true` and to return the value of
+  // `Backbone.history.navigate` inside of a promise.
+  navigate: function navigate(fragment) {
+    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+    // Default trigger to true unless otherwise specified
+    options.trigger === undefined && (options.trigger = true);
+
+    // Stringify any data passed in the options hash
+    var query = options.data ? (~fragment.indexOf('?') ? '&' : '?') + _reboundUtils2.default.url.query.stringify(options.data) : '';
+
+    // Un-Mark any `active` links in the page container
+    var $container = (0, _reboundUtils2.default)(this.config.containers).unMarkLinks();
+
+    // Navigate to the specified path. Return value is the value from the router
+    // callback specified on the component
+    var resp = _backbone2.default.history.navigate(fragment + query, options);
+
+    // Always return a promise. If the response of `Backbone.histroy.navigate`
+    // was a promise, wait for it to resolve before resolving. Once resolved,
+    // mark relevent links on the page as `active`.
+    return new Promise(function (resolve, reject) {
+      if (resp && resp.constructor === Promise) resp.then(resolve, resolve);
+      resolve(resp);
+    }).then(function (resp) {
+      $container.markLinks();
+      return resp;
+    });
+  },
+
+  // Modify `router.execute` to return the value of our route callback
+  execute: function execute(callback, args, name) {
+    if (callback) {
+      return callback.apply(this, args);
+    }
+  },
+
+  // Override routeToRegExp so:
+  //  - If key is a stringified regexp literal, convert to a regexp object
+  //  - Else If route is a string, proxy right through
+  _routeToRegExp: function _routeToRegExp(route) {
+    var res;
+
+    if (route[0] === '/' && route[route.length - 1] === '/') {
+      res = new RegExp(route.slice(1, route.length - 1), '');
+      res._isRegexp = true;
+    } else if (typeof route == 'string') {
+      res = _backbone2.default.Router.prototype._routeToRegExp.call(this, route);
+      res._isString = true;
+    }
+
+    return res;
+  },
+
+  // Override route so if callback returns false, the route event is not triggered
+  // Every route also looks for query params, parses with QS, and passes the extra
+  // variable as a POJO to callbacks
+  route: function route(_route, name, callback) {
+    var _this = this;
+
+    if (_.isFunction(name)) {
+      callback = name;
+      name = '';
+    }
+
+    if (!_.isRegExp(_route)) {
+      _route = this._routeToRegExp(_route);
+    }
+
+    if (!callback) {
+      callback = this[name];
+    }
+    _backbone2.default.history.route(_route, function (fragment) {
+
+      // If this route was defined as a regular expression, we don't capture
+      // query params. Only parse the actual path.
+      fragment = fragment.split('?')[0];
+
+      // Extract the arguments we care about from the fragment
+      var args = _this._extractParameters(_route, fragment);
+
+      // Get the query params string
+      var search = (_backbone2.default.history.getSearch() || '').slice(1);
+
+      // If this route was created from a string (not a regexp), remove the auto-captured
+      // search params.
+      if (_route._isString) {
+        args.pop();
+      }
+
+      // If the route is not user prodided, if the history object has search params
+      // then our args have the params as its last agrument as of Backbone 1.2.0
+      // If the route is a user provided regex, add in parsed search params from
+      // the history object before passing to the callback.
+      args.push(search ? _reboundUtils2.default.url.query.parse(search) : {});
+
+      var resp = _this.execute(callback, args, name);
+      if (resp !== false) {
+        _this.trigger.apply(_this, ['route:' + name].concat(args));
+        _this.trigger('route', name, args);
+        _backbone2.default.history.trigger('route', _this, name, args);
+      }
+      return resp;
+    });
+    return this;
+  },
+
+  // On startup, save our config object and start the router
+  initialize: function initialize() {
+    var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+    var callback = arguments.length <= 1 || arguments[1] === undefined ? function () {} : arguments[1];
+
+    // Let all of our components always have referance to our router
+    _factory2.default.prototype.router = this;
+
+    // Save our config referance
+    this.config = options;
+    this.config.handlers = [];
+    this.config.containers = [];
+
+    // Normalize our url configs
+    this.config.root = normalizeUrl(this.config.root);
+    this.config.assetRoot = this.config.assetRoot ? normalizeUrl(this.config.assetRoot) : this.config.root;
+    this.config.jsPath = normalizeUrl(this.config.assetRoot, this.config.jsPath);
+    this.config.cssPath = normalizeUrl(this.config.assetRoot, this.config.cssPath);
+
+    // Get a unique instance id for this router
+    this.uid = _reboundUtils2.default.uniqueId('router');
+
+    // Allow user to override error route
+    this.config.errorRoute && (ERROR_ROUTE_NAME = this.config.errorRoute);
+
+    // Convert our routeMappings to regexps and push to our handlers
+    _.each(this.config.routeMapping, function (value, route) {
+      var regex = this._routeToRegExp(route);
+      this.config.handlers.unshift({ route: route, regex: regex, app: value });
+    }, this);
+
+    // Use the user provided container, or default to the closest `<main>` tag
+    this.config.container = (0, _reboundUtils2.default)(this.config.container || 'main')[0];
+    this.config.containers.push(this.config.container);
+    _service.SERVICES.page = new _service.ServiceLoader('page');
+
+    // Install our global components
+    _.each(this.config.services, function (selector, route) {
+      var container = (0, _reboundUtils2.default)(selector)[0] || document.createElement('span');
+      this.config.containers.push(container);
+      _service.SERVICES[route] = new _service.ServiceLoader(route);
+      this._fetchResource(route, container).catch(function () {});
+    }, this);
+
+    // Watch click events on links in all out containers
+    this._watchLinks(this.config.containers);
+
+    // Start the history and call the provided callback
+    _backbone2.default.history.start({
+      pushState: this.config.pushState === undefined ? true : this.config.pushState,
+      root: this.config.root || ''
+    }).then(callback);
+
+    return this;
+  },
+
+  stop: function stop() {
+    (0, _reboundUtils2.default)(this.config.container).off('click');
+    _backbone2.default.history.stop();
+    this._uninstallResource();
+    _backbone2.default.history.handlers = [];
+  },
+
+  // Given a dom element, watch for all click events on anchor tags.
+  // If the clicked anchor has a relative url, attempt to route to that path.
+  // Give all links on the page that match this path the class `active`.
+  _watchLinks: function _watchLinks(container) {
+    var _this2 = this;
+
+    // Navigate to route for any link with a relative href
+    (0, _reboundUtils2.default)(container).on('click', 'a', function (e) {
+      var path = e.target.getAttribute('href');
+
+      // If the path is a remote URL, allow the browser to navigate normally.
+      // Otherwise, prevent default so we can handle the route event.
+      if (IS_REMOTE_URL.test(path) || path === '#') {
+        return void 0;
+      }
+      e.preventDefault();
+
+      // If this is not our current route, navigate to the new route
+      if (path !== '/' + _backbone2.default.history.fragment) {
+        _this2.navigate(path, { trigger: true });
+      }
+    });
+  },
+
+  // De-initializes the previous app before rendering a new app
+  // This way we can ensure that every new page starts with a clean slate
+  // This is crucial for scalability of a single page app.
+  _uninstallResource: function _uninstallResource() {
+    var _this3 = this;
+
+    var routes = this.current ? this.current.data.routes || {} : {};
+    routes[this._previousRoute] = '';
+
+    // Unset Previous Application's Routes. For each route in the page app, remove
+    // the handler from our route object and delete our referance to the route's callback
+    _.each(routes, function (value, key) {
+      var regExp = _this3._routeToRegExp(key).toString();
+      _backbone2.default.history.handlers = _.filter(_backbone2.default.history.handlers, function (obj) {
+        return obj.route.toString() !== regExp;
+      });
+    });
+
+    if (!this.current) {
+      return void 0;
+    }
+
+    var oldPageName = this.current.__pageId;
+
+    // Un-hook Event Bindings, Delete Objects
+    this.current.data.deinitialize();
+
+    // Now we no longer have a page installed.
+    this.current = undefined;
+
+    // Disable old css if it exists
+    setTimeout(function () {
+      if (_this3.status === ERROR) {
+        return void 0;
+      }
+      document.getElementById(oldPageName + '-css').setAttribute('disabled', true);
+    }, 500);
+  },
+
+  // Give our new page component, load routes and render a new instance of the
+  // page component in the top level outlet.
+  _installResource: function _installResource(PageApp, appName, container) {
+    var _this4 = this;
+
+    var oldPageName,
+        pageInstance,
+        routes = [];
+    var isService = container !== this.config.container;
+    var name = isService ? appName : 'page';
+
+    // If no container exists, throw an error
+    if (!container) throw 'No container found on the page! Please specify a container that exists in your Rebound config.';
+
+    // Add page level loading class
+    container.classList.remove('error', 'loading');
+
+    // Uninstall any old resource we have loaded
+    if (!isService && this.current) {
+      this._uninstallResource();
+    }
+
+    // Load New PageApp, give it it's name so we know what css to remove when it deinitializes
+    pageInstance = (0, _factory2.default)(PageApp).el;
+    if (_service.SERVICES[name].isLazyComponent) {
+      _service.SERVICES[name].hydrate(pageInstance.data);
+    } else {
+      _service.SERVICES[name] = pageInstance.data;
+    }
+    pageInstance.__pageId = this.uid + '-' + appName;
+
+    // Add to our page
+    (0, _reboundUtils2.default)(container).empty();
+    container.appendChild(pageInstance);
+
+    // Make sure we're back at the top of the page
+    document.body.scrollTop = 0;
+
+    // Add a default route handler for the route that got us here so if the component
+    // does not define a route that handles it, we don't get a redirect loop
+    if (!isService) {
+      this.route(this._currentRoute, 'default', function () {
+        return void 0;
+      });
+    }
+
+    // Augment ApplicationRouter with new routes from PageApp added in reverse order to preserve order higherarchy
+    _.each(pageInstance.data.routes, function (value, key) {
+      // Add the new callback referance on to our router and add the route handler
+      _this4.route(key, value, function () {
+        return pageInstance.data[value].apply(pageInstance.data, arguments);
+      });
+    });
+
+    // If this is the main page component, set it as current
+    if (!isService) {
+      this.current = pageInstance;
+    }
+
+    // Always return a promise
+    return new Promise(function (resolve, reject) {
+
+      // Re-trigger route so the newly added route may execute if there's a route match.
+      // If no routes are matched, app will hit wildCard route which will then trigger 404
+      if (!isService) {
+        var res = _backbone2.default.history.loadUrl(_backbone2.default.history.fragment);
+        if (res && typeof res.then === 'function') return res.then(resolve);
+        return resolve(res);
+      }
+      // Return our newly installed app
+      return resolve(pageInstance);
+    });
+  },
+
+  _fetchJavascript: function _fetchJavascript(routeName, appName) {
+    var jsID = this.uid + '-' + appName + '-route',
+        jsUrl = this.config.jsPath.replace(/:route/g, routeName).replace(/:app/g, appName);
+
+    // Load the JavaScript.
+    return _loader2.default.loadJS(jsUrl, jsID);
+  },
+
+  _fetchCSS: function _fetchCSS(routeName, appName) {
+
+    var cssID = this.uid + '-' + appName + '-css',
+        cssUrl = this.config.cssPath.replace(/:route/g, routeName).replace(/:app/g, appName);
+
+    // Load the CSS
+    return _loader2.default.loadCSS(cssUrl, cssID);
+  },
+
+  // Fetches HTML and CSS
+  _fetchResource: function _fetchResource(route, container) {
+    var _this5 = this;
+
+    var appName,
+        routeName,
+        isService = container !== this.config.container,
+        isError = route === ERROR_ROUTE_NAME;
+
+    // Normalize Route
+    route || (route = '');
+
+    // Get the app name from this route
+    appName = routeName = route.split('/')[0] || 'index';
+
+    // If this isn't the error route, Find Any Custom Route Mappings
+    if (!isService && !isError) {
+      this._currentRoute = route.split('/')[0];
+      _.any(this.config.handlers, function (handler) {
+        if (handler.regex.test(route)) {
+          appName = handler.app;
+          _this5._currentRoute = handler.route;
+          return true;
+        }
+      });
+    }
+
+    // Wrap these async resource fetches in a promise and return it.
+    // This promise resolves when both css and js resources are loaded
+    // It rejects if either of the css or js resources fails to load.
+    return new Promise(function (resolve, reject) {
+
+      var throwError = function throwError(err) {
+        // If we are already in an error state, this means we were unable to load
+        // a custom error page. Uninstall anything we have and insert our default 404 page.
+        if (_this5.status === ERROR) {
+          if (isService) return resolve(err);
+          _this5._uninstallResource();
+          container.innerHTML = DEFAULT_404_PAGE;
+          return resolve(err);
+        }
+
+        // Set our status to error and attempt to load a custom error page.
+        console.error('Could not ' + (isService ? 'load the ' + appName + ' service:' : 'find the ' + (appName || 'index') + ' app.'), 'at', '/' + route);
+        _this5.status = ERROR;
+        _this5._currentRoute = route;
+        resolve(_this5._fetchResource(ERROR_ROUTE_NAME, container));
+      };
+
+      // If the values we got from installing our resources are unexpected, 404
+      // Otherwise, set status, activate the css, and install the page component
+      var install = function install(response) {
+        var cssElement = response[0],
+            jsElement = response[1];
+        if (!(cssElement instanceof Element) || !(jsElement instanceof Element)) return throwError();
+        !isService && !isError && (_this5.status = SUCCESS);
+        cssElement && cssElement.removeAttribute('disabled');
+        _this5._installResource(jsElement.getAttribute('data-name'), appName, container).then(resolve, resolve);
+      };
+
+      // If loading a page, set status to loading
+      !isService && !isError && (_this5.status = LOADING);
+
+      // If Page Is Already Loaded Then The Route Does Not Exist. 404 and Exit.
+      if (_this5.current && _this5.current.__pageId === _this5.uid + '-' + appName) {
+        return throwError();
+      }
+
+      // Fetch our css and js in paralell, install or throw when both complete
+      Promise.all([_this5._fetchCSS(routeName, appName), _this5._fetchJavascript(routeName, appName)]).then(install, throwError);
+    });
+  }
+});
+
+exports.default = Router;
+exports.Router = Router;
+exports.services = _service.SERVICES;
+},{"backbone":41,"rebound-component/factory":3,"rebound-router/loader":32,"rebound-router/service":34,"rebound-utils/rebound-utils":37}],34:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.SERVICES = exports.ServiceLoader = undefined;
+
+var _reboundUtils = require("rebound-utils/rebound-utils");
+
+// Services cache of all installed services
+var SERVICES = {};
+
+// Services keep track of their consumers. LazyComponent are placeholders
+// for services that haven't loaded yet. A LazyComponent mimics the api of a
+// real service/component (they are the same), and when the service finally
+// loads, its ```hydrate``` method is called. All consumers of the service will
+// have the now fully loaded service set, the LazyService will transfer all of
+// its consumers over to the fully loaded service, and then commit seppiku,
+// destroying itself.
+function ServiceLoader(type, options) {
+  var loadCallbacks = [];
+  this.name = type;
+  this.cid = _reboundUtils.$.uniqueId('ServiceLoader');
+  this.isHydrated = false;
+  this.isComponent = true;
+  this.isModel = true;
+  this.isLazyComponent = true;
+  this.attributes = {};
+  this.consumers = [];
+  this.set = this.on = this.off = function () {
+    return 1;
+  };
+  this.get = function (path) {
+    return path ? undefined : this;
+  };
+  this.hydrate = function (service) {
+    SERVICES[this.name] = service;
+    this._component = service;
+    _.each(this.consumers, function (consumer) {
+      var component = consumer.component,
+          key = consumer.key;
+      if (component.attributes && component.set) {
+        component.set(key, service);
+      }
+      if (component.services) {
+        component.services[key] = service;
+      }
+      if (component.defaults) {
+        component.defaults[key] = service;
+      }
+    });
+    service.consumers = this.consumers;
+
+    // Call all of our onLoad callbacks
+    _.each(loadCallbacks, function (cb) {
+      cb(service);
+    });
+    delete this.loadCallbacks;
+  };
+  this.onLoad = function (cb) {
+    loadCallbacks.push(cb);
+  };
+}
+
+exports.ServiceLoader = ServiceLoader;
+exports.SERVICES = SERVICES;
+},{"rebound-utils/rebound-utils":37}],35:[function(require,module,exports){
+'use strict';
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; }; // Rebound AJAX
+// ----------------
+
+// Rebound includes its own ajax method so that it not dependant on a largeer library
+// like jQuery. Here we expose the `ajax` method which mirrors jQuery's ajax API.
+// This methods is added to Rebound's internal utility library and used throughout the framework.
+// Inspiration: http://krasimirtsonev.com/blog/article/Cross-browser-handling-of-Ajax-requests-in-absurdjs
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = ajax;
+
+var _urls = require('rebound-utils/urls');
+
+var _urls2 = _interopRequireDefault(_urls);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function ajax(ops) {
+    if (typeof ops == 'string') ops = { url: ops };
+    ops.url = ops.url || '';
+    ops.json = ops.json || true;
+    ops.method = ops.method || 'get';
+    ops.data = ops.data || {};
+    var api = {
+        host: {},
+        process: function process(ops) {
+            var self = this;
+            this.xhr = null;
+            if (window.ActiveXObject) {
+                this.xhr = new ActiveXObject('Microsoft.XMLHTTP');
+            } else if (window.XMLHttpRequest) {
+                this.xhr = new XMLHttpRequest();
+            }
+            if (this.xhr) {
+                this.xhr.onreadystatechange = function () {
+                    if (self.xhr.readyState == 4 && self.xhr.status == 200) {
+                        var result = self.xhr.responseText;
+                        if (ops.json === true && typeof JSON != 'undefined') {
+                            result = JSON.parse(result);
+                        }
+                        self.doneCallback && self.doneCallback.apply(self.host, [result, self.xhr]);
+                        ops.success && ops.success.apply(self.host, [result, self.xhr]);
+                    } else if (self.xhr.readyState == 4) {
+                        self.failCallback && self.failCallback.apply(self.host, [self.xhr]);
+                        ops.error && ops.error.apply(self.host, [self.xhr]);
+                    }
+                    self.alwaysCallback && self.alwaysCallback.apply(self.host, [self.xhr]);
+                    ops.complete && ops.complete.apply(self.host, [self.xhr]);
+                };
+            }
+            if (ops.method == 'get') {
+                this.xhr.open("GET", ops.url + $.url.query.stringify(ops.data), true);
+                this.setHeaders({
+                    'X-Requested-With': 'XMLHttpRequest'
+                });
+            } else {
+                this.xhr.open(ops.method, ops.url, true);
+                this.setHeaders({
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-type': 'application/x-www-form-urlencoded'
+                });
+            }
+            if (ops.headers && _typeof(ops.headers) == 'object') {
+                this.setHeaders(ops.headers);
+            }
+            setTimeout(function () {
+                ops.method == 'get' ? self.xhr.send() : self.xhr.send($.url.query.stringify(ops.data));
+            }, 20);
+            return this.xhr;
+        },
+        done: function done(callback) {
+            this.doneCallback = callback;
+            return this;
+        },
+        fail: function fail(callback) {
+            this.failCallback = callback;
+            return this;
+        },
+        always: function always(callback) {
+            this.alwaysCallback = callback;
+            return this;
+        },
+        setHeaders: function setHeaders(headers) {
+            for (var name in headers) {
+                this.xhr && this.xhr.setRequestHeader(name, headers[name]);
+            }
+        }
+    };
+    return api.process(ops);
+}
+},{"rebound-utils/urls":38}],36:[function(require,module,exports){
+"use strict";
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
+
+Object.defineProperty(exports, "__esModule", {
+	value: true
+});
+exports.trigger = trigger;
+exports.off = off;
+exports.on = on;
+// Rebound DOM Events
+// ----------------
+
+// Rebound includes its own event binding and delegation helpers so the framework
+// is not dependant on a large DOM library like jQuery. Here we expose `on`,
+// `off` and `trigger` methods that mirror jQuery's events API for both native and
+// custom event types. These methods are added to Rebound's internal utility library
+// and used throughout the framework. AddEventListener supports IE9+
+
+// Events registry. An object containing all events bound through this util shared among all instances.
+var EVENT_CACHE = {};
+
+// Make only single copies of these functions so they aren't creted repeatedly.
+function returnFalse() {
+	return false;
+}
+function returnTrue() {
+	return true;
+}
+
+function Event(src, props) {
+	// Allow instantiation without the 'new' keyword
+	if (!(this instanceof Event)) {
+		return new Event(src, props);
+	}
+
+	// If src is an Event object, save the original event object and event type
+	if (src && src.type) {
+		this.originalEvent = src;
+		this.type = src.type;
+
+		// Events bubbling up the document may have been marked as prevented
+		// by a handler lower down the tree; reflect the correct value.
+		// Support: Android<4.0
+		this.isDefaultPrevented = src.defaultPrevented || src.returnValue === false ? returnTrue : returnFalse;
+	}
+
+	// Else if src is an Event type
+	else {
+			this.type = src;
+		}
+
+	// Put explicitly provided properties onto the event object
+	if (props) {
+		_.extend(this, props);
+	}
+
+	// Copy over all original event properties
+	_.extend(this, _.pick(this.originalEvent, ["altKey", "bubbles", "cancelable", "ctrlKey", "currentTarget", "eventPhase", "metaKey", "relatedTarget", "shiftKey", "target", "timeStamp", "view", "which", "char", "charCode", "key", "keyCode", "button", "buttons", "clientX", "clientY", "defaultPrevented", "offsetX", "offsetY", "pageX", "pageY", "screenX", "screenY", "toElement"]));
+
+	// Create a timestamp if incoming event doesn't have one
+	this.timeStamp = src && src.timeStamp || new Date().getTime();
+
+	// Mark it as fixed
+	this.isEvent = true;
+}
+
+Event.prototype = {
+	constructor: Event,
+	isDefaultPrevented: returnFalse,
+	isPropagationStopped: returnFalse,
+	isImmediatePropagationStopped: returnFalse,
+
+	// Call preventDefault on original event object.
+	preventDefault: function preventDefault() {
+		var e = this.originalEvent;
+		this.defaultPrevented = true;
+		this.isDefaultPrevented = returnTrue;
+		if (e && e.preventDefault) {
+			e.preventDefault();
+		}
+	},
+
+	// Call stopPropagation on original event object.
+	stopPropagation: function stopPropagation() {
+		var e = this.originalEvent;
+		this.isPropagationStopped = returnTrue;
+		if (e && e.stopPropagation) {
+			e.stopPropagation();
+		}
+	},
+
+	// Call stopImmediatePropagation on original event object and call stopPropagation.
+	stopImmediatePropagation: function stopImmediatePropagation() {
+		var e = this.originalEvent;
+		this.isImmediatePropagationStopped = returnTrue;
+		if (e && e.stopImmediatePropagation) {
+			e.stopImmediatePropagation();
+		}
+		this.stopPropagation();
+	}
+};
+
+// Given a delegate element, an event type, and a test element, test every delegate ID.
+// If it is the same as our test element's delegate ID, or if the test element matches
+// the delegate ID when it is used as a CSS selector, add the callback to the list of
+// callbacks to call.
+function getCallbacks(target, delegate, eventType) {
+	var callbacks = [];
+	if (target.delegateGroup && EVENT_CACHE[target.delegateGroup][eventType]) {
+		_.each(EVENT_CACHE[target.delegateGroup][eventType], function (callbacksList, delegateId) {
+			if (_.isArray(callbacksList) && (delegateId === delegate.delegateId || delegate.matchesSelector && delegate.matchesSelector(delegateId))) {
+				callbacks = callbacks.concat(callbacksList);
+			}
+		});
+	}
+	return callbacks;
+}
+
+function callback(event) {
+	var target = event.target,
+	    falsy = false,
+	    i,
+	    len,
+	    callbacks;
+
+	// Convert native Event to mutable Event
+	event = new Event(event || window.event);
+
+	// Travel from target up to parent firing event on delegate when it exists
+	while (target) {
+
+		// Attach this level's target
+		event.target = event.srcElement = target;
+
+		// Get all specified callbacks (element specific and selector specified)
+		callbacks = getCallbacks(this, target, event.type);
+		len = callbacks.length;
+
+		// For each callback,
+		for (i = 0; i < len; i++) {
+
+			// Call the callback
+			event.data = callbacks[i].data || {};
+			event.result = callbacks[i].handler.call(callbacks[i].el, event);
+
+			// If any of the callbacks returned false, prevent default and stop propagation
+			if (event.result === false) {
+				event.preventDefault();
+				event.stopPropagation();
+			}
+
+			// If stopImmediatePropagation has been called, stop immediately
+			if (event.isImmediatePropagationStopped()) {
+				return false;
+			}
+		}
+
+		// If stopPropagation has been called, stop immediately
+		if (event.isPropagationStopped()) {
+			return false;
+		}
+
+		// Bubble up to the next parent node and repeat
+		target = target.parentNode;
+	}
+}
+
+// Triggers an event on a given dom node
+function trigger(eventName, options) {
+	var el,
+	    len = this.length;
+	while (len--) {
+		el = this[len];
+		if (document.createEvent) {
+			var event = document.createEvent('HTMLEvents');
+			event.initEvent(eventName, true, false);
+			el.dispatchEvent(event);
+		} else {
+			el.fireEvent('on' + eventName);
+		}
+	}
+}
+
+function off(eventTypes, handler) {
+	var el,
+	    len = this.length,
+	    events;
+	eventTypes = eventTypes ? eventTypes.split(' ') : [];
+
+	// For each selected element
+	while (len--) {
+		el = this[len];
+
+		// If this element is given a delegate ID has events directly bound to it
+		if (el.delegateGroup && EVENT_CACHE[el.delegateGroup]) {
+
+			// For each event type specified (if no event types are passed, iterate over all events)
+			events = eventTypes.length ? eventTypes : Object.keys(EVENT_CACHE[el.delegateGroup]);
+			_.each(events, function (eventName) {
+				var newCallbacks,
+				    delegate,
+				    eventCount = 0,
+				    eventsList = EVENT_CACHE[el.delegateGroup][eventName];
+
+				for (delegate in eventsList) {
+					if (!eventsList.hasOwnProperty(delegate) || !_.isArray(eventsList[delegate])) {
+						continue;
+					}
+					newCallbacks = [];
+					eventsList[delegate].forEach(function (callback, index) {
+						if (callback.handler === handler || !handler) {
+							return null;
+						}
+						newCallbacks.push(callback);
+					});
+					eventsList[delegate] = newCallbacks;
+					eventCount = eventsList[delegate].length;
+				}
+
+				// If there are no more of this event type delegated for this group, remove the listener
+				if (eventCount === 0) {
+					el.removeEventListener(eventName, callback, eventName === 'focus' || eventName === 'blur');
+					delete EVENT_CACHE[el.delegateGroup][eventName];
+				}
+			});
+		}
+	}
+}
+
+function on(eventName, delegate, data, handler) {
+	var _this = this;
+
+	var len = this.length,
+	    eventNames = eventName.split(' '),
+	    delegateId,
+	    delegateGroup;
+
+	// The `on` method takes one of three forms: `on(eventName, [delegate, data,] handler)`
+	//  - If second param is a function, use that as our handler.
+	//  - If third param is a function, use that as our handler and the second param as the delegate selector
+	//  - If fourth param is a function, use that as our handler, the second param as the delegate selector, and the third params as the data object.
+	if (_.isFunction(delegate)) {
+		handler = delegate;data = {};delegate = void 0;
+	} else if (_.isFunction(data)) {
+		handler = data;data = {};delegate || (delegate = void 0);
+	} else if (_.isFunction(handler)) {
+		data || (data = {});delegate || (delegate = void 0);
+	} else {
+		return console.error("No handler passed to Rebound's $.on");
+	}
+
+	var _loop = function _loop() {
+		var el = _this[len];
+		delegate = delegate || _this.selector || el;
+
+		// If our delegate selector is not a string or element, show an error.
+		if (!_.isString(delegate) && !_.isElement(delegate)) {
+			return {
+				v: console.error("Delegate value passed to Rebound's $.on is neither an element or css selector")
+			};
+		}
+
+		delegateId = _.isString(delegate) ? delegate : delegate.delegateId = delegate.delegateId || _this.uniqueId('event');
+		delegateGroup = el.delegateGroup = el.delegateGroup || _this.uniqueId('delegateGroup');
+
+		_.each(eventNames, function (eventName) {
+
+			// Ensure event obj existance
+			EVENT_CACHE[delegateGroup] = EVENT_CACHE[delegateGroup] || {};
+
+			// If this is the first event of its type, add an event handler.
+			// Because we're only ever attaching one listener per event type, this is okay.
+			// This also allows our trigger method to actually fire delegated events
+			// If event is focus or blur, use capture to allow for event delegation.
+			if (!EVENT_CACHE[delegateGroup][eventName]) {
+				el.addEventListener(eventName, callback, eventName === 'focus' || eventName === 'blur');
+			}
+
+			// Add our listener
+			EVENT_CACHE[delegateGroup][eventName] = EVENT_CACHE[delegateGroup][eventName] || {};
+			EVENT_CACHE[delegateGroup][eventName][delegateId] = EVENT_CACHE[delegateGroup][eventName][delegateId] || [];
+			EVENT_CACHE[delegateGroup][eventName][delegateId].push({
+				el: el,
+				handler: handler,
+				data: data
+			});
+		}, _this);
+	};
+
+	while (len--) {
+		var _ret = _loop();
+
+		if ((typeof _ret === "undefined" ? "undefined" : _typeof(_ret)) === "object") return _ret.v;
+	}
+}
+
+exports.default = { on: on, off: off, trigger: trigger };
+},{}],37:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.$ = exports.REBOUND_SYMBOL = undefined;
+
+var _backbone = require("backbone");
+
+var _backbone2 = _interopRequireDefault(_backbone);
+
+var _urls = require("rebound-utils/urls");
+
+var _urls2 = _interopRequireDefault(_urls);
+
+var _ajax = require("rebound-utils/ajax");
+
+var _ajax2 = _interopRequireDefault(_ajax);
+
+var _events = require("rebound-utils/events");
+
+var _events2 = _interopRequireDefault(_events);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// Rebound Utils
+// ----------------
+
+var ID_COUNTERS = {};
+
+var REBOUND_SYMBOL = exports.REBOUND_SYMBOL = '__REBOUND_SYMBOL_PROPERTY_NAME__';
+
+var $ = exports.$ = function $(query) {
+
+  var i,
+      selector = [];
+
+  // Allow instantiation without the 'new' keyword
+  if (!(this instanceof $)) {
+    return new $(query);
+  }
+
+  // Ensure query is an array
+  query = _.isArray(query) ? query : [query];
+
+  // For each query in query array: If it is an element, push it to the selectors
+  // array. If it is a string, push all elements that match to selectors array.
+  _.each(query, function (item, index) {
+    if (_.isElement(item) || item === document || item === window) {
+      selector.push(item);
+    }
+    // Call slice to convert node list to array for push. Save selector used.
+    else if (_.isString(item)) {
+        this.selector = item;
+        Array.prototype.push.apply(selector, Array.prototype.slice.call(document.querySelectorAll(item)));
+      }
+  }, this);
+
+  // Cache the length of our matched elements
+  this.length = selector.length;
+
+  // Add selector to object for method chaining
+  for (i = 0; i < this.length; i++) {
+    this[i] = selector[i];
+  }
+};
+
+// Add url utils
+$.url = _urls2.default;
+
+// Add ajax util
+$.ajax = _ajax2.default;
+
+// Add event utils
+$.prototype.trigger = _events2.default.trigger;
+$.prototype.on = _events2.default.on;
+$.prototype.off = _events2.default.off;
+
+// Generate a unique integer id (unique within the entire client session).
+$.uniqueId = $.prototype.uniqueId = function uniqueId() {
+  var prefix = arguments.length <= 0 || arguments[0] === undefined ? '' : arguments[0];
+
+  ID_COUNTERS.hasOwnProperty(prefix) || (ID_COUNTERS[prefix] = 0);
+  return prefix + ++ID_COUNTERS[prefix];
+};
+
+// Applies function `func` depth first to every node in the subtree starting from `root`
+// If the callback returns `false`, short circuit that tree.
+$.prototype.walkTheDOM = function walkTheDOM(func) {
+  var el,
+      root,
+      len = this.length,
+      result;
+  while (len--) {
+    root = this[len];
+    result = func(root);
+    if (result === false) {
+      return void 0;
+    }
+    root = root.firstChild;
+    while (root) {
+      $(root).walkTheDOM(func);
+      root = root.nextSibling;
+    }
+  }
+};
+
+$.prototype.unMarkLinks = function unMarkLinks() {
+  var len = this.length;
+  while (len--) {
+    var links = this[len].querySelectorAll('a');
+    for (var i = 0; i < links.length; i++) {
+      links.item(i).classList.remove('active');
+      links.item(i).active = false;
+    }
+  }
+  return this;
+};
+
+$.prototype.markLinks = function markLinks() {
+  var len = this.length;
+  while (len--) {
+    var links = this[len].querySelectorAll('a[href="/' + _backbone2.default.history.fragment + '"]');
+    for (var i = 0; i < links.length; i++) {
+      links.item(i).classList.add('active');
+      links.item(i).active = true;
+    }
+  }
+  return this;
+};
+
+// Empty all selected nodes
+$.prototype.empty = function empty() {
+  var len = this.length;
+  while (len--) {
+    while (this[len].hasChildNodes()) {
+      this[len].removeChild(this[len].firstChild);
+    }
+  }
+  return this;
+};
+
+// Given a valid data path, split it into an array of its parts.
+// ex: foo.bar[0].baz --> ['foo', 'var', '0', 'baz']
+$.splitPath = function splitPath(path) {
+  path = ('.' + path + '.').split(/(?:\.|\[|\])+/);
+  path.pop();
+  path.shift();
+  return path;
+};
+
+// Searches each key in an object and tests if the property has a lookupGetter or
+// lookupSetter. If either are preset convert the property into a computed property.
+$.extractComputedProps = function extractComputedProps(obj) {
+  for (var key in obj) {
+    var get = undefined,
+        set = undefined;
+    if (!obj.hasOwnProperty(key)) continue;
+    var desc = Object.getOwnPropertyDescriptor(obj, key);
+    get = desc.hasOwnProperty('get') && desc.get;
+    set = desc.hasOwnProperty('set') && desc.set;
+    if (get || set) {
+      delete obj[key];
+      obj[key] = { get: get, set: set, isComputedProto: true };
+    }
+  }
+};
+
+// Returns true if the data path `str` starts with `test`
+$.startsWith = function startsWith(str, test) {
+  if (str === test) return true;
+  str = $.splitPath(str);
+  test = $.splitPath(test);
+  while (test[0] && str[0]) {
+    if (str[0] !== test[0] && str[0] !== '@each' && test[0] !== '@each') return false;
+    test.shift();
+    str.shift();
+  }
+  return true;
+};
+
+exports.default = $;
+},{"backbone":41,"rebound-utils/ajax":35,"rebound-utils/events":36,"rebound-utils/urls":38}],38:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _qs = require("qs");
+
+var _qs2 = _interopRequireDefault(_qs);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var QS_STRINGIFY_OPTS = {
+  allowDots: true,
+  encode: false,
+  delimiter: '&'
+};
+
+var QS_PARSE_OPTS = {
+  allowDots: true,
+  delimiter: /[;,&]/
+};
+
+exports.default = {
+  query: {
+    stringify: function stringify(str) {
+      return _qs2.default.stringify(str, QS_STRINGIFY_OPTS);
+    },
+    parse: function parse(obj) {
+      return _qs2.default.parse(obj, QS_PARSE_OPTS);
+    }
+  }
+};
+},{"qs":68}],39:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _backbone = require("backbone");
+
+var _backbone2 = _interopRequireDefault(_backbone);
+
+var _reboundUtils = require("rebound-utils/rebound-utils");
+
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
+
+var _reboundData = require("rebound-data/rebound-data");
+
+var _reboundRouter = require("rebound-router/rebound-router");
+
+var _reboundHtmlbars = require("rebound-htmlbars/rebound-htmlbars");
+
+var _factory = require("rebound-component/factory");
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// If Backbone doesn't have an ajax method from an external DOM library, use ours
+//     Rebound.js v0.2.0
+
+//     (c) 2015 Adam Miller
+//     Rebound may be freely distributed under the MIT license.
+//     For all details and documentation:
+//     http://reboundjs.com
+
+// Rebound Runtime
+// ----------------
+
+// Import Backbone
+_backbone2.default.ajax = _backbone2.default.$ && _backbone2.default.$.ajax && _backbone2.default.ajax || _reboundUtils2.default.ajax;
+
+// Fetch Rebound's Config Object from Rebound's `script` tag
+
+// Load our **Utils**, helper environment, **Rebound Data**,
+// **Rebound Components** and the **Rebound Router**
+var Config = document.getElementById('Rebound');
+Config = Config ? JSON.parse(Config.innerHTML) : false;
+
+var Rebound = window.Rebound = {
+  version: '0.2.0',
+  testing: window.Rebound && window.Rebound.testing || Config && Config.testing || false,
+
+  registerHelper: _reboundHtmlbars.registerHelper,
+  registerPartial: _reboundHtmlbars.registerPartial,
+  registerComponent: _factory.registerComponent,
+
+  Component: _factory.ComponentFactory,
+  Model: _reboundData.Model,
+  Collection: _reboundData.Collection,
+  ComputedProperty: _reboundData.ComputedProperty,
+
+  history: _backbone2.default.history,
+  services: _reboundRouter.services,
+  start: function start(options) {
+    var R = this;
+    return new Promise(function (resolve, reject) {
+      var run = function run() {
+        if (!document.body) {
+          return setTimeout(run.bind(R), 1);
+        }
+        delete R.router;
+        R.router = new _reboundRouter.Router(options, resolve);
+      };
+      run();
+    });
+  },
+  stop: function stop() {
+    if (!this.router) return console.error('No running Rebound router found!');
+    this.router.stop();
+  }
+};
+
+// Start the router if a config object is preset
+if (Config) {
+  Rebound.start(Config);
+}
+
+exports.default = Rebound;
+},{"backbone":41,"rebound-component/factory":3,"rebound-data/rebound-data":7,"rebound-htmlbars/rebound-htmlbars":30,"rebound-router/rebound-router":33,"rebound-utils/rebound-utils":37}],40:[function(require,module,exports){
+(function (global){
+(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.acorn = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
+// A recursive descent parser operates by defining functions for all
+// syntactic elements, and recursively calling those, each function
+// advancing the input stream and returning an AST node. Precedence
+// of constructs (for example, the fact that `!x[1]` means `!(x[1])`
+// instead of `(!x)[1]` is handled by the fact that the parser
+// function that parses unary prefix operators is called first, and
+// in turn calls the function that parses `[]` subscripts — that
+// way, it'll receive the node for `x[1]` already parsed, and wraps
+// *that* in the unary operator node.
+//
+// Acorn uses an [operator precedence parser][opp] to handle binary
+// operator precedence, because it is much more compact than using
+// the technique outlined above, which uses different, nesting
+// functions to specify precedence, for all of the ten binary
+// precedence levels that JavaScript defines.
+//
+// [opp]: http://en.wikipedia.org/wiki/Operator-precedence_parser
+
+"use strict";
+
+var _tokentype = _dereq_("./tokentype");
+
+var _state = _dereq_("./state");
+
+var pp = _state.Parser.prototype;
+
+// Check if property name clashes with already added.
+// Object/class getters and setters are not allowed to clash —
+// either with each other or with an init property — and in
+// strict mode, init properties are also not allowed to be repeated.
+
+pp.checkPropClash = function (prop, propHash) {
+  if (this.options.ecmaVersion >= 6 && (prop.computed || prop.method || prop.shorthand)) return;
+  var key = prop.key;var name = undefined;
+  switch (key.type) {
+    case "Identifier":
+      name = key.name;break;
+    case "Literal":
+      name = String(key.value);break;
+    default:
+      return;
+  }
+  var kind = prop.kind;
+
+  if (this.options.ecmaVersion >= 6) {
+    if (name === "__proto__" && kind === "init") {
+      if (propHash.proto) this.raise(key.start, "Redefinition of __proto__ property");
+      propHash.proto = true;
+    }
+    return;
+  }
+  name = "$" + name;
+  var other = propHash[name];
+  if (other) {
+    var isGetSet = kind !== "init";
+    if ((this.strict || isGetSet) && other[kind] || !(isGetSet ^ other.init)) this.raise(key.start, "Redefinition of property");
+  } else {
+    other = propHash[name] = {
+      init: false,
+      get: false,
+      set: false
+    };
+  }
+  other[kind] = true;
+};
+
+// ### Expression parsing
+
+// These nest, from the most general expression type at the top to
+// 'atomic', nondivisible expression types at the bottom. Most of
+// the functions will simply let the function(s) below them parse,
+// and, *if* the syntactic construct they handle is present, wrap
+// the AST node that the inner parser gave them in another node.
+
+// Parse a full expression. The optional arguments are used to
+// forbid the `in` operator (in for loops initalization expressions)
+// and provide reference for storing '=' operator inside shorthand
+// property assignment in contexts where both object expression
+// and object pattern might appear (so it's possible to raise
+// delayed syntax error at correct position).
+
+pp.parseExpression = function (noIn, refDestructuringErrors) {
+  var startPos = this.start,
+      startLoc = this.startLoc;
+  var expr = this.parseMaybeAssign(noIn, refDestructuringErrors);
+  if (this.type === _tokentype.types.comma) {
+    var node = this.startNodeAt(startPos, startLoc);
+    node.expressions = [expr];
+    while (this.eat(_tokentype.types.comma)) node.expressions.push(this.parseMaybeAssign(noIn, refDestructuringErrors));
+    return this.finishNode(node, "SequenceExpression");
+  }
+  return expr;
+};
+
+// Parse an assignment expression. This includes applications of
+// operators like `+=`.
+
+pp.parseMaybeAssign = function (noIn, refDestructuringErrors, afterLeftParse) {
+  if (this.type == _tokentype.types._yield && this.inGenerator) return this.parseYield();
+
+  var validateDestructuring = false;
+  if (!refDestructuringErrors) {
+    refDestructuringErrors = { shorthandAssign: 0, trailingComma: 0 };
+    validateDestructuring = true;
+  }
+  var startPos = this.start,
+      startLoc = this.startLoc;
+  if (this.type == _tokentype.types.parenL || this.type == _tokentype.types.name) this.potentialArrowAt = this.start;
+  var left = this.parseMaybeConditional(noIn, refDestructuringErrors);
+  if (afterLeftParse) left = afterLeftParse.call(this, left, startPos, startLoc);
+  if (this.type.isAssign) {
+    if (validateDestructuring) this.checkPatternErrors(refDestructuringErrors, true);
+    var node = this.startNodeAt(startPos, startLoc);
+    node.operator = this.value;
+    node.left = this.type === _tokentype.types.eq ? this.toAssignable(left) : left;
+    refDestructuringErrors.shorthandAssign = 0; // reset because shorthand default was used correctly
+    this.checkLVal(left);
+    this.next();
+    node.right = this.parseMaybeAssign(noIn);
+    return this.finishNode(node, "AssignmentExpression");
+  } else {
+    if (validateDestructuring) this.checkExpressionErrors(refDestructuringErrors, true);
+  }
+  return left;
+};
+
+// Parse a ternary conditional (`?:`) operator.
+
+pp.parseMaybeConditional = function (noIn, refDestructuringErrors) {
+  var startPos = this.start,
+      startLoc = this.startLoc;
+  var expr = this.parseExprOps(noIn, refDestructuringErrors);
+  if (this.checkExpressionErrors(refDestructuringErrors)) return expr;
+  if (this.eat(_tokentype.types.question)) {
+    var node = this.startNodeAt(startPos, startLoc);
+    node.test = expr;
+    node.consequent = this.parseMaybeAssign();
+    this.expect(_tokentype.types.colon);
+    node.alternate = this.parseMaybeAssign(noIn);
+    return this.finishNode(node, "ConditionalExpression");
+  }
+  return expr;
+};
+
+// Start the precedence parser.
+
+pp.parseExprOps = function (noIn, refDestructuringErrors) {
+  var startPos = this.start,
+      startLoc = this.startLoc;
+  var expr = this.parseMaybeUnary(refDestructuringErrors);
+  if (this.checkExpressionErrors(refDestructuringErrors)) return expr;
+  return this.parseExprOp(expr, startPos, startLoc, -1, noIn);
+};
+
+// Parse binary operators with the operator precedence parsing
+// algorithm. `left` is the left-hand side of the operator.
+// `minPrec` provides context that allows the function to stop and
+// defer further parser to one of its callers when it encounters an
+// operator that has a lower precedence than the set it is parsing.
+
+pp.parseExprOp = function (left, leftStartPos, leftStartLoc, minPrec, noIn) {
+  var prec = this.type.binop;
+  if (prec != null && (!noIn || this.type !== _tokentype.types._in)) {
+    if (prec > minPrec) {
+      var node = this.startNodeAt(leftStartPos, leftStartLoc);
+      node.left = left;
+      node.operator = this.value;
+      var op = this.type;
+      this.next();
+      var startPos = this.start,
+          startLoc = this.startLoc;
+      node.right = this.parseExprOp(this.parseMaybeUnary(), startPos, startLoc, prec, noIn);
+      this.finishNode(node, op === _tokentype.types.logicalOR || op === _tokentype.types.logicalAND ? "LogicalExpression" : "BinaryExpression");
+      return this.parseExprOp(node, leftStartPos, leftStartLoc, minPrec, noIn);
+    }
+  }
+  return left;
+};
+
+// Parse unary operators, both prefix and postfix.
+
+pp.parseMaybeUnary = function (refDestructuringErrors) {
+  if (this.type.prefix) {
+    var node = this.startNode(),
+        update = this.type === _tokentype.types.incDec;
+    node.operator = this.value;
+    node.prefix = true;
+    this.next();
+    node.argument = this.parseMaybeUnary();
+    this.checkExpressionErrors(refDestructuringErrors, true);
+    if (update) this.checkLVal(node.argument);else if (this.strict && node.operator === "delete" && node.argument.type === "Identifier") this.raise(node.start, "Deleting local variable in strict mode");
+    return this.finishNode(node, update ? "UpdateExpression" : "UnaryExpression");
+  }
+  var startPos = this.start,
+      startLoc = this.startLoc;
+  var expr = this.parseExprSubscripts(refDestructuringErrors);
+  if (this.checkExpressionErrors(refDestructuringErrors)) return expr;
+  while (this.type.postfix && !this.canInsertSemicolon()) {
+    var node = this.startNodeAt(startPos, startLoc);
+    node.operator = this.value;
+    node.prefix = false;
+    node.argument = expr;
+    this.checkLVal(expr);
+    this.next();
+    expr = this.finishNode(node, "UpdateExpression");
+  }
+  return expr;
+};
+
+// Parse call, dot, and `[]`-subscript expressions.
+
+pp.parseExprSubscripts = function (refDestructuringErrors) {
+  var startPos = this.start,
+      startLoc = this.startLoc;
+  var expr = this.parseExprAtom(refDestructuringErrors);
+  var skipArrowSubscripts = expr.type === "ArrowFunctionExpression" && this.input.slice(this.lastTokStart, this.lastTokEnd) !== ")";
+  if (this.checkExpressionErrors(refDestructuringErrors) || skipArrowSubscripts) return expr;
+  return this.parseSubscripts(expr, startPos, startLoc);
+};
+
+pp.parseSubscripts = function (base, startPos, startLoc, noCalls) {
+  for (;;) {
+    if (this.eat(_tokentype.types.dot)) {
+      var node = this.startNodeAt(startPos, startLoc);
+      node.object = base;
+      node.property = this.parseIdent(true);
+      node.computed = false;
+      base = this.finishNode(node, "MemberExpression");
+    } else if (this.eat(_tokentype.types.bracketL)) {
+      var node = this.startNodeAt(startPos, startLoc);
+      node.object = base;
+      node.property = this.parseExpression();
+      node.computed = true;
+      this.expect(_tokentype.types.bracketR);
+      base = this.finishNode(node, "MemberExpression");
+    } else if (!noCalls && this.eat(_tokentype.types.parenL)) {
+      var node = this.startNodeAt(startPos, startLoc);
+      node.callee = base;
+      node.arguments = this.parseExprList(_tokentype.types.parenR, false);
+      base = this.finishNode(node, "CallExpression");
+    } else if (this.type === _tokentype.types.backQuote) {
+      var node = this.startNodeAt(startPos, startLoc);
+      node.tag = base;
+      node.quasi = this.parseTemplate();
+      base = this.finishNode(node, "TaggedTemplateExpression");
+    } else {
+      return base;
+    }
+  }
+};
+
+// Parse an atomic expression — either a single token that is an
+// expression, an expression started by a keyword like `function` or
+// `new`, or an expression wrapped in punctuation like `()`, `[]`,
+// or `{}`.
+
+pp.parseExprAtom = function (refDestructuringErrors) {
+  var node = undefined,
+      canBeArrow = this.potentialArrowAt == this.start;
+  switch (this.type) {
+    case _tokentype.types._super:
+      if (!this.inFunction) this.raise(this.start, "'super' outside of function or class");
+    case _tokentype.types._this:
+      var type = this.type === _tokentype.types._this ? "ThisExpression" : "Super";
+      node = this.startNode();
+      this.next();
+      return this.finishNode(node, type);
+
+    case _tokentype.types._yield:
+      if (this.inGenerator) this.unexpected();
+
+    case _tokentype.types.name:
+      var startPos = this.start,
+          startLoc = this.startLoc;
+      var id = this.parseIdent(this.type !== _tokentype.types.name);
+      if (canBeArrow && !this.canInsertSemicolon() && this.eat(_tokentype.types.arrow)) return this.parseArrowExpression(this.startNodeAt(startPos, startLoc), [id]);
+      return id;
+
+    case _tokentype.types.regexp:
+      var value = this.value;
+      node = this.parseLiteral(value.value);
+      node.regex = { pattern: value.pattern, flags: value.flags };
+      return node;
+
+    case _tokentype.types.num:case _tokentype.types.string:
+      return this.parseLiteral(this.value);
+
+    case _tokentype.types._null:case _tokentype.types._true:case _tokentype.types._false:
+      node = this.startNode();
+      node.value = this.type === _tokentype.types._null ? null : this.type === _tokentype.types._true;
+      node.raw = this.type.keyword;
+      this.next();
+      return this.finishNode(node, "Literal");
+
+    case _tokentype.types.parenL:
+      return this.parseParenAndDistinguishExpression(canBeArrow);
+
+    case _tokentype.types.bracketL:
+      node = this.startNode();
+      this.next();
+      // check whether this is array comprehension or regular array
+      if (this.options.ecmaVersion >= 7 && this.type === _tokentype.types._for) {
+        return this.parseComprehension(node, false);
+      }
+      node.elements = this.parseExprList(_tokentype.types.bracketR, true, true, refDestructuringErrors);
+      return this.finishNode(node, "ArrayExpression");
+
+    case _tokentype.types.braceL:
+      return this.parseObj(false, refDestructuringErrors);
+
+    case _tokentype.types._function:
+      node = this.startNode();
+      this.next();
+      return this.parseFunction(node, false);
+
+    case _tokentype.types._class:
+      return this.parseClass(this.startNode(), false);
+
+    case _tokentype.types._new:
+      return this.parseNew();
+
+    case _tokentype.types.backQuote:
+      return this.parseTemplate();
+
+    default:
+      this.unexpected();
+  }
+};
+
+pp.parseLiteral = function (value) {
+  var node = this.startNode();
+  node.value = value;
+  node.raw = this.input.slice(this.start, this.end);
+  this.next();
+  return this.finishNode(node, "Literal");
+};
+
+pp.parseParenExpression = function () {
+  this.expect(_tokentype.types.parenL);
+  var val = this.parseExpression();
+  this.expect(_tokentype.types.parenR);
+  return val;
+};
+
+pp.parseParenAndDistinguishExpression = function (canBeArrow) {
+  var startPos = this.start,
+      startLoc = this.startLoc,
+      val = undefined;
+  if (this.options.ecmaVersion >= 6) {
+    this.next();
+
+    if (this.options.ecmaVersion >= 7 && this.type === _tokentype.types._for) {
+      return this.parseComprehension(this.startNodeAt(startPos, startLoc), true);
+    }
+
+    var innerStartPos = this.start,
+        innerStartLoc = this.startLoc;
+    var exprList = [],
+        first = true;
+    var refDestructuringErrors = { shorthandAssign: 0, trailingComma: 0 },
+        spreadStart = undefined,
+        innerParenStart = undefined;
+    while (this.type !== _tokentype.types.parenR) {
+      first ? first = false : this.expect(_tokentype.types.comma);
+      if (this.type === _tokentype.types.ellipsis) {
+        spreadStart = this.start;
+        exprList.push(this.parseParenItem(this.parseRest()));
+        break;
+      } else {
+        if (this.type === _tokentype.types.parenL && !innerParenStart) {
+          innerParenStart = this.start;
+        }
+        exprList.push(this.parseMaybeAssign(false, refDestructuringErrors, this.parseParenItem));
+      }
+    }
+    var innerEndPos = this.start,
+        innerEndLoc = this.startLoc;
+    this.expect(_tokentype.types.parenR);
+
+    if (canBeArrow && !this.canInsertSemicolon() && this.eat(_tokentype.types.arrow)) {
+      this.checkPatternErrors(refDestructuringErrors, true);
+      if (innerParenStart) this.unexpected(innerParenStart);
+      return this.parseParenArrowList(startPos, startLoc, exprList);
+    }
+
+    if (!exprList.length) this.unexpected(this.lastTokStart);
+    if (spreadStart) this.unexpected(spreadStart);
+    this.checkExpressionErrors(refDestructuringErrors, true);
+
+    if (exprList.length > 1) {
+      val = this.startNodeAt(innerStartPos, innerStartLoc);
+      val.expressions = exprList;
+      this.finishNodeAt(val, "SequenceExpression", innerEndPos, innerEndLoc);
+    } else {
+      val = exprList[0];
+    }
+  } else {
+    val = this.parseParenExpression();
+  }
+
+  if (this.options.preserveParens) {
+    var par = this.startNodeAt(startPos, startLoc);
+    par.expression = val;
+    return this.finishNode(par, "ParenthesizedExpression");
+  } else {
+    return val;
+  }
+};
+
+pp.parseParenItem = function (item) {
+  return item;
+};
+
+pp.parseParenArrowList = function (startPos, startLoc, exprList) {
+  return this.parseArrowExpression(this.startNodeAt(startPos, startLoc), exprList);
+};
+
+// New's precedence is slightly tricky. It must allow its argument to
+// be a `[]` or dot subscript expression, but not a call — at least,
+// not without wrapping it in parentheses. Thus, it uses the noCalls
+// argument to parseSubscripts to prevent it from consuming the
+// argument list.
+
+var empty = [];
+
+pp.parseNew = function () {
+  var node = this.startNode();
+  var meta = this.parseIdent(true);
+  if (this.options.ecmaVersion >= 6 && this.eat(_tokentype.types.dot)) {
+    node.meta = meta;
+    node.property = this.parseIdent(true);
+    if (node.property.name !== "target") this.raise(node.property.start, "The only valid meta property for new is new.target");
+    if (!this.inFunction) this.raise(node.start, "new.target can only be used in functions");
+    return this.finishNode(node, "MetaProperty");
+  }
+  var startPos = this.start,
+      startLoc = this.startLoc;
+  node.callee = this.parseSubscripts(this.parseExprAtom(), startPos, startLoc, true);
+  if (this.eat(_tokentype.types.parenL)) node.arguments = this.parseExprList(_tokentype.types.parenR, false);else node.arguments = empty;
+  return this.finishNode(node, "NewExpression");
+};
+
+// Parse template expression.
+
+pp.parseTemplateElement = function () {
+  var elem = this.startNode();
+  elem.value = {
+    raw: this.input.slice(this.start, this.end).replace(/\r\n?/g, '\n'),
+    cooked: this.value
+  };
+  this.next();
+  elem.tail = this.type === _tokentype.types.backQuote;
+  return this.finishNode(elem, "TemplateElement");
+};
+
+pp.parseTemplate = function () {
+  var node = this.startNode();
+  this.next();
+  node.expressions = [];
+  var curElt = this.parseTemplateElement();
+  node.quasis = [curElt];
+  while (!curElt.tail) {
+    this.expect(_tokentype.types.dollarBraceL);
+    node.expressions.push(this.parseExpression());
+    this.expect(_tokentype.types.braceR);
+    node.quasis.push(curElt = this.parseTemplateElement());
+  }
+  this.next();
+  return this.finishNode(node, "TemplateLiteral");
+};
+
+// Parse an object literal or binding pattern.
+
+pp.parseObj = function (isPattern, refDestructuringErrors) {
+  var node = this.startNode(),
+      first = true,
+      propHash = {};
+  node.properties = [];
+  this.next();
+  while (!this.eat(_tokentype.types.braceR)) {
+    if (!first) {
+      this.expect(_tokentype.types.comma);
+      if (this.afterTrailingComma(_tokentype.types.braceR)) break;
+    } else first = false;
+
+    var prop = this.startNode(),
+        isGenerator = undefined,
+        startPos = undefined,
+        startLoc = undefined;
+    if (this.options.ecmaVersion >= 6) {
+      prop.method = false;
+      prop.shorthand = false;
+      if (isPattern || refDestructuringErrors) {
+        startPos = this.start;
+        startLoc = this.startLoc;
+      }
+      if (!isPattern) isGenerator = this.eat(_tokentype.types.star);
+    }
+    this.parsePropertyName(prop);
+    this.parsePropertyValue(prop, isPattern, isGenerator, startPos, startLoc, refDestructuringErrors);
+    this.checkPropClash(prop, propHash);
+    node.properties.push(this.finishNode(prop, "Property"));
+  }
+  return this.finishNode(node, isPattern ? "ObjectPattern" : "ObjectExpression");
+};
+
+pp.parsePropertyValue = function (prop, isPattern, isGenerator, startPos, startLoc, refDestructuringErrors) {
+  if (this.eat(_tokentype.types.colon)) {
+    prop.value = isPattern ? this.parseMaybeDefault(this.start, this.startLoc) : this.parseMaybeAssign(false, refDestructuringErrors);
+    prop.kind = "init";
+  } else if (this.options.ecmaVersion >= 6 && this.type === _tokentype.types.parenL) {
+    if (isPattern) this.unexpected();
+    prop.kind = "init";
+    prop.method = true;
+    prop.value = this.parseMethod(isGenerator);
+  } else if (this.options.ecmaVersion >= 5 && !prop.computed && prop.key.type === "Identifier" && (prop.key.name === "get" || prop.key.name === "set") && (this.type != _tokentype.types.comma && this.type != _tokentype.types.braceR)) {
+    if (isGenerator || isPattern) this.unexpected();
+    prop.kind = prop.key.name;
+    this.parsePropertyName(prop);
+    prop.value = this.parseMethod(false);
+    var paramCount = prop.kind === "get" ? 0 : 1;
+    if (prop.value.params.length !== paramCount) {
+      var start = prop.value.start;
+      if (prop.kind === "get") this.raise(start, "getter should have no params");else this.raise(start, "setter should have exactly one param");
+    }
+    if (prop.kind === "set" && prop.value.params[0].type === "RestElement") this.raise(prop.value.params[0].start, "Setter cannot use rest params");
+  } else if (this.options.ecmaVersion >= 6 && !prop.computed && prop.key.type === "Identifier") {
+    prop.kind = "init";
+    if (isPattern) {
+      if (this.keywords.test(prop.key.name) || (this.strict ? this.reservedWordsStrictBind : this.reservedWords).test(prop.key.name)) this.raise(prop.key.start, "Binding " + prop.key.name);
+      prop.value = this.parseMaybeDefault(startPos, startLoc, prop.key);
+    } else if (this.type === _tokentype.types.eq && refDestructuringErrors) {
+      if (!refDestructuringErrors.shorthandAssign) refDestructuringErrors.shorthandAssign = this.start;
+      prop.value = this.parseMaybeDefault(startPos, startLoc, prop.key);
+    } else {
+      prop.value = prop.key;
+    }
+    prop.shorthand = true;
+  } else this.unexpected();
+};
+
+pp.parsePropertyName = function (prop) {
+  if (this.options.ecmaVersion >= 6) {
+    if (this.eat(_tokentype.types.bracketL)) {
+      prop.computed = true;
+      prop.key = this.parseMaybeAssign();
+      this.expect(_tokentype.types.bracketR);
+      return prop.key;
+    } else {
+      prop.computed = false;
+    }
+  }
+  return prop.key = this.type === _tokentype.types.num || this.type === _tokentype.types.string ? this.parseExprAtom() : this.parseIdent(true);
+};
+
+// Initialize empty function node.
+
+pp.initFunction = function (node) {
+  node.id = null;
+  if (this.options.ecmaVersion >= 6) {
+    node.generator = false;
+    node.expression = false;
+  }
+};
+
+// Parse object or class method.
+
+pp.parseMethod = function (isGenerator) {
+  var node = this.startNode();
+  this.initFunction(node);
+  this.expect(_tokentype.types.parenL);
+  node.params = this.parseBindingList(_tokentype.types.parenR, false, false);
+  if (this.options.ecmaVersion >= 6) node.generator = isGenerator;
+  this.parseFunctionBody(node, false);
+  return this.finishNode(node, "FunctionExpression");
+};
+
+// Parse arrow function expression with given parameters.
+
+pp.parseArrowExpression = function (node, params) {
+  this.initFunction(node);
+  node.params = this.toAssignableList(params, true);
+  this.parseFunctionBody(node, true);
+  return this.finishNode(node, "ArrowFunctionExpression");
+};
+
+// Parse function body and check parameters.
+
+pp.parseFunctionBody = function (node, isArrowFunction) {
+  var isExpression = isArrowFunction && this.type !== _tokentype.types.braceL;
+
+  if (isExpression) {
+    node.body = this.parseMaybeAssign();
+    node.expression = true;
+  } else {
+    // Start a new scope with regard to labels and the `inFunction`
+    // flag (restore them to their old value afterwards).
+    var oldInFunc = this.inFunction,
+        oldInGen = this.inGenerator,
+        oldLabels = this.labels;
+    this.inFunction = true;this.inGenerator = node.generator;this.labels = [];
+    node.body = this.parseBlock(true);
+    node.expression = false;
+    this.inFunction = oldInFunc;this.inGenerator = oldInGen;this.labels = oldLabels;
+  }
+
+  // If this is a strict mode function, verify that argument names
+  // are not repeated, and it does not try to bind the words `eval`
+  // or `arguments`.
+  if (this.strict || !isExpression && node.body.body.length && this.isUseStrict(node.body.body[0])) {
+    var oldStrict = this.strict;
+    this.strict = true;
+    if (node.id) this.checkLVal(node.id, true);
+    this.checkParams(node);
+    this.strict = oldStrict;
+  } else if (isArrowFunction) {
+    this.checkParams(node);
+  }
+};
+
+// Checks function params for various disallowed patterns such as using "eval"
+// or "arguments" and duplicate parameters.
+
+pp.checkParams = function (node) {
+  var nameHash = {};
+  for (var i = 0; i < node.params.length; i++) {
+    this.checkLVal(node.params[i], true, nameHash);
+  }
+};
+
+// Parses a comma-separated list of expressions, and returns them as
+// an array. `close` is the token type that ends the list, and
+// `allowEmpty` can be turned on to allow subsequent commas with
+// nothing in between them to be parsed as `null` (which is needed
+// for array literals).
+
+pp.parseExprList = function (close, allowTrailingComma, allowEmpty, refDestructuringErrors) {
+  var elts = [],
+      first = true;
+  while (!this.eat(close)) {
+    if (!first) {
+      this.expect(_tokentype.types.comma);
+      if (this.type === close && refDestructuringErrors && !refDestructuringErrors.trailingComma) {
+        refDestructuringErrors.trailingComma = this.lastTokStart;
+      }
+      if (allowTrailingComma && this.afterTrailingComma(close)) break;
+    } else first = false;
+
+    var elt = undefined;
+    if (allowEmpty && this.type === _tokentype.types.comma) elt = null;else if (this.type === _tokentype.types.ellipsis) elt = this.parseSpread(refDestructuringErrors);else elt = this.parseMaybeAssign(false, refDestructuringErrors);
+    elts.push(elt);
+  }
+  return elts;
+};
+
+// Parse the next token as an identifier. If `liberal` is true (used
+// when parsing properties), it will also convert keywords into
+// identifiers.
+
+pp.parseIdent = function (liberal) {
+  var node = this.startNode();
+  if (liberal && this.options.allowReserved == "never") liberal = false;
+  if (this.type === _tokentype.types.name) {
+    if (!liberal && (this.strict ? this.reservedWordsStrict : this.reservedWords).test(this.value) && (this.options.ecmaVersion >= 6 || this.input.slice(this.start, this.end).indexOf("\\") == -1)) this.raise(this.start, "The keyword '" + this.value + "' is reserved");
+    node.name = this.value;
+  } else if (liberal && this.type.keyword) {
+    node.name = this.type.keyword;
+  } else {
+    this.unexpected();
+  }
+  this.next();
+  return this.finishNode(node, "Identifier");
+};
+
+// Parses yield expression inside generator.
+
+pp.parseYield = function () {
+  var node = this.startNode();
+  this.next();
+  if (this.type == _tokentype.types.semi || this.canInsertSemicolon() || this.type != _tokentype.types.star && !this.type.startsExpr) {
+    node.delegate = false;
+    node.argument = null;
+  } else {
+    node.delegate = this.eat(_tokentype.types.star);
+    node.argument = this.parseMaybeAssign();
+  }
+  return this.finishNode(node, "YieldExpression");
+};
+
+// Parses array and generator comprehensions.
+
+pp.parseComprehension = function (node, isGenerator) {
+  node.blocks = [];
+  while (this.type === _tokentype.types._for) {
+    var block = this.startNode();
+    this.next();
+    this.expect(_tokentype.types.parenL);
+    block.left = this.parseBindingAtom();
+    this.checkLVal(block.left, true);
+    this.expectContextual("of");
+    block.right = this.parseExpression();
+    this.expect(_tokentype.types.parenR);
+    node.blocks.push(this.finishNode(block, "ComprehensionBlock"));
+  }
+  node.filter = this.eat(_tokentype.types._if) ? this.parseParenExpression() : null;
+  node.body = this.parseExpression();
+  this.expect(isGenerator ? _tokentype.types.parenR : _tokentype.types.bracketR);
+  node.generator = isGenerator;
+  return this.finishNode(node, "ComprehensionExpression");
+};
+
+},{"./state":10,"./tokentype":14}],2:[function(_dereq_,module,exports){
+// This is a trick taken from Esprima. It turns out that, on
+// non-Chrome browsers, to check whether a string is in a set, a
+// predicate containing a big ugly `switch` statement is faster than
+// a regular expression, and on Chrome the two are about on par.
+// This function uses `eval` (non-lexical) to produce such a
+// predicate from a space-separated string of words.
+//
+// It starts by sorting the words by length.
+
+// Reserved word lists for various dialects of the language
+
+"use strict";
+
+exports.__esModule = true;
+exports.isIdentifierStart = isIdentifierStart;
+exports.isIdentifierChar = isIdentifierChar;
+var reservedWords = {
+  3: "abstract boolean byte char class double enum export extends final float goto implements import int interface long native package private protected public short static super synchronized throws transient volatile",
+  5: "class enum extends super const export import",
+  6: "enum",
+  strict: "implements interface let package private protected public static yield",
+  strictBind: "eval arguments"
+};
+
+exports.reservedWords = reservedWords;
+// And the keywords
+
+var ecma5AndLessKeywords = "break case catch continue debugger default do else finally for function if return switch throw try var while with null true false instanceof typeof void delete new in this";
+
+var keywords = {
+  5: ecma5AndLessKeywords,
+  6: ecma5AndLessKeywords + " let const class extends export import yield super"
+};
+
+exports.keywords = keywords;
+// ## Character categories
+
+// Big ugly regular expressions that match characters in the
+// whitespace, identifier, and identifier-start categories. These
+// are only applied when a character is found to actually have a
+// code point above 128.
+// Generated by `bin/generate-identifier-regex.js`.
+
+var nonASCIIidentifierStartChars = "ªµºÀ-ÖØ-öø-ˁˆ-ˑˠ-ˤˬˮͰ-ʹͶͷͺ-ͽͿΆΈ-ΊΌΎ-ΡΣ-ϵϷ-ҁҊ-ԯԱ-Ֆՙա-ևא-תװ-ײؠ-يٮٯٱ-ۓەۥۦۮۯۺ-ۼۿܐܒ-ܯݍ-ޥޱߊ-ߪߴߵߺࠀ-ࠕࠚࠤࠨࡀ-ࡘࢠ-ࢲऄ-हऽॐक़-ॡॱ-ঀঅ-ঌএঐও-নপ-রলশ-হঽৎড়ঢ়য়-ৡৰৱਅ-ਊਏਐਓ-ਨਪ-ਰਲਲ਼ਵਸ਼ਸਹਖ਼-ੜਫ਼ੲ-ੴઅ-ઍએ-ઑઓ-નપ-રલળવ-હઽૐૠૡଅ-ଌଏଐଓ-ନପ-ରଲଳଵ-ହଽଡ଼ଢ଼ୟ-ୡୱஃஅ-ஊஎ-ஐஒ-கஙசஜஞடணதந-பம-ஹௐఅ-ఌఎ-ఐఒ-నప-హఽౘౙౠౡಅ-ಌಎ-ಐಒ-ನಪ-ಳವ-ಹಽೞೠೡೱೲഅ-ഌഎ-ഐഒ-ഺഽൎൠൡൺ-ൿඅ-ඖක-නඳ-රලව-ෆก-ะาำเ-ๆກຂຄງຈຊຍດ-ທນ-ຟມ-ຣລວສຫອ-ະາຳຽເ-ໄໆໜ-ໟༀཀ-ཇཉ-ཬྈ-ྌက-ဪဿၐ-ၕၚ-ၝၡၥၦၮ-ၰၵ-ႁႎႠ-ჅჇჍა-ჺჼ-ቈቊ-ቍቐ-ቖቘቚ-ቝበ-ኈኊ-ኍነ-ኰኲ-ኵኸ-ኾዀዂ-ዅወ-ዖዘ-ጐጒ-ጕጘ-ፚᎀ-ᎏᎠ-Ᏼᐁ-ᙬᙯ-ᙿᚁ-ᚚᚠ-ᛪᛮ-ᛸᜀ-ᜌᜎ-ᜑᜠ-ᜱᝀ-ᝑᝠ-ᝬᝮ-ᝰក-ឳៗៜᠠ-ᡷᢀ-ᢨᢪᢰ-ᣵᤀ-ᤞᥐ-ᥭᥰ-ᥴᦀ-ᦫᧁ-ᧇᨀ-ᨖᨠ-ᩔᪧᬅ-ᬳᭅ-ᭋᮃ-ᮠᮮᮯᮺ-ᯥᰀ-ᰣᱍ-ᱏᱚ-ᱽᳩ-ᳬᳮ-ᳱᳵᳶᴀ-ᶿḀ-ἕἘ-Ἕἠ-ὅὈ-Ὅὐ-ὗὙὛὝὟ-ώᾀ-ᾴᾶ-ᾼιῂ-ῄῆ-ῌῐ-ΐῖ-Ίῠ-Ῥῲ-ῴῶ-ῼⁱⁿₐ-ₜℂℇℊ-ℓℕ℘-ℝℤΩℨK-ℹℼ-ℿⅅ-ⅉⅎⅠ-ↈⰀ-Ⱞⰰ-ⱞⱠ-ⳤⳫ-ⳮⳲⳳⴀ-ⴥⴧⴭⴰ-ⵧⵯⶀ-ⶖⶠ-ⶦⶨ-ⶮⶰ-ⶶⶸ-ⶾⷀ-ⷆⷈ-ⷎⷐ-ⷖⷘ-ⷞ々-〇〡-〩〱-〵〸-〼ぁ-ゖ゛-ゟァ-ヺー-ヿㄅ-ㄭㄱ-ㆎㆠ-ㆺㇰ-ㇿ㐀-䶵一-鿌ꀀ-ꒌꓐ-ꓽꔀ-ꘌꘐ-ꘟꘪꘫꙀ-ꙮꙿ-ꚝꚠ-ꛯꜗ-ꜟꜢ-ꞈꞋ-ꞎꞐ-ꞭꞰꞱꟷ-ꠁꠃ-ꠅꠇ-ꠊꠌ-ꠢꡀ-ꡳꢂ-ꢳꣲ-ꣷꣻꤊ-ꤥꤰ-ꥆꥠ-ꥼꦄ-ꦲꧏꧠ-ꧤꧦ-ꧯꧺ-ꧾꨀ-ꨨꩀ-ꩂꩄ-ꩋꩠ-ꩶꩺꩾ-ꪯꪱꪵꪶꪹ-ꪽꫀꫂꫛ-ꫝꫠ-ꫪꫲ-ꫴꬁ-ꬆꬉ-ꬎꬑ-ꬖꬠ-ꬦꬨ-ꬮꬰ-ꭚꭜ-ꭟꭤꭥꯀ-ꯢ가-힣ힰ-ퟆퟋ-ퟻ豈-舘並-龎ﬀ-ﬆﬓ-ﬗיִײַ-ﬨשׁ-זּטּ-לּמּנּסּףּפּצּ-ﮱﯓ-ﴽﵐ-ﶏﶒ-ﷇﷰ-ﷻﹰ-ﹴﹶ-ﻼＡ-Ｚａ-ｚｦ-ﾾￂ-ￇￊ-ￏￒ-ￗￚ-ￜ";
+var nonASCIIidentifierChars = "‌‍·̀-ͯ·҃-֑҇-ׇֽֿׁׂׅׄؐ-ًؚ-٩ٰۖ-ۜ۟-۪ۤۧۨ-ۭ۰-۹ܑܰ-݊ަ-ް߀-߉߫-߳ࠖ-࠙ࠛ-ࠣࠥ-ࠧࠩ-࡙࠭-࡛ࣤ-ःऺ-़ा-ॏ॑-ॗॢॣ०-९ঁ-ঃ়া-ৄেৈো-্ৗৢৣ০-৯ਁ-ਃ਼ਾ-ੂੇੈੋ-੍ੑ੦-ੱੵઁ-ઃ઼ા-ૅે-ૉો-્ૢૣ૦-૯ଁ-ଃ଼ା-ୄେୈୋ-୍ୖୗୢୣ୦-୯ஂா-ூெ-ைொ-்ௗ௦-௯ఀ-ఃా-ౄె-ైొ-్ౕౖౢౣ౦-౯ಁ-ಃ಼ಾ-ೄೆ-ೈೊ-್ೕೖೢೣ೦-೯ഁ-ഃാ-ൄെ-ൈൊ-്ൗൢൣ൦-൯ංඃ්ා-ුූෘ-ෟ෦-෯ෲෳัิ-ฺ็-๎๐-๙ັິ-ູົຼ່-ໍ໐-໙༘༙༠-༩༹༵༷༾༿ཱ-྄྆྇ྍ-ྗྙ-ྼ࿆ါ-ှ၀-၉ၖ-ၙၞ-ၠၢ-ၤၧ-ၭၱ-ၴႂ-ႍႏ-ႝ፝-፟፩-፱ᜒ-᜔ᜲ-᜴ᝒᝓᝲᝳ឴-៓៝០-៩᠋-᠍᠐-᠙ᢩᤠ-ᤫᤰ-᤻᥆-᥏ᦰ-ᧀᧈᧉ᧐-᧚ᨗ-ᨛᩕ-ᩞ᩠-᩿᩼-᪉᪐-᪙᪰-᪽ᬀ-ᬄ᬴-᭄᭐-᭙᭫-᭳ᮀ-ᮂᮡ-ᮭ᮰-᮹᯦-᯳ᰤ-᰷᱀-᱉᱐-᱙᳐-᳔᳒-᳨᳭ᳲ-᳴᳸᳹᷀-᷵᷼-᷿‿⁀⁔⃐-⃥⃜⃡-⃰⳯-⵿⳱ⷠ-〪ⷿ-゙゚〯꘠-꘩꙯ꙴ-꙽ꚟ꛰꛱ꠂ꠆ꠋꠣ-ꠧꢀꢁꢴ-꣄꣐-꣙꣠-꣱꤀-꤉ꤦ-꤭ꥇ-꥓ꦀ-ꦃ꦳-꧀꧐-꧙ꧥ꧰-꧹ꨩ-ꨶꩃꩌꩍ꩐-꩙ꩻ-ꩽꪰꪲ-ꪴꪷꪸꪾ꪿꫁ꫫ-ꫯꫵ꫶ꯣ-ꯪ꯬꯭꯰-꯹ﬞ︀-️︠-︭︳︴﹍-﹏０-９＿";
+
+var nonASCIIidentifierStart = new RegExp("[" + nonASCIIidentifierStartChars + "]");
+var nonASCIIidentifier = new RegExp("[" + nonASCIIidentifierStartChars + nonASCIIidentifierChars + "]");
+
+nonASCIIidentifierStartChars = nonASCIIidentifierChars = null;
+
+// These are a run-length and offset encoded representation of the
+// >0xffff code points that are a valid part of identifiers. The
+// offset starts at 0x10000, and each pair of numbers represents an
+// offset to the next range, and then a size of the range. They were
+// generated by tools/generate-identifier-regex.js
+var astralIdentifierStartCodes = [0, 11, 2, 25, 2, 18, 2, 1, 2, 14, 3, 13, 35, 122, 70, 52, 268, 28, 4, 48, 48, 31, 17, 26, 6, 37, 11, 29, 3, 35, 5, 7, 2, 4, 43, 157, 99, 39, 9, 51, 157, 310, 10, 21, 11, 7, 153, 5, 3, 0, 2, 43, 2, 1, 4, 0, 3, 22, 11, 22, 10, 30, 98, 21, 11, 25, 71, 55, 7, 1, 65, 0, 16, 3, 2, 2, 2, 26, 45, 28, 4, 28, 36, 7, 2, 27, 28, 53, 11, 21, 11, 18, 14, 17, 111, 72, 955, 52, 76, 44, 33, 24, 27, 35, 42, 34, 4, 0, 13, 47, 15, 3, 22, 0, 38, 17, 2, 24, 133, 46, 39, 7, 3, 1, 3, 21, 2, 6, 2, 1, 2, 4, 4, 0, 32, 4, 287, 47, 21, 1, 2, 0, 185, 46, 82, 47, 21, 0, 60, 42, 502, 63, 32, 0, 449, 56, 1288, 920, 104, 110, 2962, 1070, 13266, 568, 8, 30, 114, 29, 19, 47, 17, 3, 32, 20, 6, 18, 881, 68, 12, 0, 67, 12, 16481, 1, 3071, 106, 6, 12, 4, 8, 8, 9, 5991, 84, 2, 70, 2, 1, 3, 0, 3, 1, 3, 3, 2, 11, 2, 0, 2, 6, 2, 64, 2, 3, 3, 7, 2, 6, 2, 27, 2, 3, 2, 4, 2, 0, 4, 6, 2, 339, 3, 24, 2, 24, 2, 30, 2, 24, 2, 30, 2, 24, 2, 30, 2, 24, 2, 30, 2, 24, 2, 7, 4149, 196, 1340, 3, 2, 26, 2, 1, 2, 0, 3, 0, 2, 9, 2, 3, 2, 0, 2, 0, 7, 0, 5, 0, 2, 0, 2, 0, 2, 2, 2, 1, 2, 0, 3, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 1, 2, 0, 3, 3, 2, 6, 2, 3, 2, 3, 2, 0, 2, 9, 2, 16, 6, 2, 2, 4, 2, 16, 4421, 42710, 42, 4148, 12, 221, 16355, 541];
+var astralIdentifierCodes = [509, 0, 227, 0, 150, 4, 294, 9, 1368, 2, 2, 1, 6, 3, 41, 2, 5, 0, 166, 1, 1306, 2, 54, 14, 32, 9, 16, 3, 46, 10, 54, 9, 7, 2, 37, 13, 2, 9, 52, 0, 13, 2, 49, 13, 16, 9, 83, 11, 168, 11, 6, 9, 8, 2, 57, 0, 2, 6, 3, 1, 3, 2, 10, 0, 11, 1, 3, 6, 4, 4, 316, 19, 13, 9, 214, 6, 3, 8, 112, 16, 16, 9, 82, 12, 9, 9, 535, 9, 20855, 9, 135, 4, 60, 6, 26, 9, 1016, 45, 17, 3, 19723, 1, 5319, 4, 4, 5, 9, 7, 3, 6, 31, 3, 149, 2, 1418, 49, 4305, 6, 792618, 239];
+
+// This has a complexity linear to the value of the code. The
+// assumption is that looking up astral identifier characters is
+// rare.
+function isInAstralSet(code, set) {
+  var pos = 0x10000;
+  for (var i = 0; i < set.length; i += 2) {
+    pos += set[i];
+    if (pos > code) return false;
+    pos += set[i + 1];
+    if (pos >= code) return true;
+  }
+}
+
+// Test whether a given character code starts an identifier.
+
+function isIdentifierStart(code, astral) {
+  if (code < 65) return code === 36;
+  if (code < 91) return true;
+  if (code < 97) return code === 95;
+  if (code < 123) return true;
+  if (code <= 0xffff) return code >= 0xaa && nonASCIIidentifierStart.test(String.fromCharCode(code));
+  if (astral === false) return false;
+  return isInAstralSet(code, astralIdentifierStartCodes);
+}
+
+// Test whether a given character is part of an identifier.
+
+function isIdentifierChar(code, astral) {
+  if (code < 48) return code === 36;
+  if (code < 58) return true;
+  if (code < 65) return false;
+  if (code < 91) return true;
+  if (code < 97) return code === 95;
+  if (code < 123) return true;
+  if (code <= 0xffff) return code >= 0xaa && nonASCIIidentifier.test(String.fromCharCode(code));
+  if (astral === false) return false;
+  return isInAstralSet(code, astralIdentifierStartCodes) || isInAstralSet(code, astralIdentifierCodes);
+}
+
+},{}],3:[function(_dereq_,module,exports){
+// Acorn is a tiny, fast JavaScript parser written in JavaScript.
+//
+// Acorn was written by Marijn Haverbeke, Ingvar Stepanyan, and
+// various contributors and released under an MIT license.
+//
+// Git repositories for Acorn are available at
+//
+//     http://marijnhaverbeke.nl/git/acorn
+//     https://github.com/ternjs/acorn.git
+//
+// Please use the [github bug tracker][ghbt] to report issues.
+//
+// [ghbt]: https://github.com/ternjs/acorn/issues
+//
+// This file defines the main parser interface. The library also comes
+// with a [error-tolerant parser][dammit] and an
+// [abstract syntax tree walker][walk], defined in other files.
+//
+// [dammit]: acorn_loose.js
+// [walk]: util/walk.js
+
+"use strict";
+
+exports.__esModule = true;
+exports.parse = parse;
+exports.parseExpressionAt = parseExpressionAt;
+exports.tokenizer = tokenizer;
+
+var _state = _dereq_("./state");
+
+_dereq_("./parseutil");
+
+_dereq_("./statement");
+
+_dereq_("./lval");
+
+_dereq_("./expression");
+
+_dereq_("./location");
+
+exports.Parser = _state.Parser;
+exports.plugins = _state.plugins;
+
+var _options = _dereq_("./options");
+
+exports.defaultOptions = _options.defaultOptions;
+
+var _locutil = _dereq_("./locutil");
+
+exports.Position = _locutil.Position;
+exports.SourceLocation = _locutil.SourceLocation;
+exports.getLineInfo = _locutil.getLineInfo;
+
+var _node = _dereq_("./node");
+
+exports.Node = _node.Node;
+
+var _tokentype = _dereq_("./tokentype");
+
+exports.TokenType = _tokentype.TokenType;
+exports.tokTypes = _tokentype.types;
+
+var _tokencontext = _dereq_("./tokencontext");
+
+exports.TokContext = _tokencontext.TokContext;
+exports.tokContexts = _tokencontext.types;
+
+var _identifier = _dereq_("./identifier");
+
+exports.isIdentifierChar = _identifier.isIdentifierChar;
+exports.isIdentifierStart = _identifier.isIdentifierStart;
+
+var _tokenize = _dereq_("./tokenize");
+
+exports.Token = _tokenize.Token;
+
+var _whitespace = _dereq_("./whitespace");
+
+exports.isNewLine = _whitespace.isNewLine;
+exports.lineBreak = _whitespace.lineBreak;
+exports.lineBreakG = _whitespace.lineBreakG;
+var version = "2.7.0";
+
+exports.version = version;
+// The main exported interface (under `self.acorn` when in the
+// browser) is a `parse` function that takes a code string and
+// returns an abstract syntax tree as specified by [Mozilla parser
+// API][api].
+//
+// [api]: https://developer.mozilla.org/en-US/docs/SpiderMonkey/Parser_API
+
+function parse(input, options) {
+  return new _state.Parser(options, input).parse();
+}
+
+// This function tries to parse a single expression at a given
+// offset in a string. Useful for parsing mixed-language formats
+// that embed JavaScript expressions.
+
+function parseExpressionAt(input, pos, options) {
+  var p = new _state.Parser(options, input, pos);
+  p.nextToken();
+  return p.parseExpression();
+}
+
+// Acorn is organized as a tokenizer and a recursive-descent parser.
+// The `tokenizer` export provides an interface to the tokenizer.
+
+function tokenizer(input, options) {
+  return new _state.Parser(options, input);
+}
+
+},{"./expression":1,"./identifier":2,"./location":4,"./locutil":5,"./lval":6,"./node":7,"./options":8,"./parseutil":9,"./state":10,"./statement":11,"./tokencontext":12,"./tokenize":13,"./tokentype":14,"./whitespace":16}],4:[function(_dereq_,module,exports){
+"use strict";
+
+var _state = _dereq_("./state");
+
+var _locutil = _dereq_("./locutil");
+
+var pp = _state.Parser.prototype;
+
+// This function is used to raise exceptions on parse errors. It
+// takes an offset integer (into the current `input`) to indicate
+// the location of the error, attaches the position to the end
+// of the error message, and then raises a `SyntaxError` with that
+// message.
+
+pp.raise = function (pos, message) {
+  var loc = _locutil.getLineInfo(this.input, pos);
+  message += " (" + loc.line + ":" + loc.column + ")";
+  var err = new SyntaxError(message);
+  err.pos = pos;err.loc = loc;err.raisedAt = this.pos;
+  throw err;
+};
+
+pp.curPosition = function () {
+  if (this.options.locations) {
+    return new _locutil.Position(this.curLine, this.pos - this.lineStart);
+  }
+};
+
+},{"./locutil":5,"./state":10}],5:[function(_dereq_,module,exports){
+"use strict";
+
+exports.__esModule = true;
+exports.getLineInfo = getLineInfo;
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var _whitespace = _dereq_("./whitespace");
+
+// These are used when `options.locations` is on, for the
+// `startLoc` and `endLoc` properties.
+
+var Position = (function () {
+  function Position(line, col) {
+    _classCallCheck(this, Position);
+
+    this.line = line;
+    this.column = col;
+  }
+
+  Position.prototype.offset = function offset(n) {
+    return new Position(this.line, this.column + n);
+  };
+
+  return Position;
+})();
+
+exports.Position = Position;
+
+var SourceLocation = function SourceLocation(p, start, end) {
+  _classCallCheck(this, SourceLocation);
+
+  this.start = start;
+  this.end = end;
+  if (p.sourceFile !== null) this.source = p.sourceFile;
+}
+
+// The `getLineInfo` function is mostly useful when the
+// `locations` option is off (for performance reasons) and you
+// want to find the line/column position for a given character
+// offset. `input` should be the code string that the offset refers
+// into.
+
+;
+
+exports.SourceLocation = SourceLocation;
+
+function getLineInfo(input, offset) {
+  for (var line = 1, cur = 0;;) {
+    _whitespace.lineBreakG.lastIndex = cur;
+    var match = _whitespace.lineBreakG.exec(input);
+    if (match && match.index < offset) {
+      ++line;
+      cur = match.index + match[0].length;
+    } else {
+      return new Position(line, offset - cur);
+    }
+  }
+}
+
+},{"./whitespace":16}],6:[function(_dereq_,module,exports){
+"use strict";
+
+var _tokentype = _dereq_("./tokentype");
+
+var _state = _dereq_("./state");
+
+var _util = _dereq_("./util");
+
+var pp = _state.Parser.prototype;
+
+// Convert existing expression atom to assignable pattern
+// if possible.
+
+pp.toAssignable = function (node, isBinding) {
+  if (this.options.ecmaVersion >= 6 && node) {
+    switch (node.type) {
+      case "Identifier":
+      case "ObjectPattern":
+      case "ArrayPattern":
+        break;
+
+      case "ObjectExpression":
+        node.type = "ObjectPattern";
+        for (var i = 0; i < node.properties.length; i++) {
+          var prop = node.properties[i];
+          if (prop.kind !== "init") this.raise(prop.key.start, "Object pattern can't contain getter or setter");
+          this.toAssignable(prop.value, isBinding);
+        }
+        break;
+
+      case "ArrayExpression":
+        node.type = "ArrayPattern";
+        this.toAssignableList(node.elements, isBinding);
+        break;
+
+      case "AssignmentExpression":
+        if (node.operator === "=") {
+          node.type = "AssignmentPattern";
+          delete node.operator;
+          // falls through to AssignmentPattern
+        } else {
+            this.raise(node.left.end, "Only '=' operator can be used for specifying default value.");
+            break;
+          }
+
+      case "AssignmentPattern":
+        if (node.right.type === "YieldExpression") this.raise(node.right.start, "Yield expression cannot be a default value");
+        break;
+
+      case "ParenthesizedExpression":
+        node.expression = this.toAssignable(node.expression, isBinding);
+        break;
+
+      case "MemberExpression":
+        if (!isBinding) break;
+
+      default:
+        this.raise(node.start, "Assigning to rvalue");
+    }
+  }
+  return node;
+};
+
+// Convert list of expression atoms to binding list.
+
+pp.toAssignableList = function (exprList, isBinding) {
+  var end = exprList.length;
+  if (end) {
+    var last = exprList[end - 1];
+    if (last && last.type == "RestElement") {
+      --end;
+    } else if (last && last.type == "SpreadElement") {
+      last.type = "RestElement";
+      var arg = last.argument;
+      this.toAssignable(arg, isBinding);
+      if (arg.type !== "Identifier" && arg.type !== "MemberExpression" && arg.type !== "ArrayPattern") this.unexpected(arg.start);
+      --end;
+    }
+
+    if (isBinding && last.type === "RestElement" && last.argument.type !== "Identifier") this.unexpected(last.argument.start);
+  }
+  for (var i = 0; i < end; i++) {
+    var elt = exprList[i];
+    if (elt) this.toAssignable(elt, isBinding);
+  }
+  return exprList;
+};
+
+// Parses spread element.
+
+pp.parseSpread = function (refDestructuringErrors) {
+  var node = this.startNode();
+  this.next();
+  node.argument = this.parseMaybeAssign(refDestructuringErrors);
+  return this.finishNode(node, "SpreadElement");
+};
+
+pp.parseRest = function (allowNonIdent) {
+  var node = this.startNode();
+  this.next();
+
+  // RestElement inside of a function parameter must be an identifier
+  if (allowNonIdent) node.argument = this.type === _tokentype.types.name ? this.parseIdent() : this.unexpected();else node.argument = this.type === _tokentype.types.name || this.type === _tokentype.types.bracketL ? this.parseBindingAtom() : this.unexpected();
+
+  return this.finishNode(node, "RestElement");
+};
+
+// Parses lvalue (assignable) atom.
+
+pp.parseBindingAtom = function () {
+  if (this.options.ecmaVersion < 6) return this.parseIdent();
+  switch (this.type) {
+    case _tokentype.types.name:
+      return this.parseIdent();
+
+    case _tokentype.types.bracketL:
+      var node = this.startNode();
+      this.next();
+      node.elements = this.parseBindingList(_tokentype.types.bracketR, true, true);
+      return this.finishNode(node, "ArrayPattern");
+
+    case _tokentype.types.braceL:
+      return this.parseObj(true);
+
+    default:
+      this.unexpected();
+  }
+};
+
+pp.parseBindingList = function (close, allowEmpty, allowTrailingComma, allowNonIdent) {
+  var elts = [],
+      first = true;
+  while (!this.eat(close)) {
+    if (first) first = false;else this.expect(_tokentype.types.comma);
+    if (allowEmpty && this.type === _tokentype.types.comma) {
+      elts.push(null);
+    } else if (allowTrailingComma && this.afterTrailingComma(close)) {
+      break;
+    } else if (this.type === _tokentype.types.ellipsis) {
+      var rest = this.parseRest(allowNonIdent);
+      this.parseBindingListItem(rest);
+      elts.push(rest);
+      this.expect(close);
+      break;
+    } else {
+      var elem = this.parseMaybeDefault(this.start, this.startLoc);
+      this.parseBindingListItem(elem);
+      elts.push(elem);
+    }
+  }
+  return elts;
+};
+
+pp.parseBindingListItem = function (param) {
+  return param;
+};
+
+// Parses assignment pattern around given atom if possible.
+
+pp.parseMaybeDefault = function (startPos, startLoc, left) {
+  left = left || this.parseBindingAtom();
+  if (this.options.ecmaVersion < 6 || !this.eat(_tokentype.types.eq)) return left;
+  var node = this.startNodeAt(startPos, startLoc);
+  node.left = left;
+  node.right = this.parseMaybeAssign();
+  return this.finishNode(node, "AssignmentPattern");
+};
+
+// Verify that a node is an lval — something that can be assigned
+// to.
+
+pp.checkLVal = function (expr, isBinding, checkClashes) {
+  switch (expr.type) {
+    case "Identifier":
+      if (this.strict && this.reservedWordsStrictBind.test(expr.name)) this.raise(expr.start, (isBinding ? "Binding " : "Assigning to ") + expr.name + " in strict mode");
+      if (checkClashes) {
+        if (_util.has(checkClashes, expr.name)) this.raise(expr.start, "Argument name clash");
+        checkClashes[expr.name] = true;
+      }
+      break;
+
+    case "MemberExpression":
+      if (isBinding) this.raise(expr.start, (isBinding ? "Binding" : "Assigning to") + " member expression");
+      break;
+
+    case "ObjectPattern":
+      for (var i = 0; i < expr.properties.length; i++) {
+        this.checkLVal(expr.properties[i].value, isBinding, checkClashes);
+      }break;
+
+    case "ArrayPattern":
+      for (var i = 0; i < expr.elements.length; i++) {
+        var elem = expr.elements[i];
+        if (elem) this.checkLVal(elem, isBinding, checkClashes);
+      }
+      break;
+
+    case "AssignmentPattern":
+      this.checkLVal(expr.left, isBinding, checkClashes);
+      break;
+
+    case "RestElement":
+      this.checkLVal(expr.argument, isBinding, checkClashes);
+      break;
+
+    case "ParenthesizedExpression":
+      this.checkLVal(expr.expression, isBinding, checkClashes);
+      break;
+
+    default:
+      this.raise(expr.start, (isBinding ? "Binding" : "Assigning to") + " rvalue");
+  }
+};
+
+},{"./state":10,"./tokentype":14,"./util":15}],7:[function(_dereq_,module,exports){
+"use strict";
+
+exports.__esModule = true;
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var _state = _dereq_("./state");
+
+var _locutil = _dereq_("./locutil");
+
+var Node = function Node(parser, pos, loc) {
+  _classCallCheck(this, Node);
+
+  this.type = "";
+  this.start = pos;
+  this.end = 0;
+  if (parser.options.locations) this.loc = new _locutil.SourceLocation(parser, loc);
+  if (parser.options.directSourceFile) this.sourceFile = parser.options.directSourceFile;
+  if (parser.options.ranges) this.range = [pos, 0];
+}
+
+// Start an AST node, attaching a start offset.
+
+;
+
+exports.Node = Node;
+var pp = _state.Parser.prototype;
+
+pp.startNode = function () {
+  return new Node(this, this.start, this.startLoc);
+};
+
+pp.startNodeAt = function (pos, loc) {
+  return new Node(this, pos, loc);
+};
+
+// Finish an AST node, adding `type` and `end` properties.
+
+function finishNodeAt(node, type, pos, loc) {
+  node.type = type;
+  node.end = pos;
+  if (this.options.locations) node.loc.end = loc;
+  if (this.options.ranges) node.range[1] = pos;
+  return node;
+}
+
+pp.finishNode = function (node, type) {
+  return finishNodeAt.call(this, node, type, this.lastTokEnd, this.lastTokEndLoc);
+};
+
+// Finish node at given position
+
+pp.finishNodeAt = function (node, type, pos, loc) {
+  return finishNodeAt.call(this, node, type, pos, loc);
+};
+
+},{"./locutil":5,"./state":10}],8:[function(_dereq_,module,exports){
+"use strict";
+
+exports.__esModule = true;
+exports.getOptions = getOptions;
+
+var _util = _dereq_("./util");
+
+var _locutil = _dereq_("./locutil");
+
+// A second optional argument can be given to further configure
+// the parser process. These options are recognized:
+
+var defaultOptions = {
+  // `ecmaVersion` indicates the ECMAScript version to parse. Must
+  // be either 3, or 5, or 6. This influences support for strict
+  // mode, the set of reserved words, support for getters and
+  // setters and other features.
+  ecmaVersion: 5,
+  // Source type ("script" or "module") for different semantics
+  sourceType: "script",
+  // `onInsertedSemicolon` can be a callback that will be called
+  // when a semicolon is automatically inserted. It will be passed
+  // th position of the comma as an offset, and if `locations` is
+  // enabled, it is given the location as a `{line, column}` object
+  // as second argument.
+  onInsertedSemicolon: null,
+  // `onTrailingComma` is similar to `onInsertedSemicolon`, but for
+  // trailing commas.
+  onTrailingComma: null,
+  // By default, reserved words are only enforced if ecmaVersion >= 5.
+  // Set `allowReserved` to a boolean value to explicitly turn this on
+  // an off. When this option has the value "never", reserved words
+  // and keywords can also not be used as property names.
+  allowReserved: null,
+  // When enabled, a return at the top level is not considered an
+  // error.
+  allowReturnOutsideFunction: false,
+  // When enabled, import/export statements are not constrained to
+  // appearing at the top of the program.
+  allowImportExportEverywhere: false,
+  // When enabled, hashbang directive in the beginning of file
+  // is allowed and treated as a line comment.
+  allowHashBang: false,
+  // When `locations` is on, `loc` properties holding objects with
+  // `start` and `end` properties in `{line, column}` form (with
+  // line being 1-based and column 0-based) will be attached to the
+  // nodes.
+  locations: false,
+  // A function can be passed as `onToken` option, which will
+  // cause Acorn to call that function with object in the same
+  // format as tokens returned from `tokenizer().getToken()`. Note
+  // that you are not allowed to call the parser from the
+  // callback—that will corrupt its internal state.
+  onToken: null,
+  // A function can be passed as `onComment` option, which will
+  // cause Acorn to call that function with `(block, text, start,
+  // end)` parameters whenever a comment is skipped. `block` is a
+  // boolean indicating whether this is a block (`/* */`) comment,
+  // `text` is the content of the comment, and `start` and `end` are
+  // character offsets that denote the start and end of the comment.
+  // When the `locations` option is on, two more parameters are
+  // passed, the full `{line, column}` locations of the start and
+  // end of the comments. Note that you are not allowed to call the
+  // parser from the callback—that will corrupt its internal state.
+  onComment: null,
+  // Nodes have their start and end characters offsets recorded in
+  // `start` and `end` properties (directly on the node, rather than
+  // the `loc` object, which holds line/column data. To also add a
+  // [semi-standardized][range] `range` property holding a `[start,
+  // end]` array with the same numbers, set the `ranges` option to
+  // `true`.
+  //
+  // [range]: https://bugzilla.mozilla.org/show_bug.cgi?id=745678
+  ranges: false,
+  // It is possible to parse multiple files into a single AST by
+  // passing the tree produced by parsing the first file as
+  // `program` option in subsequent parses. This will add the
+  // toplevel forms of the parsed file to the `Program` (top) node
+  // of an existing parse tree.
+  program: null,
+  // When `locations` is on, you can pass this to record the source
+  // file in every node's `loc` object.
+  sourceFile: null,
+  // This value, if given, is stored in every node, whether
+  // `locations` is on or off.
+  directSourceFile: null,
+  // When enabled, parenthesized expressions are represented by
+  // (non-standard) ParenthesizedExpression nodes
+  preserveParens: false,
+  plugins: {}
+};
+
+exports.defaultOptions = defaultOptions;
+// Interpret and default an options object
+
+function getOptions(opts) {
+  var options = {};
+  for (var opt in defaultOptions) {
+    options[opt] = opts && _util.has(opts, opt) ? opts[opt] : defaultOptions[opt];
+  }if (options.allowReserved == null) options.allowReserved = options.ecmaVersion < 5;
+
+  if (_util.isArray(options.onToken)) {
+    (function () {
+      var tokens = options.onToken;
+      options.onToken = function (token) {
+        return tokens.push(token);
+      };
+    })();
+  }
+  if (_util.isArray(options.onComment)) options.onComment = pushComment(options, options.onComment);
+
+  return options;
+}
+
+function pushComment(options, array) {
+  return function (block, text, start, end, startLoc, endLoc) {
+    var comment = {
+      type: block ? 'Block' : 'Line',
+      value: text,
+      start: start,
+      end: end
+    };
+    if (options.locations) comment.loc = new _locutil.SourceLocation(this, startLoc, endLoc);
+    if (options.ranges) comment.range = [start, end];
+    array.push(comment);
+  };
+}
+
+},{"./locutil":5,"./util":15}],9:[function(_dereq_,module,exports){
+"use strict";
+
+var _tokentype = _dereq_("./tokentype");
+
+var _state = _dereq_("./state");
+
+var _whitespace = _dereq_("./whitespace");
+
+var pp = _state.Parser.prototype;
+
+// ## Parser utilities
+
+// Test whether a statement node is the string literal `"use strict"`.
+
+pp.isUseStrict = function (stmt) {
+  return this.options.ecmaVersion >= 5 && stmt.type === "ExpressionStatement" && stmt.expression.type === "Literal" && stmt.expression.raw.slice(1, -1) === "use strict";
+};
+
+// Predicate that tests whether the next token is of the given
+// type, and if yes, consumes it as a side effect.
+
+pp.eat = function (type) {
+  if (this.type === type) {
+    this.next();
+    return true;
+  } else {
+    return false;
+  }
+};
+
+// Tests whether parsed token is a contextual keyword.
+
+pp.isContextual = function (name) {
+  return this.type === _tokentype.types.name && this.value === name;
+};
+
+// Consumes contextual keyword if possible.
+
+pp.eatContextual = function (name) {
+  return this.value === name && this.eat(_tokentype.types.name);
+};
+
+// Asserts that following token is given contextual keyword.
+
+pp.expectContextual = function (name) {
+  if (!this.eatContextual(name)) this.unexpected();
+};
+
+// Test whether a semicolon can be inserted at the current position.
+
+pp.canInsertSemicolon = function () {
+  return this.type === _tokentype.types.eof || this.type === _tokentype.types.braceR || _whitespace.lineBreak.test(this.input.slice(this.lastTokEnd, this.start));
+};
+
+pp.insertSemicolon = function () {
+  if (this.canInsertSemicolon()) {
+    if (this.options.onInsertedSemicolon) this.options.onInsertedSemicolon(this.lastTokEnd, this.lastTokEndLoc);
+    return true;
+  }
+};
+
+// Consume a semicolon, or, failing that, see if we are allowed to
+// pretend that there is a semicolon at this position.
+
+pp.semicolon = function () {
+  if (!this.eat(_tokentype.types.semi) && !this.insertSemicolon()) this.unexpected();
+};
+
+pp.afterTrailingComma = function (tokType) {
+  if (this.type == tokType) {
+    if (this.options.onTrailingComma) this.options.onTrailingComma(this.lastTokStart, this.lastTokStartLoc);
+    this.next();
+    return true;
+  }
+};
+
+// Expect a token of a given type. If found, consume it, otherwise,
+// raise an unexpected token error.
+
+pp.expect = function (type) {
+  this.eat(type) || this.unexpected();
+};
+
+// Raise an unexpected token error.
+
+pp.unexpected = function (pos) {
+  this.raise(pos != null ? pos : this.start, "Unexpected token");
+};
+
+pp.checkPatternErrors = function (refDestructuringErrors, andThrow) {
+  var pos = refDestructuringErrors && refDestructuringErrors.trailingComma;
+  if (!andThrow) return !!pos;
+  if (pos) this.raise(pos, "Trailing comma is not permitted in destructuring patterns");
+};
+
+pp.checkExpressionErrors = function (refDestructuringErrors, andThrow) {
+  var pos = refDestructuringErrors && refDestructuringErrors.shorthandAssign;
+  if (!andThrow) return !!pos;
+  if (pos) this.raise(pos, "Shorthand property assignments are valid only in destructuring patterns");
+};
+
+},{"./state":10,"./tokentype":14,"./whitespace":16}],10:[function(_dereq_,module,exports){
+"use strict";
+
+exports.__esModule = true;
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var _identifier = _dereq_("./identifier");
+
+var _tokentype = _dereq_("./tokentype");
+
+var _whitespace = _dereq_("./whitespace");
+
+var _options = _dereq_("./options");
+
+// Registered plugins
+var plugins = {};
+
+exports.plugins = plugins;
+function keywordRegexp(words) {
+  return new RegExp("^(" + words.replace(/ /g, "|") + ")$");
+}
+
+var Parser = (function () {
+  function Parser(options, input, startPos) {
+    _classCallCheck(this, Parser);
+
+    this.options = options = _options.getOptions(options);
+    this.sourceFile = options.sourceFile;
+    this.keywords = keywordRegexp(_identifier.keywords[options.ecmaVersion >= 6 ? 6 : 5]);
+    var reserved = options.allowReserved ? "" : _identifier.reservedWords[options.ecmaVersion] + (options.sourceType == "module" ? " await" : "");
+    this.reservedWords = keywordRegexp(reserved);
+    var reservedStrict = (reserved ? reserved + " " : "") + _identifier.reservedWords.strict;
+    this.reservedWordsStrict = keywordRegexp(reservedStrict);
+    this.reservedWordsStrictBind = keywordRegexp(reservedStrict + " " + _identifier.reservedWords.strictBind);
+    this.input = String(input);
+
+    // Used to signal to callers of `readWord1` whether the word
+    // contained any escape sequences. This is needed because words with
+    // escape sequences must not be interpreted as keywords.
+    this.containsEsc = false;
+
+    // Load plugins
+    this.loadPlugins(options.plugins);
+
+    // Set up token state
+
+    // The current position of the tokenizer in the input.
+    if (startPos) {
+      this.pos = startPos;
+      this.lineStart = Math.max(0, this.input.lastIndexOf("\n", startPos));
+      this.curLine = this.input.slice(0, this.lineStart).split(_whitespace.lineBreak).length;
+    } else {
+      this.pos = this.lineStart = 0;
+      this.curLine = 1;
+    }
+
+    // Properties of the current token:
+    // Its type
+    this.type = _tokentype.types.eof;
+    // For tokens that include more information than their type, the value
+    this.value = null;
+    // Its start and end offset
+    this.start = this.end = this.pos;
+    // And, if locations are used, the {line, column} object
+    // corresponding to those offsets
+    this.startLoc = this.endLoc = this.curPosition();
+
+    // Position information for the previous token
+    this.lastTokEndLoc = this.lastTokStartLoc = null;
+    this.lastTokStart = this.lastTokEnd = this.pos;
+
+    // The context stack is used to superficially track syntactic
+    // context to predict whether a regular expression is allowed in a
+    // given position.
+    this.context = this.initialContext();
+    this.exprAllowed = true;
+
+    // Figure out if it's a module code.
+    this.strict = this.inModule = options.sourceType === "module";
+
+    // Used to signify the start of a potential arrow function
+    this.potentialArrowAt = -1;
+
+    // Flags to track whether we are in a function, a generator.
+    this.inFunction = this.inGenerator = false;
+    // Labels in scope.
+    this.labels = [];
+
+    // If enabled, skip leading hashbang line.
+    if (this.pos === 0 && options.allowHashBang && this.input.slice(0, 2) === '#!') this.skipLineComment(2);
+  }
+
+  // DEPRECATED Kept for backwards compatibility until 3.0 in case a plugin uses them
+
+  Parser.prototype.isKeyword = function isKeyword(word) {
+    return this.keywords.test(word);
+  };
+
+  Parser.prototype.isReservedWord = function isReservedWord(word) {
+    return this.reservedWords.test(word);
+  };
+
+  Parser.prototype.extend = function extend(name, f) {
+    this[name] = f(this[name]);
+  };
+
+  Parser.prototype.loadPlugins = function loadPlugins(pluginConfigs) {
+    for (var _name in pluginConfigs) {
+      var plugin = plugins[_name];
+      if (!plugin) throw new Error("Plugin '" + _name + "' not found");
+      plugin(this, pluginConfigs[_name]);
+    }
+  };
+
+  Parser.prototype.parse = function parse() {
+    var node = this.options.program || this.startNode();
+    this.nextToken();
+    return this.parseTopLevel(node);
+  };
+
+  return Parser;
+})();
+
+exports.Parser = Parser;
+
+},{"./identifier":2,"./options":8,"./tokentype":14,"./whitespace":16}],11:[function(_dereq_,module,exports){
+"use strict";
+
+var _tokentype = _dereq_("./tokentype");
+
+var _state = _dereq_("./state");
+
+var _whitespace = _dereq_("./whitespace");
+
+var pp = _state.Parser.prototype;
+
+// ### Statement parsing
+
+// Parse a program. Initializes the parser, reads any number of
+// statements, and wraps them in a Program node.  Optionally takes a
+// `program` argument.  If present, the statements will be appended
+// to its body instead of creating a new node.
+
+pp.parseTopLevel = function (node) {
+  var first = true;
+  if (!node.body) node.body = [];
+  while (this.type !== _tokentype.types.eof) {
+    var stmt = this.parseStatement(true, true);
+    node.body.push(stmt);
+    if (first) {
+      if (this.isUseStrict(stmt)) this.setStrict(true);
+      first = false;
+    }
+  }
+  this.next();
+  if (this.options.ecmaVersion >= 6) {
+    node.sourceType = this.options.sourceType;
+  }
+  return this.finishNode(node, "Program");
+};
+
+var loopLabel = { kind: "loop" },
+    switchLabel = { kind: "switch" };
+
+// Parse a single statement.
+//
+// If expecting a statement and finding a slash operator, parse a
+// regular expression literal. This is to handle cases like
+// `if (foo) /blah/.exec(foo)`, where looking at the previous token
+// does not help.
+
+pp.parseStatement = function (declaration, topLevel) {
+  var starttype = this.type,
+      node = this.startNode();
+
+  // Most types of statements are recognized by the keyword they
+  // start with. Many are trivial to parse, some require a bit of
+  // complexity.
+
+  switch (starttype) {
+    case _tokentype.types._break:case _tokentype.types._continue:
+      return this.parseBreakContinueStatement(node, starttype.keyword);
+    case _tokentype.types._debugger:
+      return this.parseDebuggerStatement(node);
+    case _tokentype.types._do:
+      return this.parseDoStatement(node);
+    case _tokentype.types._for:
+      return this.parseForStatement(node);
+    case _tokentype.types._function:
+      if (!declaration && this.options.ecmaVersion >= 6) this.unexpected();
+      return this.parseFunctionStatement(node);
+    case _tokentype.types._class:
+      if (!declaration) this.unexpected();
+      return this.parseClass(node, true);
+    case _tokentype.types._if:
+      return this.parseIfStatement(node);
+    case _tokentype.types._return:
+      return this.parseReturnStatement(node);
+    case _tokentype.types._switch:
+      return this.parseSwitchStatement(node);
+    case _tokentype.types._throw:
+      return this.parseThrowStatement(node);
+    case _tokentype.types._try:
+      return this.parseTryStatement(node);
+    case _tokentype.types._let:case _tokentype.types._const:
+      if (!declaration) this.unexpected(); // NOTE: falls through to _var
+    case _tokentype.types._var:
+      return this.parseVarStatement(node, starttype);
+    case _tokentype.types._while:
+      return this.parseWhileStatement(node);
+    case _tokentype.types._with:
+      return this.parseWithStatement(node);
+    case _tokentype.types.braceL:
+      return this.parseBlock();
+    case _tokentype.types.semi:
+      return this.parseEmptyStatement(node);
+    case _tokentype.types._export:
+    case _tokentype.types._import:
+      if (!this.options.allowImportExportEverywhere) {
+        if (!topLevel) this.raise(this.start, "'import' and 'export' may only appear at the top level");
+        if (!this.inModule) this.raise(this.start, "'import' and 'export' may appear only with 'sourceType: module'");
+      }
+      return starttype === _tokentype.types._import ? this.parseImport(node) : this.parseExport(node);
+
+    // If the statement does not start with a statement keyword or a
+    // brace, it's an ExpressionStatement or LabeledStatement. We
+    // simply start parsing an expression, and afterwards, if the
+    // next token is a colon and the expression was a simple
+    // Identifier node, we switch to interpreting it as a label.
+    default:
+      var maybeName = this.value,
+          expr = this.parseExpression();
+      if (starttype === _tokentype.types.name && expr.type === "Identifier" && this.eat(_tokentype.types.colon)) return this.parseLabeledStatement(node, maybeName, expr);else return this.parseExpressionStatement(node, expr);
+  }
+};
+
+pp.parseBreakContinueStatement = function (node, keyword) {
+  var isBreak = keyword == "break";
+  this.next();
+  if (this.eat(_tokentype.types.semi) || this.insertSemicolon()) node.label = null;else if (this.type !== _tokentype.types.name) this.unexpected();else {
+    node.label = this.parseIdent();
+    this.semicolon();
+  }
+
+  // Verify that there is an actual destination to break or
+  // continue to.
+  for (var i = 0; i < this.labels.length; ++i) {
+    var lab = this.labels[i];
+    if (node.label == null || lab.name === node.label.name) {
+      if (lab.kind != null && (isBreak || lab.kind === "loop")) break;
+      if (node.label && isBreak) break;
+    }
+  }
+  if (i === this.labels.length) this.raise(node.start, "Unsyntactic " + keyword);
+  return this.finishNode(node, isBreak ? "BreakStatement" : "ContinueStatement");
+};
+
+pp.parseDebuggerStatement = function (node) {
+  this.next();
+  this.semicolon();
+  return this.finishNode(node, "DebuggerStatement");
+};
+
+pp.parseDoStatement = function (node) {
+  this.next();
+  this.labels.push(loopLabel);
+  node.body = this.parseStatement(false);
+  this.labels.pop();
+  this.expect(_tokentype.types._while);
+  node.test = this.parseParenExpression();
+  if (this.options.ecmaVersion >= 6) this.eat(_tokentype.types.semi);else this.semicolon();
+  return this.finishNode(node, "DoWhileStatement");
+};
+
+// Disambiguating between a `for` and a `for`/`in` or `for`/`of`
+// loop is non-trivial. Basically, we have to parse the init `var`
+// statement or expression, disallowing the `in` operator (see
+// the second parameter to `parseExpression`), and then check
+// whether the next token is `in` or `of`. When there is no init
+// part (semicolon immediately after the opening parenthesis), it
+// is a regular `for` loop.
+
+pp.parseForStatement = function (node) {
+  this.next();
+  this.labels.push(loopLabel);
+  this.expect(_tokentype.types.parenL);
+  if (this.type === _tokentype.types.semi) return this.parseFor(node, null);
+  if (this.type === _tokentype.types._var || this.type === _tokentype.types._let || this.type === _tokentype.types._const) {
+    var _init = this.startNode(),
+        varKind = this.type;
+    this.next();
+    this.parseVar(_init, true, varKind);
+    this.finishNode(_init, "VariableDeclaration");
+    if ((this.type === _tokentype.types._in || this.options.ecmaVersion >= 6 && this.isContextual("of")) && _init.declarations.length === 1 && !(varKind !== _tokentype.types._var && _init.declarations[0].init)) return this.parseForIn(node, _init);
+    return this.parseFor(node, _init);
+  }
+  var refDestructuringErrors = { shorthandAssign: 0, trailingComma: 0 };
+  var init = this.parseExpression(true, refDestructuringErrors);
+  if (this.type === _tokentype.types._in || this.options.ecmaVersion >= 6 && this.isContextual("of")) {
+    this.checkPatternErrors(refDestructuringErrors, true);
+    this.toAssignable(init);
+    this.checkLVal(init);
+    return this.parseForIn(node, init);
+  } else {
+    this.checkExpressionErrors(refDestructuringErrors, true);
+  }
+  return this.parseFor(node, init);
+};
+
+pp.parseFunctionStatement = function (node) {
+  this.next();
+  return this.parseFunction(node, true);
+};
+
+pp.parseIfStatement = function (node) {
+  this.next();
+  node.test = this.parseParenExpression();
+  node.consequent = this.parseStatement(false);
+  node.alternate = this.eat(_tokentype.types._else) ? this.parseStatement(false) : null;
+  return this.finishNode(node, "IfStatement");
+};
+
+pp.parseReturnStatement = function (node) {
+  if (!this.inFunction && !this.options.allowReturnOutsideFunction) this.raise(this.start, "'return' outside of function");
+  this.next();
+
+  // In `return` (and `break`/`continue`), the keywords with
+  // optional arguments, we eagerly look for a semicolon or the
+  // possibility to insert one.
+
+  if (this.eat(_tokentype.types.semi) || this.insertSemicolon()) node.argument = null;else {
+    node.argument = this.parseExpression();this.semicolon();
+  }
+  return this.finishNode(node, "ReturnStatement");
+};
+
+pp.parseSwitchStatement = function (node) {
+  this.next();
+  node.discriminant = this.parseParenExpression();
+  node.cases = [];
+  this.expect(_tokentype.types.braceL);
+  this.labels.push(switchLabel);
+
+  // Statements under must be grouped (by label) in SwitchCase
+  // nodes. `cur` is used to keep the node that we are currently
+  // adding statements to.
+
+  for (var cur, sawDefault = false; this.type != _tokentype.types.braceR;) {
+    if (this.type === _tokentype.types._case || this.type === _tokentype.types._default) {
+      var isCase = this.type === _tokentype.types._case;
+      if (cur) this.finishNode(cur, "SwitchCase");
+      node.cases.push(cur = this.startNode());
+      cur.consequent = [];
+      this.next();
+      if (isCase) {
+        cur.test = this.parseExpression();
+      } else {
+        if (sawDefault) this.raise(this.lastTokStart, "Multiple default clauses");
+        sawDefault = true;
+        cur.test = null;
+      }
+      this.expect(_tokentype.types.colon);
+    } else {
+      if (!cur) this.unexpected();
+      cur.consequent.push(this.parseStatement(true));
+    }
+  }
+  if (cur) this.finishNode(cur, "SwitchCase");
+  this.next(); // Closing brace
+  this.labels.pop();
+  return this.finishNode(node, "SwitchStatement");
+};
+
+pp.parseThrowStatement = function (node) {
+  this.next();
+  if (_whitespace.lineBreak.test(this.input.slice(this.lastTokEnd, this.start))) this.raise(this.lastTokEnd, "Illegal newline after throw");
+  node.argument = this.parseExpression();
+  this.semicolon();
+  return this.finishNode(node, "ThrowStatement");
+};
+
+// Reused empty array added for node fields that are always empty.
+
+var empty = [];
+
+pp.parseTryStatement = function (node) {
+  this.next();
+  node.block = this.parseBlock();
+  node.handler = null;
+  if (this.type === _tokentype.types._catch) {
+    var clause = this.startNode();
+    this.next();
+    this.expect(_tokentype.types.parenL);
+    clause.param = this.parseBindingAtom();
+    this.checkLVal(clause.param, true);
+    this.expect(_tokentype.types.parenR);
+    clause.body = this.parseBlock();
+    node.handler = this.finishNode(clause, "CatchClause");
+  }
+  node.finalizer = this.eat(_tokentype.types._finally) ? this.parseBlock() : null;
+  if (!node.handler && !node.finalizer) this.raise(node.start, "Missing catch or finally clause");
+  return this.finishNode(node, "TryStatement");
+};
+
+pp.parseVarStatement = function (node, kind) {
+  this.next();
+  this.parseVar(node, false, kind);
+  this.semicolon();
+  return this.finishNode(node, "VariableDeclaration");
+};
+
+pp.parseWhileStatement = function (node) {
+  this.next();
+  node.test = this.parseParenExpression();
+  this.labels.push(loopLabel);
+  node.body = this.parseStatement(false);
+  this.labels.pop();
+  return this.finishNode(node, "WhileStatement");
+};
+
+pp.parseWithStatement = function (node) {
+  if (this.strict) this.raise(this.start, "'with' in strict mode");
+  this.next();
+  node.object = this.parseParenExpression();
+  node.body = this.parseStatement(false);
+  return this.finishNode(node, "WithStatement");
+};
+
+pp.parseEmptyStatement = function (node) {
+  this.next();
+  return this.finishNode(node, "EmptyStatement");
+};
+
+pp.parseLabeledStatement = function (node, maybeName, expr) {
+  for (var i = 0; i < this.labels.length; ++i) {
+    if (this.labels[i].name === maybeName) this.raise(expr.start, "Label '" + maybeName + "' is already declared");
+  }var kind = this.type.isLoop ? "loop" : this.type === _tokentype.types._switch ? "switch" : null;
+  for (var i = this.labels.length - 1; i >= 0; i--) {
+    var label = this.labels[i];
+    if (label.statementStart == node.start) {
+      label.statementStart = this.start;
+      label.kind = kind;
+    } else break;
+  }
+  this.labels.push({ name: maybeName, kind: kind, statementStart: this.start });
+  node.body = this.parseStatement(true);
+  this.labels.pop();
+  node.label = expr;
+  return this.finishNode(node, "LabeledStatement");
+};
+
+pp.parseExpressionStatement = function (node, expr) {
+  node.expression = expr;
+  this.semicolon();
+  return this.finishNode(node, "ExpressionStatement");
+};
+
+// Parse a semicolon-enclosed block of statements, handling `"use
+// strict"` declarations when `allowStrict` is true (used for
+// function bodies).
+
+pp.parseBlock = function (allowStrict) {
+  var node = this.startNode(),
+      first = true,
+      oldStrict = undefined;
+  node.body = [];
+  this.expect(_tokentype.types.braceL);
+  while (!this.eat(_tokentype.types.braceR)) {
+    var stmt = this.parseStatement(true);
+    node.body.push(stmt);
+    if (first && allowStrict && this.isUseStrict(stmt)) {
+      oldStrict = this.strict;
+      this.setStrict(this.strict = true);
+    }
+    first = false;
+  }
+  if (oldStrict === false) this.setStrict(false);
+  return this.finishNode(node, "BlockStatement");
+};
+
+// Parse a regular `for` loop. The disambiguation code in
+// `parseStatement` will already have parsed the init statement or
+// expression.
+
+pp.parseFor = function (node, init) {
+  node.init = init;
+  this.expect(_tokentype.types.semi);
+  node.test = this.type === _tokentype.types.semi ? null : this.parseExpression();
+  this.expect(_tokentype.types.semi);
+  node.update = this.type === _tokentype.types.parenR ? null : this.parseExpression();
+  this.expect(_tokentype.types.parenR);
+  node.body = this.parseStatement(false);
+  this.labels.pop();
+  return this.finishNode(node, "ForStatement");
+};
+
+// Parse a `for`/`in` and `for`/`of` loop, which are almost
+// same from parser's perspective.
+
+pp.parseForIn = function (node, init) {
+  var type = this.type === _tokentype.types._in ? "ForInStatement" : "ForOfStatement";
+  this.next();
+  node.left = init;
+  node.right = this.parseExpression();
+  this.expect(_tokentype.types.parenR);
+  node.body = this.parseStatement(false);
+  this.labels.pop();
+  return this.finishNode(node, type);
+};
+
+// Parse a list of variable declarations.
+
+pp.parseVar = function (node, isFor, kind) {
+  node.declarations = [];
+  node.kind = kind.keyword;
+  for (;;) {
+    var decl = this.startNode();
+    this.parseVarId(decl);
+    if (this.eat(_tokentype.types.eq)) {
+      decl.init = this.parseMaybeAssign(isFor);
+    } else if (kind === _tokentype.types._const && !(this.type === _tokentype.types._in || this.options.ecmaVersion >= 6 && this.isContextual("of"))) {
+      this.unexpected();
+    } else if (decl.id.type != "Identifier" && !(isFor && (this.type === _tokentype.types._in || this.isContextual("of")))) {
+      this.raise(this.lastTokEnd, "Complex binding patterns require an initialization value");
+    } else {
+      decl.init = null;
+    }
+    node.declarations.push(this.finishNode(decl, "VariableDeclarator"));
+    if (!this.eat(_tokentype.types.comma)) break;
+  }
+  return node;
+};
+
+pp.parseVarId = function (decl) {
+  decl.id = this.parseBindingAtom();
+  this.checkLVal(decl.id, true);
+};
+
+// Parse a function declaration or literal (depending on the
+// `isStatement` parameter).
+
+pp.parseFunction = function (node, isStatement, allowExpressionBody) {
+  this.initFunction(node);
+  if (this.options.ecmaVersion >= 6) node.generator = this.eat(_tokentype.types.star);
+  if (isStatement || this.type === _tokentype.types.name) node.id = this.parseIdent();
+  this.parseFunctionParams(node);
+  this.parseFunctionBody(node, allowExpressionBody);
+  return this.finishNode(node, isStatement ? "FunctionDeclaration" : "FunctionExpression");
+};
+
+pp.parseFunctionParams = function (node) {
+  this.expect(_tokentype.types.parenL);
+  node.params = this.parseBindingList(_tokentype.types.parenR, false, false, true);
+};
+
+// Parse a class declaration or literal (depending on the
+// `isStatement` parameter).
+
+pp.parseClass = function (node, isStatement) {
+  this.next();
+  this.parseClassId(node, isStatement);
+  this.parseClassSuper(node);
+  var classBody = this.startNode();
+  var hadConstructor = false;
+  classBody.body = [];
+  this.expect(_tokentype.types.braceL);
+  while (!this.eat(_tokentype.types.braceR)) {
+    if (this.eat(_tokentype.types.semi)) continue;
+    var method = this.startNode();
+    var isGenerator = this.eat(_tokentype.types.star);
+    var isMaybeStatic = this.type === _tokentype.types.name && this.value === "static";
+    this.parsePropertyName(method);
+    method["static"] = isMaybeStatic && this.type !== _tokentype.types.parenL;
+    if (method["static"]) {
+      if (isGenerator) this.unexpected();
+      isGenerator = this.eat(_tokentype.types.star);
+      this.parsePropertyName(method);
+    }
+    method.kind = "method";
+    var isGetSet = false;
+    if (!method.computed) {
+      var key = method.key;
+
+      if (!isGenerator && key.type === "Identifier" && this.type !== _tokentype.types.parenL && (key.name === "get" || key.name === "set")) {
+        isGetSet = true;
+        method.kind = key.name;
+        key = this.parsePropertyName(method);
+      }
+      if (!method["static"] && (key.type === "Identifier" && key.name === "constructor" || key.type === "Literal" && key.value === "constructor")) {
+        if (hadConstructor) this.raise(key.start, "Duplicate constructor in the same class");
+        if (isGetSet) this.raise(key.start, "Constructor can't have get/set modifier");
+        if (isGenerator) this.raise(key.start, "Constructor can't be a generator");
+        method.kind = "constructor";
+        hadConstructor = true;
+      }
+    }
+    this.parseClassMethod(classBody, method, isGenerator);
+    if (isGetSet) {
+      var paramCount = method.kind === "get" ? 0 : 1;
+      if (method.value.params.length !== paramCount) {
+        var start = method.value.start;
+        if (method.kind === "get") this.raise(start, "getter should have no params");else this.raise(start, "setter should have exactly one param");
+      }
+      if (method.kind === "set" && method.value.params[0].type === "RestElement") this.raise(method.value.params[0].start, "Setter cannot use rest params");
+    }
+  }
+  node.body = this.finishNode(classBody, "ClassBody");
+  return this.finishNode(node, isStatement ? "ClassDeclaration" : "ClassExpression");
+};
+
+pp.parseClassMethod = function (classBody, method, isGenerator) {
+  method.value = this.parseMethod(isGenerator);
+  classBody.body.push(this.finishNode(method, "MethodDefinition"));
+};
+
+pp.parseClassId = function (node, isStatement) {
+  node.id = this.type === _tokentype.types.name ? this.parseIdent() : isStatement ? this.unexpected() : null;
+};
+
+pp.parseClassSuper = function (node) {
+  node.superClass = this.eat(_tokentype.types._extends) ? this.parseExprSubscripts() : null;
+};
+
+// Parses module export declaration.
+
+pp.parseExport = function (node) {
+  this.next();
+  // export * from '...'
+  if (this.eat(_tokentype.types.star)) {
+    this.expectContextual("from");
+    node.source = this.type === _tokentype.types.string ? this.parseExprAtom() : this.unexpected();
+    this.semicolon();
+    return this.finishNode(node, "ExportAllDeclaration");
+  }
+  if (this.eat(_tokentype.types._default)) {
+    // export default ...
+    var expr = this.parseMaybeAssign();
+    var needsSemi = true;
+    if (expr.type == "FunctionExpression" || expr.type == "ClassExpression") {
+      needsSemi = false;
+      if (expr.id) {
+        expr.type = expr.type == "FunctionExpression" ? "FunctionDeclaration" : "ClassDeclaration";
+      }
+    }
+    node.declaration = expr;
+    if (needsSemi) this.semicolon();
+    return this.finishNode(node, "ExportDefaultDeclaration");
+  }
+  // export var|const|let|function|class ...
+  if (this.shouldParseExportStatement()) {
+    node.declaration = this.parseStatement(true);
+    node.specifiers = [];
+    node.source = null;
+  } else {
+    // export { x, y as z } [from '...']
+    node.declaration = null;
+    node.specifiers = this.parseExportSpecifiers();
+    if (this.eatContextual("from")) {
+      node.source = this.type === _tokentype.types.string ? this.parseExprAtom() : this.unexpected();
+    } else {
+      // check for keywords used as local names
+      for (var i = 0; i < node.specifiers.length; i++) {
+        if (this.keywords.test(node.specifiers[i].local.name) || this.reservedWords.test(node.specifiers[i].local.name)) {
+          this.unexpected(node.specifiers[i].local.start);
+        }
+      }
+
+      node.source = null;
+    }
+    this.semicolon();
+  }
+  return this.finishNode(node, "ExportNamedDeclaration");
+};
+
+pp.shouldParseExportStatement = function () {
+  return this.type.keyword;
+};
+
+// Parses a comma-separated list of module exports.
+
+pp.parseExportSpecifiers = function () {
+  var nodes = [],
+      first = true;
+  // export { x, y as z } [from '...']
+  this.expect(_tokentype.types.braceL);
+  while (!this.eat(_tokentype.types.braceR)) {
+    if (!first) {
+      this.expect(_tokentype.types.comma);
+      if (this.afterTrailingComma(_tokentype.types.braceR)) break;
+    } else first = false;
+
+    var node = this.startNode();
+    node.local = this.parseIdent(this.type === _tokentype.types._default);
+    node.exported = this.eatContextual("as") ? this.parseIdent(true) : node.local;
+    nodes.push(this.finishNode(node, "ExportSpecifier"));
+  }
+  return nodes;
+};
+
+// Parses import declaration.
+
+pp.parseImport = function (node) {
+  this.next();
+  // import '...'
+  if (this.type === _tokentype.types.string) {
+    node.specifiers = empty;
+    node.source = this.parseExprAtom();
+  } else {
+    node.specifiers = this.parseImportSpecifiers();
+    this.expectContextual("from");
+    node.source = this.type === _tokentype.types.string ? this.parseExprAtom() : this.unexpected();
+  }
+  this.semicolon();
+  return this.finishNode(node, "ImportDeclaration");
+};
+
+// Parses a comma-separated list of module imports.
+
+pp.parseImportSpecifiers = function () {
+  var nodes = [],
+      first = true;
+  if (this.type === _tokentype.types.name) {
+    // import defaultObj, { x, y as z } from '...'
+    var node = this.startNode();
+    node.local = this.parseIdent();
+    this.checkLVal(node.local, true);
+    nodes.push(this.finishNode(node, "ImportDefaultSpecifier"));
+    if (!this.eat(_tokentype.types.comma)) return nodes;
+  }
+  if (this.type === _tokentype.types.star) {
+    var node = this.startNode();
+    this.next();
+    this.expectContextual("as");
+    node.local = this.parseIdent();
+    this.checkLVal(node.local, true);
+    nodes.push(this.finishNode(node, "ImportNamespaceSpecifier"));
+    return nodes;
+  }
+  this.expect(_tokentype.types.braceL);
+  while (!this.eat(_tokentype.types.braceR)) {
+    if (!first) {
+      this.expect(_tokentype.types.comma);
+      if (this.afterTrailingComma(_tokentype.types.braceR)) break;
+    } else first = false;
+
+    var node = this.startNode();
+    node.imported = this.parseIdent(true);
+    if (this.eatContextual("as")) {
+      node.local = this.parseIdent();
+    } else {
+      node.local = node.imported;
+      if (this.isKeyword(node.local.name)) this.unexpected(node.local.start);
+      if (this.reservedWordsStrict.test(node.local.name)) this.raise(node.local.start, "The keyword '" + node.local.name + "' is reserved");
+    }
+    this.checkLVal(node.local, true);
+    nodes.push(this.finishNode(node, "ImportSpecifier"));
+  }
+  return nodes;
+};
+
+},{"./state":10,"./tokentype":14,"./whitespace":16}],12:[function(_dereq_,module,exports){
+// The algorithm used to determine whether a regexp can appear at a
+// given point in the program is loosely based on sweet.js' approach.
+// See https://github.com/mozilla/sweet.js/wiki/design
+
+"use strict";
+
+exports.__esModule = true;
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var _state = _dereq_("./state");
+
+var _tokentype = _dereq_("./tokentype");
+
+var _whitespace = _dereq_("./whitespace");
+
+var TokContext = function TokContext(token, isExpr, preserveSpace, override) {
+  _classCallCheck(this, TokContext);
+
+  this.token = token;
+  this.isExpr = !!isExpr;
+  this.preserveSpace = !!preserveSpace;
+  this.override = override;
+};
+
+exports.TokContext = TokContext;
+var types = {
+  b_stat: new TokContext("{", false),
+  b_expr: new TokContext("{", true),
+  b_tmpl: new TokContext("${", true),
+  p_stat: new TokContext("(", false),
+  p_expr: new TokContext("(", true),
+  q_tmpl: new TokContext("`", true, true, function (p) {
+    return p.readTmplToken();
+  }),
+  f_expr: new TokContext("function", true)
+};
+
+exports.types = types;
+var pp = _state.Parser.prototype;
+
+pp.initialContext = function () {
+  return [types.b_stat];
+};
+
+pp.braceIsBlock = function (prevType) {
+  if (prevType === _tokentype.types.colon) {
+    var _parent = this.curContext();
+    if (_parent === types.b_stat || _parent === types.b_expr) return !_parent.isExpr;
+  }
+  if (prevType === _tokentype.types._return) return _whitespace.lineBreak.test(this.input.slice(this.lastTokEnd, this.start));
+  if (prevType === _tokentype.types._else || prevType === _tokentype.types.semi || prevType === _tokentype.types.eof || prevType === _tokentype.types.parenR) return true;
+  if (prevType == _tokentype.types.braceL) return this.curContext() === types.b_stat;
+  return !this.exprAllowed;
+};
+
+pp.updateContext = function (prevType) {
+  var update = undefined,
+      type = this.type;
+  if (type.keyword && prevType == _tokentype.types.dot) this.exprAllowed = false;else if (update = type.updateContext) update.call(this, prevType);else this.exprAllowed = type.beforeExpr;
+};
+
+// Token-specific context update code
+
+_tokentype.types.parenR.updateContext = _tokentype.types.braceR.updateContext = function () {
+  if (this.context.length == 1) {
+    this.exprAllowed = true;
+    return;
+  }
+  var out = this.context.pop();
+  if (out === types.b_stat && this.curContext() === types.f_expr) {
+    this.context.pop();
+    this.exprAllowed = false;
+  } else if (out === types.b_tmpl) {
+    this.exprAllowed = true;
+  } else {
+    this.exprAllowed = !out.isExpr;
+  }
+};
+
+_tokentype.types.braceL.updateContext = function (prevType) {
+  this.context.push(this.braceIsBlock(prevType) ? types.b_stat : types.b_expr);
+  this.exprAllowed = true;
+};
+
+_tokentype.types.dollarBraceL.updateContext = function () {
+  this.context.push(types.b_tmpl);
+  this.exprAllowed = true;
+};
+
+_tokentype.types.parenL.updateContext = function (prevType) {
+  var statementParens = prevType === _tokentype.types._if || prevType === _tokentype.types._for || prevType === _tokentype.types._with || prevType === _tokentype.types._while;
+  this.context.push(statementParens ? types.p_stat : types.p_expr);
+  this.exprAllowed = true;
+};
+
+_tokentype.types.incDec.updateContext = function () {
+  // tokExprAllowed stays unchanged
+};
+
+_tokentype.types._function.updateContext = function () {
+  if (this.curContext() !== types.b_stat) this.context.push(types.f_expr);
+  this.exprAllowed = false;
+};
+
+_tokentype.types.backQuote.updateContext = function () {
+  if (this.curContext() === types.q_tmpl) this.context.pop();else this.context.push(types.q_tmpl);
+  this.exprAllowed = false;
+};
+
+},{"./state":10,"./tokentype":14,"./whitespace":16}],13:[function(_dereq_,module,exports){
+"use strict";
+
+exports.__esModule = true;
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var _identifier = _dereq_("./identifier");
+
+var _tokentype = _dereq_("./tokentype");
+
+var _state = _dereq_("./state");
+
+var _locutil = _dereq_("./locutil");
+
+var _whitespace = _dereq_("./whitespace");
+
+// Object type used to represent tokens. Note that normally, tokens
+// simply exist as properties on the parser object. This is only
+// used for the onToken callback and the external tokenizer.
+
+var Token = function Token(p) {
+  _classCallCheck(this, Token);
+
+  this.type = p.type;
+  this.value = p.value;
+  this.start = p.start;
+  this.end = p.end;
+  if (p.options.locations) this.loc = new _locutil.SourceLocation(p, p.startLoc, p.endLoc);
+  if (p.options.ranges) this.range = [p.start, p.end];
+}
+
+// ## Tokenizer
+
+;
+
+exports.Token = Token;
+var pp = _state.Parser.prototype;
+
+// Are we running under Rhino?
+var isRhino = typeof Packages == "object" && Object.prototype.toString.call(Packages) == "[object JavaPackage]";
+
+// Move to the next token
+
+pp.next = function () {
+  if (this.options.onToken) this.options.onToken(new Token(this));
+
+  this.lastTokEnd = this.end;
+  this.lastTokStart = this.start;
+  this.lastTokEndLoc = this.endLoc;
+  this.lastTokStartLoc = this.startLoc;
+  this.nextToken();
+};
+
+pp.getToken = function () {
+  this.next();
+  return new Token(this);
+};
+
+// If we're in an ES6 environment, make parsers iterable
+if (typeof Symbol !== "undefined") pp[Symbol.iterator] = function () {
+  var self = this;
+  return { next: function next() {
+      var token = self.getToken();
+      return {
+        done: token.type === _tokentype.types.eof,
+        value: token
+      };
+    } };
+};
+
+// Toggle strict mode. Re-reads the next number or string to please
+// pedantic tests (`"use strict"; 010;` should fail).
+
+pp.setStrict = function (strict) {
+  this.strict = strict;
+  if (this.type !== _tokentype.types.num && this.type !== _tokentype.types.string) return;
+  this.pos = this.start;
+  if (this.options.locations) {
+    while (this.pos < this.lineStart) {
+      this.lineStart = this.input.lastIndexOf("\n", this.lineStart - 2) + 1;
+      --this.curLine;
+    }
+  }
+  this.nextToken();
+};
+
+pp.curContext = function () {
+  return this.context[this.context.length - 1];
+};
+
+// Read a single token, updating the parser object's token-related
+// properties.
+
+pp.nextToken = function () {
+  var curContext = this.curContext();
+  if (!curContext || !curContext.preserveSpace) this.skipSpace();
+
+  this.start = this.pos;
+  if (this.options.locations) this.startLoc = this.curPosition();
+  if (this.pos >= this.input.length) return this.finishToken(_tokentype.types.eof);
+
+  if (curContext.override) return curContext.override(this);else this.readToken(this.fullCharCodeAtPos());
+};
+
+pp.readToken = function (code) {
+  // Identifier or keyword. '\uXXXX' sequences are allowed in
+  // identifiers, so '\' also dispatches to that.
+  if (_identifier.isIdentifierStart(code, this.options.ecmaVersion >= 6) || code === 92 /* '\' */) return this.readWord();
+
+  return this.getTokenFromCode(code);
+};
+
+pp.fullCharCodeAtPos = function () {
+  var code = this.input.charCodeAt(this.pos);
+  if (code <= 0xd7ff || code >= 0xe000) return code;
+  var next = this.input.charCodeAt(this.pos + 1);
+  return (code << 10) + next - 0x35fdc00;
+};
+
+pp.skipBlockComment = function () {
+  var startLoc = this.options.onComment && this.curPosition();
+  var start = this.pos,
+      end = this.input.indexOf("*/", this.pos += 2);
+  if (end === -1) this.raise(this.pos - 2, "Unterminated comment");
+  this.pos = end + 2;
+  if (this.options.locations) {
+    _whitespace.lineBreakG.lastIndex = start;
+    var match = undefined;
+    while ((match = _whitespace.lineBreakG.exec(this.input)) && match.index < this.pos) {
+      ++this.curLine;
+      this.lineStart = match.index + match[0].length;
+    }
+  }
+  if (this.options.onComment) this.options.onComment(true, this.input.slice(start + 2, end), start, this.pos, startLoc, this.curPosition());
+};
+
+pp.skipLineComment = function (startSkip) {
+  var start = this.pos;
+  var startLoc = this.options.onComment && this.curPosition();
+  var ch = this.input.charCodeAt(this.pos += startSkip);
+  while (this.pos < this.input.length && ch !== 10 && ch !== 13 && ch !== 8232 && ch !== 8233) {
+    ++this.pos;
+    ch = this.input.charCodeAt(this.pos);
+  }
+  if (this.options.onComment) this.options.onComment(false, this.input.slice(start + startSkip, this.pos), start, this.pos, startLoc, this.curPosition());
+};
+
+// Called at the start of the parse and after every token. Skips
+// whitespace and comments, and.
+
+pp.skipSpace = function () {
+  loop: while (this.pos < this.input.length) {
+    var ch = this.input.charCodeAt(this.pos);
+    switch (ch) {
+      case 32:case 160:
+        // ' '
+        ++this.pos;
+        break;
+      case 13:
+        if (this.input.charCodeAt(this.pos + 1) === 10) {
+          ++this.pos;
+        }
+      case 10:case 8232:case 8233:
+        ++this.pos;
+        if (this.options.locations) {
+          ++this.curLine;
+          this.lineStart = this.pos;
+        }
+        break;
+      case 47:
+        // '/'
+        switch (this.input.charCodeAt(this.pos + 1)) {
+          case 42:
+            // '*'
+            this.skipBlockComment();
+            break;
+          case 47:
+            this.skipLineComment(2);
+            break;
+          default:
+            break loop;
+        }
+        break;
+      default:
+        if (ch > 8 && ch < 14 || ch >= 5760 && _whitespace.nonASCIIwhitespace.test(String.fromCharCode(ch))) {
+          ++this.pos;
+        } else {
+          break loop;
+        }
+    }
+  }
+};
+
+// Called at the end of every token. Sets `end`, `val`, and
+// maintains `context` and `exprAllowed`, and skips the space after
+// the token, so that the next one's `start` will point at the
+// right position.
+
+pp.finishToken = function (type, val) {
+  this.end = this.pos;
+  if (this.options.locations) this.endLoc = this.curPosition();
+  var prevType = this.type;
+  this.type = type;
+  this.value = val;
+
+  this.updateContext(prevType);
+};
+
+// ### Token reading
+
+// This is the function that is called to fetch the next token. It
+// is somewhat obscure, because it works in character codes rather
+// than characters, and because operator parsing has been inlined
+// into it.
+//
+// All in the name of speed.
+//
+pp.readToken_dot = function () {
+  var next = this.input.charCodeAt(this.pos + 1);
+  if (next >= 48 && next <= 57) return this.readNumber(true);
+  var next2 = this.input.charCodeAt(this.pos + 2);
+  if (this.options.ecmaVersion >= 6 && next === 46 && next2 === 46) {
+    // 46 = dot '.'
+    this.pos += 3;
+    return this.finishToken(_tokentype.types.ellipsis);
+  } else {
+    ++this.pos;
+    return this.finishToken(_tokentype.types.dot);
+  }
+};
+
+pp.readToken_slash = function () {
+  // '/'
+  var next = this.input.charCodeAt(this.pos + 1);
+  if (this.exprAllowed) {
+    ++this.pos;return this.readRegexp();
+  }
+  if (next === 61) return this.finishOp(_tokentype.types.assign, 2);
+  return this.finishOp(_tokentype.types.slash, 1);
+};
+
+pp.readToken_mult_modulo = function (code) {
+  // '%*'
+  var next = this.input.charCodeAt(this.pos + 1);
+  if (next === 61) return this.finishOp(_tokentype.types.assign, 2);
+  return this.finishOp(code === 42 ? _tokentype.types.star : _tokentype.types.modulo, 1);
+};
+
+pp.readToken_pipe_amp = function (code) {
+  // '|&'
+  var next = this.input.charCodeAt(this.pos + 1);
+  if (next === code) return this.finishOp(code === 124 ? _tokentype.types.logicalOR : _tokentype.types.logicalAND, 2);
+  if (next === 61) return this.finishOp(_tokentype.types.assign, 2);
+  return this.finishOp(code === 124 ? _tokentype.types.bitwiseOR : _tokentype.types.bitwiseAND, 1);
+};
+
+pp.readToken_caret = function () {
+  // '^'
+  var next = this.input.charCodeAt(this.pos + 1);
+  if (next === 61) return this.finishOp(_tokentype.types.assign, 2);
+  return this.finishOp(_tokentype.types.bitwiseXOR, 1);
+};
+
+pp.readToken_plus_min = function (code) {
+  // '+-'
+  var next = this.input.charCodeAt(this.pos + 1);
+  if (next === code) {
+    if (next == 45 && this.input.charCodeAt(this.pos + 2) == 62 && _whitespace.lineBreak.test(this.input.slice(this.lastTokEnd, this.pos))) {
+      // A `-->` line comment
+      this.skipLineComment(3);
+      this.skipSpace();
+      return this.nextToken();
+    }
+    return this.finishOp(_tokentype.types.incDec, 2);
+  }
+  if (next === 61) return this.finishOp(_tokentype.types.assign, 2);
+  return this.finishOp(_tokentype.types.plusMin, 1);
+};
+
+pp.readToken_lt_gt = function (code) {
+  // '<>'
+  var next = this.input.charCodeAt(this.pos + 1);
+  var size = 1;
+  if (next === code) {
+    size = code === 62 && this.input.charCodeAt(this.pos + 2) === 62 ? 3 : 2;
+    if (this.input.charCodeAt(this.pos + size) === 61) return this.finishOp(_tokentype.types.assign, size + 1);
+    return this.finishOp(_tokentype.types.bitShift, size);
+  }
+  if (next == 33 && code == 60 && this.input.charCodeAt(this.pos + 2) == 45 && this.input.charCodeAt(this.pos + 3) == 45) {
+    if (this.inModule) this.unexpected();
+    // `<!--`, an XML-style comment that should be interpreted as a line comment
+    this.skipLineComment(4);
+    this.skipSpace();
+    return this.nextToken();
+  }
+  if (next === 61) size = this.input.charCodeAt(this.pos + 2) === 61 ? 3 : 2;
+  return this.finishOp(_tokentype.types.relational, size);
+};
+
+pp.readToken_eq_excl = function (code) {
+  // '=!'
+  var next = this.input.charCodeAt(this.pos + 1);
+  if (next === 61) return this.finishOp(_tokentype.types.equality, this.input.charCodeAt(this.pos + 2) === 61 ? 3 : 2);
+  if (code === 61 && next === 62 && this.options.ecmaVersion >= 6) {
+    // '=>'
+    this.pos += 2;
+    return this.finishToken(_tokentype.types.arrow);
+  }
+  return this.finishOp(code === 61 ? _tokentype.types.eq : _tokentype.types.prefix, 1);
+};
+
+pp.getTokenFromCode = function (code) {
+  switch (code) {
+    // The interpretation of a dot depends on whether it is followed
+    // by a digit or another two dots.
+    case 46:
+      // '.'
+      return this.readToken_dot();
+
+    // Punctuation tokens.
+    case 40:
+      ++this.pos;return this.finishToken(_tokentype.types.parenL);
+    case 41:
+      ++this.pos;return this.finishToken(_tokentype.types.parenR);
+    case 59:
+      ++this.pos;return this.finishToken(_tokentype.types.semi);
+    case 44:
+      ++this.pos;return this.finishToken(_tokentype.types.comma);
+    case 91:
+      ++this.pos;return this.finishToken(_tokentype.types.bracketL);
+    case 93:
+      ++this.pos;return this.finishToken(_tokentype.types.bracketR);
+    case 123:
+      ++this.pos;return this.finishToken(_tokentype.types.braceL);
+    case 125:
+      ++this.pos;return this.finishToken(_tokentype.types.braceR);
+    case 58:
+      ++this.pos;return this.finishToken(_tokentype.types.colon);
+    case 63:
+      ++this.pos;return this.finishToken(_tokentype.types.question);
+
+    case 96:
+      // '`'
+      if (this.options.ecmaVersion < 6) break;
+      ++this.pos;
+      return this.finishToken(_tokentype.types.backQuote);
+
+    case 48:
+      // '0'
+      var next = this.input.charCodeAt(this.pos + 1);
+      if (next === 120 || next === 88) return this.readRadixNumber(16); // '0x', '0X' - hex number
+      if (this.options.ecmaVersion >= 6) {
+        if (next === 111 || next === 79) return this.readRadixNumber(8); // '0o', '0O' - octal number
+        if (next === 98 || next === 66) return this.readRadixNumber(2); // '0b', '0B' - binary number
+      }
+    // Anything else beginning with a digit is an integer, octal
+    // number, or float.
+    case 49:case 50:case 51:case 52:case 53:case 54:case 55:case 56:case 57:
+      // 1-9
+      return this.readNumber(false);
+
+    // Quotes produce strings.
+    case 34:case 39:
+      // '"', "'"
+      return this.readString(code);
+
+    // Operators are parsed inline in tiny state machines. '=' (61) is
+    // often referred to. `finishOp` simply skips the amount of
+    // characters it is given as second argument, and returns a token
+    // of the type given by its first argument.
+
+    case 47:
+      // '/'
+      return this.readToken_slash();
+
+    case 37:case 42:
+      // '%*'
+      return this.readToken_mult_modulo(code);
+
+    case 124:case 38:
+      // '|&'
+      return this.readToken_pipe_amp(code);
+
+    case 94:
+      // '^'
+      return this.readToken_caret();
+
+    case 43:case 45:
+      // '+-'
+      return this.readToken_plus_min(code);
+
+    case 60:case 62:
+      // '<>'
+      return this.readToken_lt_gt(code);
+
+    case 61:case 33:
+      // '=!'
+      return this.readToken_eq_excl(code);
+
+    case 126:
+      // '~'
+      return this.finishOp(_tokentype.types.prefix, 1);
+  }
+
+  this.raise(this.pos, "Unexpected character '" + codePointToString(code) + "'");
+};
+
+pp.finishOp = function (type, size) {
+  var str = this.input.slice(this.pos, this.pos + size);
+  this.pos += size;
+  return this.finishToken(type, str);
+};
+
+// Parse a regular expression. Some context-awareness is necessary,
+// since a '/' inside a '[]' set does not end the expression.
+
+function tryCreateRegexp(src, flags, throwErrorAt, parser) {
+  try {
+    return new RegExp(src, flags);
+  } catch (e) {
+    if (throwErrorAt !== undefined) {
+      if (e instanceof SyntaxError) parser.raise(throwErrorAt, "Error parsing regular expression: " + e.message);
+      throw e;
+    }
+  }
+}
+
+var regexpUnicodeSupport = !!tryCreateRegexp("￿", "u");
+
+pp.readRegexp = function () {
+  var _this = this;
+
+  var escaped = undefined,
+      inClass = undefined,
+      start = this.pos;
+  for (;;) {
+    if (this.pos >= this.input.length) this.raise(start, "Unterminated regular expression");
+    var ch = this.input.charAt(this.pos);
+    if (_whitespace.lineBreak.test(ch)) this.raise(start, "Unterminated regular expression");
+    if (!escaped) {
+      if (ch === "[") inClass = true;else if (ch === "]" && inClass) inClass = false;else if (ch === "/" && !inClass) break;
+      escaped = ch === "\\";
+    } else escaped = false;
+    ++this.pos;
+  }
+  var content = this.input.slice(start, this.pos);
+  ++this.pos;
+  // Need to use `readWord1` because '\uXXXX' sequences are allowed
+  // here (don't ask).
+  var mods = this.readWord1();
+  var tmp = content;
+  if (mods) {
+    var validFlags = /^[gim]*$/;
+    if (this.options.ecmaVersion >= 6) validFlags = /^[gimuy]*$/;
+    if (!validFlags.test(mods)) this.raise(start, "Invalid regular expression flag");
+    if (mods.indexOf('u') >= 0 && !regexpUnicodeSupport) {
+      // Replace each astral symbol and every Unicode escape sequence that
+      // possibly represents an astral symbol or a paired surrogate with a
+      // single ASCII symbol to avoid throwing on regular expressions that
+      // are only valid in combination with the `/u` flag.
+      // Note: replacing with the ASCII symbol `x` might cause false
+      // negatives in unlikely scenarios. For example, `[\u{61}-b]` is a
+      // perfectly valid pattern that is equivalent to `[a-b]`, but it would
+      // be replaced by `[x-b]` which throws an error.
+      tmp = tmp.replace(/\\u\{([0-9a-fA-F]+)\}/g, function (_match, code, offset) {
+        code = Number("0x" + code);
+        if (code > 0x10FFFF) _this.raise(start + offset + 3, "Code point out of bounds");
+        return "x";
+      });
+      tmp = tmp.replace(/\\u([a-fA-F0-9]{4})|[\uD800-\uDBFF][\uDC00-\uDFFF]/g, "x");
+    }
+  }
+  // Detect invalid regular expressions.
+  var value = null;
+  // Rhino's regular expression parser is flaky and throws uncatchable exceptions,
+  // so don't do detection if we are running under Rhino
+  if (!isRhino) {
+    tryCreateRegexp(tmp, undefined, start, this);
+    // Get a regular expression object for this pattern-flag pair, or `null` in
+    // case the current environment doesn't support the flags it uses.
+    value = tryCreateRegexp(content, mods);
+  }
+  return this.finishToken(_tokentype.types.regexp, { pattern: content, flags: mods, value: value });
+};
+
+// Read an integer in the given radix. Return null if zero digits
+// were read, the integer value otherwise. When `len` is given, this
+// will return `null` unless the integer has exactly `len` digits.
+
+pp.readInt = function (radix, len) {
+  var start = this.pos,
+      total = 0;
+  for (var i = 0, e = len == null ? Infinity : len; i < e; ++i) {
+    var code = this.input.charCodeAt(this.pos),
+        val = undefined;
+    if (code >= 97) val = code - 97 + 10; // a
+    else if (code >= 65) val = code - 65 + 10; // A
+      else if (code >= 48 && code <= 57) val = code - 48; // 0-9
+        else val = Infinity;
+    if (val >= radix) break;
+    ++this.pos;
+    total = total * radix + val;
+  }
+  if (this.pos === start || len != null && this.pos - start !== len) return null;
+
+  return total;
+};
+
+pp.readRadixNumber = function (radix) {
+  this.pos += 2; // 0x
+  var val = this.readInt(radix);
+  if (val == null) this.raise(this.start + 2, "Expected number in radix " + radix);
+  if (_identifier.isIdentifierStart(this.fullCharCodeAtPos())) this.raise(this.pos, "Identifier directly after number");
+  return this.finishToken(_tokentype.types.num, val);
+};
+
+// Read an integer, octal integer, or floating-point number.
+
+pp.readNumber = function (startsWithDot) {
+  var start = this.pos,
+      isFloat = false,
+      octal = this.input.charCodeAt(this.pos) === 48;
+  if (!startsWithDot && this.readInt(10) === null) this.raise(start, "Invalid number");
+  var next = this.input.charCodeAt(this.pos);
+  if (next === 46) {
+    // '.'
+    ++this.pos;
+    this.readInt(10);
+    isFloat = true;
+    next = this.input.charCodeAt(this.pos);
+  }
+  if (next === 69 || next === 101) {
+    // 'eE'
+    next = this.input.charCodeAt(++this.pos);
+    if (next === 43 || next === 45) ++this.pos; // '+-'
+    if (this.readInt(10) === null) this.raise(start, "Invalid number");
+    isFloat = true;
+  }
+  if (_identifier.isIdentifierStart(this.fullCharCodeAtPos())) this.raise(this.pos, "Identifier directly after number");
+
+  var str = this.input.slice(start, this.pos),
+      val = undefined;
+  if (isFloat) val = parseFloat(str);else if (!octal || str.length === 1) val = parseInt(str, 10);else if (/[89]/.test(str) || this.strict) this.raise(start, "Invalid number");else val = parseInt(str, 8);
+  return this.finishToken(_tokentype.types.num, val);
+};
+
+// Read a string value, interpreting backslash-escapes.
+
+pp.readCodePoint = function () {
+  var ch = this.input.charCodeAt(this.pos),
+      code = undefined;
+
+  if (ch === 123) {
+    if (this.options.ecmaVersion < 6) this.unexpected();
+    var codePos = ++this.pos;
+    code = this.readHexChar(this.input.indexOf('}', this.pos) - this.pos);
+    ++this.pos;
+    if (code > 0x10FFFF) this.raise(codePos, "Code point out of bounds");
+  } else {
+    code = this.readHexChar(4);
+  }
+  return code;
+};
+
+function codePointToString(code) {
+  // UTF-16 Decoding
+  if (code <= 0xFFFF) return String.fromCharCode(code);
+  code -= 0x10000;
+  return String.fromCharCode((code >> 10) + 0xD800, (code & 1023) + 0xDC00);
+}
+
+pp.readString = function (quote) {
+  var out = "",
+      chunkStart = ++this.pos;
+  for (;;) {
+    if (this.pos >= this.input.length) this.raise(this.start, "Unterminated string constant");
+    var ch = this.input.charCodeAt(this.pos);
+    if (ch === quote) break;
+    if (ch === 92) {
+      // '\'
+      out += this.input.slice(chunkStart, this.pos);
+      out += this.readEscapedChar(false);
+      chunkStart = this.pos;
+    } else {
+      if (_whitespace.isNewLine(ch)) this.raise(this.start, "Unterminated string constant");
+      ++this.pos;
+    }
+  }
+  out += this.input.slice(chunkStart, this.pos++);
+  return this.finishToken(_tokentype.types.string, out);
+};
+
+// Reads template string tokens.
+
+pp.readTmplToken = function () {
+  var out = "",
+      chunkStart = this.pos;
+  for (;;) {
+    if (this.pos >= this.input.length) this.raise(this.start, "Unterminated template");
+    var ch = this.input.charCodeAt(this.pos);
+    if (ch === 96 || ch === 36 && this.input.charCodeAt(this.pos + 1) === 123) {
+      // '`', '${'
+      if (this.pos === this.start && this.type === _tokentype.types.template) {
+        if (ch === 36) {
+          this.pos += 2;
+          return this.finishToken(_tokentype.types.dollarBraceL);
+        } else {
+          ++this.pos;
+          return this.finishToken(_tokentype.types.backQuote);
+        }
+      }
+      out += this.input.slice(chunkStart, this.pos);
+      return this.finishToken(_tokentype.types.template, out);
+    }
+    if (ch === 92) {
+      // '\'
+      out += this.input.slice(chunkStart, this.pos);
+      out += this.readEscapedChar(true);
+      chunkStart = this.pos;
+    } else if (_whitespace.isNewLine(ch)) {
+      out += this.input.slice(chunkStart, this.pos);
+      ++this.pos;
+      switch (ch) {
+        case 13:
+          if (this.input.charCodeAt(this.pos) === 10) ++this.pos;
+        case 10:
+          out += "\n";
+          break;
+        default:
+          out += String.fromCharCode(ch);
+          break;
+      }
+      if (this.options.locations) {
+        ++this.curLine;
+        this.lineStart = this.pos;
+      }
+      chunkStart = this.pos;
+    } else {
+      ++this.pos;
+    }
+  }
+};
+
+// Used to read escaped characters
+
+pp.readEscapedChar = function (inTemplate) {
+  var ch = this.input.charCodeAt(++this.pos);
+  ++this.pos;
+  switch (ch) {
+    case 110:
+      return "\n"; // 'n' -> '\n'
+    case 114:
+      return "\r"; // 'r' -> '\r'
+    case 120:
+      return String.fromCharCode(this.readHexChar(2)); // 'x'
+    case 117:
+      return codePointToString(this.readCodePoint()); // 'u'
+    case 116:
+      return "\t"; // 't' -> '\t'
+    case 98:
+      return "\b"; // 'b' -> '\b'
+    case 118:
+      return "\u000b"; // 'v' -> '\u000b'
+    case 102:
+      return "\f"; // 'f' -> '\f'
+    case 13:
+      if (this.input.charCodeAt(this.pos) === 10) ++this.pos; // '\r\n'
+    case 10:
+      // ' \n'
+      if (this.options.locations) {
+        this.lineStart = this.pos;++this.curLine;
+      }
+      return "";
+    default:
+      if (ch >= 48 && ch <= 55) {
+        var octalStr = this.input.substr(this.pos - 1, 3).match(/^[0-7]+/)[0];
+        var octal = parseInt(octalStr, 8);
+        if (octal > 255) {
+          octalStr = octalStr.slice(0, -1);
+          octal = parseInt(octalStr, 8);
+        }
+        if (octalStr !== "0" && (this.strict || inTemplate)) {
+          this.raise(this.pos - 2, "Octal literal in strict mode");
+        }
+        this.pos += octalStr.length - 1;
+        return String.fromCharCode(octal);
+      }
+      return String.fromCharCode(ch);
+  }
+};
+
+// Used to read character escape sequences ('\x', '\u', '\U').
+
+pp.readHexChar = function (len) {
+  var codePos = this.pos;
+  var n = this.readInt(16, len);
+  if (n === null) this.raise(codePos, "Bad character escape sequence");
+  return n;
+};
+
+// Read an identifier, and return it as a string. Sets `this.containsEsc`
+// to whether the word contained a '\u' escape.
+//
+// Incrementally adds only escaped chars, adding other chunks as-is
+// as a micro-optimization.
+
+pp.readWord1 = function () {
+  this.containsEsc = false;
+  var word = "",
+      first = true,
+      chunkStart = this.pos;
+  var astral = this.options.ecmaVersion >= 6;
+  while (this.pos < this.input.length) {
+    var ch = this.fullCharCodeAtPos();
+    if (_identifier.isIdentifierChar(ch, astral)) {
+      this.pos += ch <= 0xffff ? 1 : 2;
+    } else if (ch === 92) {
+      // "\"
+      this.containsEsc = true;
+      word += this.input.slice(chunkStart, this.pos);
+      var escStart = this.pos;
+      if (this.input.charCodeAt(++this.pos) != 117) // "u"
+        this.raise(this.pos, "Expecting Unicode escape sequence \\uXXXX");
+      ++this.pos;
+      var esc = this.readCodePoint();
+      if (!(first ? _identifier.isIdentifierStart : _identifier.isIdentifierChar)(esc, astral)) this.raise(escStart, "Invalid Unicode escape");
+      word += codePointToString(esc);
+      chunkStart = this.pos;
+    } else {
+      break;
+    }
+    first = false;
+  }
+  return word + this.input.slice(chunkStart, this.pos);
+};
+
+// Read an identifier or keyword token. Will check for reserved
+// words when necessary.
+
+pp.readWord = function () {
+  var word = this.readWord1();
+  var type = _tokentype.types.name;
+  if ((this.options.ecmaVersion >= 6 || !this.containsEsc) && this.keywords.test(word)) type = _tokentype.keywords[word];
+  return this.finishToken(type, word);
+};
+
+},{"./identifier":2,"./locutil":5,"./state":10,"./tokentype":14,"./whitespace":16}],14:[function(_dereq_,module,exports){
+// ## Token types
+
+// The assignment of fine-grained, information-carrying type objects
+// allows the tokenizer to store the information it has about a
+// token in a way that is very cheap for the parser to look up.
+
+// All token type variables start with an underscore, to make them
+// easy to recognize.
+
+// The `beforeExpr` property is used to disambiguate between regular
+// expressions and divisions. It is set on all token types that can
+// be followed by an expression (thus, a slash after them would be a
+// regular expression).
+//
+// The `startsExpr` property is used to check if the token ends a
+// `yield` expression. It is set on all token types that either can
+// directly start an expression (like a quotation mark) or can
+// continue an expression (like the body of a string).
+//
+// `isLoop` marks a keyword as starting a loop, which is important
+// to know when parsing a label, in order to allow or disallow
+// continue jumps to that label.
+
+"use strict";
+
+exports.__esModule = true;
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var TokenType = function TokenType(label) {
+  var conf = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+  _classCallCheck(this, TokenType);
+
+  this.label = label;
+  this.keyword = conf.keyword;
+  this.beforeExpr = !!conf.beforeExpr;
+  this.startsExpr = !!conf.startsExpr;
+  this.isLoop = !!conf.isLoop;
+  this.isAssign = !!conf.isAssign;
+  this.prefix = !!conf.prefix;
+  this.postfix = !!conf.postfix;
+  this.binop = conf.binop || null;
+  this.updateContext = null;
+};
+
+exports.TokenType = TokenType;
+
+function binop(name, prec) {
+  return new TokenType(name, { beforeExpr: true, binop: prec });
+}
+var beforeExpr = { beforeExpr: true },
+    startsExpr = { startsExpr: true };
+
+var types = {
+  num: new TokenType("num", startsExpr),
+  regexp: new TokenType("regexp", startsExpr),
+  string: new TokenType("string", startsExpr),
+  name: new TokenType("name", startsExpr),
+  eof: new TokenType("eof"),
+
+  // Punctuation token types.
+  bracketL: new TokenType("[", { beforeExpr: true, startsExpr: true }),
+  bracketR: new TokenType("]"),
+  braceL: new TokenType("{", { beforeExpr: true, startsExpr: true }),
+  braceR: new TokenType("}"),
+  parenL: new TokenType("(", { beforeExpr: true, startsExpr: true }),
+  parenR: new TokenType(")"),
+  comma: new TokenType(",", beforeExpr),
+  semi: new TokenType(";", beforeExpr),
+  colon: new TokenType(":", beforeExpr),
+  dot: new TokenType("."),
+  question: new TokenType("?", beforeExpr),
+  arrow: new TokenType("=>", beforeExpr),
+  template: new TokenType("template"),
+  ellipsis: new TokenType("...", beforeExpr),
+  backQuote: new TokenType("`", startsExpr),
+  dollarBraceL: new TokenType("${", { beforeExpr: true, startsExpr: true }),
+
+  // Operators. These carry several kinds of properties to help the
+  // parser use them properly (the presence of these properties is
+  // what categorizes them as operators).
+  //
+  // `binop`, when present, specifies that this operator is a binary
+  // operator, and will refer to its precedence.
+  //
+  // `prefix` and `postfix` mark the operator as a prefix or postfix
+  // unary operator.
+  //
+  // `isAssign` marks all of `=`, `+=`, `-=` etcetera, which act as
+  // binary operators with a very low precedence, that should result
+  // in AssignmentExpression nodes.
+
+  eq: new TokenType("=", { beforeExpr: true, isAssign: true }),
+  assign: new TokenType("_=", { beforeExpr: true, isAssign: true }),
+  incDec: new TokenType("++/--", { prefix: true, postfix: true, startsExpr: true }),
+  prefix: new TokenType("prefix", { beforeExpr: true, prefix: true, startsExpr: true }),
+  logicalOR: binop("||", 1),
+  logicalAND: binop("&&", 2),
+  bitwiseOR: binop("|", 3),
+  bitwiseXOR: binop("^", 4),
+  bitwiseAND: binop("&", 5),
+  equality: binop("==/!=", 6),
+  relational: binop("</>", 7),
+  bitShift: binop("<</>>", 8),
+  plusMin: new TokenType("+/-", { beforeExpr: true, binop: 9, prefix: true, startsExpr: true }),
+  modulo: binop("%", 10),
+  star: binop("*", 10),
+  slash: binop("/", 10)
+};
+
+exports.types = types;
+// Map keyword names to token types.
+
+var keywords = {};
+
+exports.keywords = keywords;
+// Succinct definitions of keyword token types
+function kw(name) {
+  var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+  options.keyword = name;
+  keywords[name] = types["_" + name] = new TokenType(name, options);
+}
+
+kw("break");
+kw("case", beforeExpr);
+kw("catch");
+kw("continue");
+kw("debugger");
+kw("default", beforeExpr);
+kw("do", { isLoop: true, beforeExpr: true });
+kw("else", beforeExpr);
+kw("finally");
+kw("for", { isLoop: true });
+kw("function", startsExpr);
+kw("if");
+kw("return", beforeExpr);
+kw("switch");
+kw("throw", beforeExpr);
+kw("try");
+kw("var");
+kw("let");
+kw("const");
+kw("while", { isLoop: true });
+kw("with");
+kw("new", { beforeExpr: true, startsExpr: true });
+kw("this", startsExpr);
+kw("super", startsExpr);
+kw("class");
+kw("extends", beforeExpr);
+kw("export");
+kw("import");
+kw("yield", { beforeExpr: true, startsExpr: true });
+kw("null", startsExpr);
+kw("true", startsExpr);
+kw("false", startsExpr);
+kw("in", { beforeExpr: true, binop: 7 });
+kw("instanceof", { beforeExpr: true, binop: 7 });
+kw("typeof", { beforeExpr: true, prefix: true, startsExpr: true });
+kw("void", { beforeExpr: true, prefix: true, startsExpr: true });
+kw("delete", { beforeExpr: true, prefix: true, startsExpr: true });
+
+},{}],15:[function(_dereq_,module,exports){
+"use strict";
+
+exports.__esModule = true;
+exports.isArray = isArray;
+exports.has = has;
+
+function isArray(obj) {
+  return Object.prototype.toString.call(obj) === "[object Array]";
+}
+
+// Checks if an object has a property.
+
+function has(obj, propName) {
+  return Object.prototype.hasOwnProperty.call(obj, propName);
+}
+
+},{}],16:[function(_dereq_,module,exports){
+// Matches a whole line break (where CRLF is considered a single
+// line break). Used to count lines.
+
+"use strict";
+
+exports.__esModule = true;
+exports.isNewLine = isNewLine;
+var lineBreak = /\r\n?|\n|\u2028|\u2029/;
+exports.lineBreak = lineBreak;
+var lineBreakG = new RegExp(lineBreak.source, "g");
+
+exports.lineBreakG = lineBreakG;
+
+function isNewLine(code) {
+  return code === 10 || code === 13 || code === 0x2028 || code == 0x2029;
+}
+
+var nonASCIIwhitespace = /[\u1680\u180e\u2000-\u200a\u202f\u205f\u3000\ufeff]/;
+exports.nonASCIIwhitespace = nonASCIIwhitespace;
+
+},{}]},{},[3])(3)
+});
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+
+},{}],41:[function(require,module,exports){
+(function (global){
 //     Backbone.js 1.2.3
 
 //     (c) 2010-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -2995,6801 +11374,1617 @@ document[REGISTER_ELEMENT] = function registerElement(type, options) {
 
 }));
 
-/** vim: et:ts=4:sw=4:sts=4
- * @license RequireJS 2.1.14 Copyright (c) 2010-2014, The Dojo Foundation All Rights Reserved.
- * Available via the MIT or new BSD license.
- * see: http://github.com/jrburke/requirejs for details
- */
-//Not using strict: uneven strict support in browsers, #392, and causes
-//problems with requirejs.exec()/transpiler plugins that may not be strict.
-/*jslint regexp: true, nomen: true, sloppy: true */
-/*global window, navigator, document, importScripts, setTimeout, opera */
-
-var requirejs, require, define;
-(function (global) {
-    var req, s, head, baseElement, dataMain, src,
-        interactiveScript, currentlyAddingScript, mainScript, subPath,
-        version = '2.1.14',
-        commentRegExp = /(\/\*([\s\S]*?)\*\/|([^:]|^)\/\/(.*)$)/mg,
-        cjsRequireRegExp = /[^.]\s*require\s*\(\s*["']([^'"\s]+)["']\s*\)/g,
-        jsSuffixRegExp = /\.js$/,
-        currDirRegExp = /^\.\//,
-        op = Object.prototype,
-        ostring = op.toString,
-        hasOwn = op.hasOwnProperty,
-        ap = Array.prototype,
-        apsp = ap.splice,
-        isBrowser = !!(typeof window !== 'undefined' && typeof navigator !== 'undefined' && window.document),
-        isWebWorker = !isBrowser && typeof importScripts !== 'undefined',
-        //PS3 indicates loaded and complete, but need to wait for complete
-        //specifically. Sequence is 'loading', 'loaded', execution,
-        // then 'complete'. The UA check is unfortunate, but not sure how
-        //to feature test w/o causing perf issues.
-        readyRegExp = isBrowser && navigator.platform === 'PLAYSTATION 3' ?
-                      /^complete$/ : /^(complete|loaded)$/,
-        defContextName = '_',
-        //Oh the tragedy, detecting opera. See the usage of isOpera for reason.
-        isOpera = typeof opera !== 'undefined' && opera.toString() === '[object Opera]',
-        contexts = {},
-        cfg = {},
-        globalDefQueue = [],
-        useInteractive = false;
-
-    function isFunction(it) {
-        return ostring.call(it) === '[object Function]';
-    }
-
-    function isArray(it) {
-        return ostring.call(it) === '[object Array]';
-    }
-
-    /**
-     * Helper function for iterating over an array. If the func returns
-     * a true value, it will break out of the loop.
-     */
-    function each(ary, func) {
-        if (ary) {
-            var i;
-            for (i = 0; i < ary.length; i += 1) {
-                if (ary[i] && func(ary[i], i, ary)) {
-                    break;
-                }
-            }
-        }
-    }
-
-    /**
-     * Helper function for iterating over an array backwards. If the func
-     * returns a true value, it will break out of the loop.
-     */
-    function eachReverse(ary, func) {
-        if (ary) {
-            var i;
-            for (i = ary.length - 1; i > -1; i -= 1) {
-                if (ary[i] && func(ary[i], i, ary)) {
-                    break;
-                }
-            }
-        }
-    }
-
-    function hasProp(obj, prop) {
-        return hasOwn.call(obj, prop);
-    }
-
-    function getOwn(obj, prop) {
-        return hasProp(obj, prop) && obj[prop];
-    }
-
-    /**
-     * Cycles over properties in an object and calls a function for each
-     * property value. If the function returns a truthy value, then the
-     * iteration is stopped.
-     */
-    function eachProp(obj, func) {
-        var prop;
-        for (prop in obj) {
-            if (hasProp(obj, prop)) {
-                if (func(obj[prop], prop)) {
-                    break;
-                }
-            }
-        }
-    }
-
-    /**
-     * Simple function to mix in properties from source into target,
-     * but only if target does not already have a property of the same name.
-     */
-    function mixin(target, source, force, deepStringMixin) {
-        if (source) {
-            eachProp(source, function (value, prop) {
-                if (force || !hasProp(target, prop)) {
-                    if (deepStringMixin && typeof value === 'object' && value &&
-                        !isArray(value) && !isFunction(value) &&
-                        !(value instanceof RegExp)) {
-
-                        if (!target[prop]) {
-                            target[prop] = {};
-                        }
-                        mixin(target[prop], value, force, deepStringMixin);
-                    } else {
-                        target[prop] = value;
-                    }
-                }
-            });
-        }
-        return target;
-    }
-
-    //Similar to Function.prototype.bind, but the 'this' object is specified
-    //first, since it is easier to read/figure out what 'this' will be.
-    function bind(obj, fn) {
-        return function () {
-            return fn.apply(obj, arguments);
-        };
-    }
-
-    function scripts() {
-        return document.getElementsByTagName('script');
-    }
-
-    function defaultOnError(err) {
-        throw err;
-    }
-
-    //Allow getting a global that is expressed in
-    //dot notation, like 'a.b.c'.
-    function getGlobal(value) {
-        if (!value) {
-            return value;
-        }
-        var g = global;
-        each(value.split('.'), function (part) {
-            g = g[part];
-        });
-        return g;
-    }
-
-    /**
-     * Constructs an error with a pointer to an URL with more information.
-     * @param {String} id the error ID that maps to an ID on a web page.
-     * @param {String} message human readable error.
-     * @param {Error} [err] the original error, if there is one.
-     *
-     * @returns {Error}
-     */
-    function makeError(id, msg, err, requireModules) {
-        var e = new Error(msg + '\nhttp://requirejs.org/docs/errors.html#' + id);
-        e.requireType = id;
-        e.requireModules = requireModules;
-        if (err) {
-            e.originalError = err;
-        }
-        return e;
-    }
-
-    if (typeof define !== 'undefined') {
-        //If a define is already in play via another AMD loader,
-        //do not overwrite.
-        return;
-    }
-
-    if (typeof requirejs !== 'undefined') {
-        if (isFunction(requirejs)) {
-            //Do not overwrite an existing requirejs instance.
-            return;
-        }
-        cfg = requirejs;
-        requirejs = undefined;
-    }
-
-    //Allow for a require config object
-    if (typeof require !== 'undefined' && !isFunction(require)) {
-        //assume it is a config object.
-        cfg = require;
-        require = undefined;
-    }
-
-    function newContext(contextName) {
-        var inCheckLoaded, Module, context, handlers,
-            checkLoadedTimeoutId,
-            config = {
-                //Defaults. Do not set a default for map
-                //config to speed up normalize(), which
-                //will run faster if there is no default.
-                waitSeconds: 7,
-                baseUrl: './',
-                paths: {},
-                bundles: {},
-                pkgs: {},
-                shim: {},
-                config: {}
-            },
-            registry = {},
-            //registry of just enabled modules, to speed
-            //cycle breaking code when lots of modules
-            //are registered, but not activated.
-            enabledRegistry = {},
-            undefEvents = {},
-            defQueue = [],
-            defined = {},
-            urlFetched = {},
-            bundlesMap = {},
-            requireCounter = 1,
-            unnormalizedCounter = 1;
-
-        /**
-         * Trims the . and .. from an array of path segments.
-         * It will keep a leading path segment if a .. will become
-         * the first path segment, to help with module name lookups,
-         * which act like paths, but can be remapped. But the end result,
-         * all paths that use this function should look normalized.
-         * NOTE: this method MODIFIES the input array.
-         * @param {Array} ary the array of path segments.
-         */
-        function trimDots(ary) {
-            var i, part;
-            for (i = 0; i < ary.length; i++) {
-                part = ary[i];
-                if (part === '.') {
-                    ary.splice(i, 1);
-                    i -= 1;
-                } else if (part === '..') {
-                    // If at the start, or previous value is still ..,
-                    // keep them so that when converted to a path it may
-                    // still work when converted to a path, even though
-                    // as an ID it is less than ideal. In larger point
-                    // releases, may be better to just kick out an error.
-                    if (i === 0 || (i == 1 && ary[2] === '..') || ary[i - 1] === '..') {
-                        continue;
-                    } else if (i > 0) {
-                        ary.splice(i - 1, 2);
-                        i -= 2;
-                    }
-                }
-            }
-        }
-
-        /**
-         * Given a relative module name, like ./something, normalize it to
-         * a real name that can be mapped to a path.
-         * @param {String} name the relative name
-         * @param {String} baseName a real name that the name arg is relative
-         * to.
-         * @param {Boolean} applyMap apply the map config to the value. Should
-         * only be done if this normalization is for a dependency ID.
-         * @returns {String} normalized name
-         */
-        function normalize(name, baseName, applyMap) {
-            var pkgMain, mapValue, nameParts, i, j, nameSegment, lastIndex,
-                foundMap, foundI, foundStarMap, starI, normalizedBaseParts,
-                baseParts = (baseName && baseName.split('/')),
-                map = config.map,
-                starMap = map && map['*'];
-
-            //Adjust any relative paths.
-            if (name) {
-                name = name.split('/');
-                lastIndex = name.length - 1;
-
-                // If wanting node ID compatibility, strip .js from end
-                // of IDs. Have to do this here, and not in nameToUrl
-                // because node allows either .js or non .js to map
-                // to same file.
-                if (config.nodeIdCompat && jsSuffixRegExp.test(name[lastIndex])) {
-                    name[lastIndex] = name[lastIndex].replace(jsSuffixRegExp, '');
-                }
-
-                // Starts with a '.' so need the baseName
-                if (name[0].charAt(0) === '.' && baseParts) {
-                    //Convert baseName to array, and lop off the last part,
-                    //so that . matches that 'directory' and not name of the baseName's
-                    //module. For instance, baseName of 'one/two/three', maps to
-                    //'one/two/three.js', but we want the directory, 'one/two' for
-                    //this normalization.
-                    normalizedBaseParts = baseParts.slice(0, baseParts.length - 1);
-                    name = normalizedBaseParts.concat(name);
-                }
-
-                trimDots(name);
-                name = name.join('/');
-            }
-
-            //Apply map config if available.
-            if (applyMap && map && (baseParts || starMap)) {
-                nameParts = name.split('/');
-
-                outerLoop: for (i = nameParts.length; i > 0; i -= 1) {
-                    nameSegment = nameParts.slice(0, i).join('/');
-
-                    if (baseParts) {
-                        //Find the longest baseName segment match in the config.
-                        //So, do joins on the biggest to smallest lengths of baseParts.
-                        for (j = baseParts.length; j > 0; j -= 1) {
-                            mapValue = getOwn(map, baseParts.slice(0, j).join('/'));
-
-                            //baseName segment has config, find if it has one for
-                            //this name.
-                            if (mapValue) {
-                                mapValue = getOwn(mapValue, nameSegment);
-                                if (mapValue) {
-                                    //Match, update name to the new value.
-                                    foundMap = mapValue;
-                                    foundI = i;
-                                    break outerLoop;
-                                }
-                            }
-                        }
-                    }
-
-                    //Check for a star map match, but just hold on to it,
-                    //if there is a shorter segment match later in a matching
-                    //config, then favor over this star map.
-                    if (!foundStarMap && starMap && getOwn(starMap, nameSegment)) {
-                        foundStarMap = getOwn(starMap, nameSegment);
-                        starI = i;
-                    }
-                }
-
-                if (!foundMap && foundStarMap) {
-                    foundMap = foundStarMap;
-                    foundI = starI;
-                }
-
-                if (foundMap) {
-                    nameParts.splice(0, foundI, foundMap);
-                    name = nameParts.join('/');
-                }
-            }
-
-            // If the name points to a package's name, use
-            // the package main instead.
-            pkgMain = getOwn(config.pkgs, name);
-
-            return pkgMain ? pkgMain : name;
-        }
-
-        function removeScript(name) {
-            if (isBrowser) {
-                each(scripts(), function (scriptNode) {
-                    if (scriptNode.getAttribute('data-requiremodule') === name &&
-                            scriptNode.getAttribute('data-requirecontext') === context.contextName) {
-                        scriptNode.parentNode.removeChild(scriptNode);
-                        return true;
-                    }
-                });
-            }
-        }
-
-        function hasPathFallback(id) {
-            var pathConfig = getOwn(config.paths, id);
-            if (pathConfig && isArray(pathConfig) && pathConfig.length > 1) {
-                //Pop off the first array value, since it failed, and
-                //retry
-                pathConfig.shift();
-                context.require.undef(id);
-
-                //Custom require that does not do map translation, since
-                //ID is "absolute", already mapped/resolved.
-                context.makeRequire(null, {
-                    skipMap: true
-                })([id]);
-
-                return true;
-            }
-        }
-
-        //Turns a plugin!resource to [plugin, resource]
-        //with the plugin being undefined if the name
-        //did not have a plugin prefix.
-        function splitPrefix(name) {
-            var prefix,
-                index = name ? name.indexOf('!') : -1;
-            if (index > -1) {
-                prefix = name.substring(0, index);
-                name = name.substring(index + 1, name.length);
-            }
-            return [prefix, name];
-        }
-
-        /**
-         * Creates a module mapping that includes plugin prefix, module
-         * name, and path. If parentModuleMap is provided it will
-         * also normalize the name via require.normalize()
-         *
-         * @param {String} name the module name
-         * @param {String} [parentModuleMap] parent module map
-         * for the module name, used to resolve relative names.
-         * @param {Boolean} isNormalized: is the ID already normalized.
-         * This is true if this call is done for a define() module ID.
-         * @param {Boolean} applyMap: apply the map config to the ID.
-         * Should only be true if this map is for a dependency.
-         *
-         * @returns {Object}
-         */
-        function makeModuleMap(name, parentModuleMap, isNormalized, applyMap) {
-            var url, pluginModule, suffix, nameParts,
-                prefix = null,
-                parentName = parentModuleMap ? parentModuleMap.name : null,
-                originalName = name,
-                isDefine = true,
-                normalizedName = '';
-
-            //If no name, then it means it is a require call, generate an
-            //internal name.
-            if (!name) {
-                isDefine = false;
-                name = '_@r' + (requireCounter += 1);
-            }
-
-            nameParts = splitPrefix(name);
-            prefix = nameParts[0];
-            name = nameParts[1];
-
-            if (prefix) {
-                prefix = normalize(prefix, parentName, applyMap);
-                pluginModule = getOwn(defined, prefix);
-            }
-
-            //Account for relative paths if there is a base name.
-            if (name) {
-                if (prefix) {
-                    if (pluginModule && pluginModule.normalize) {
-                        //Plugin is loaded, use its normalize method.
-                        normalizedName = pluginModule.normalize(name, function (name) {
-                            return normalize(name, parentName, applyMap);
-                        });
-                    } else {
-                        // If nested plugin references, then do not try to
-                        // normalize, as it will not normalize correctly. This
-                        // places a restriction on resourceIds, and the longer
-                        // term solution is not to normalize until plugins are
-                        // loaded and all normalizations to allow for async
-                        // loading of a loader plugin. But for now, fixes the
-                        // common uses. Details in #1131
-                        normalizedName = name.indexOf('!') === -1 ?
-                                         normalize(name, parentName, applyMap) :
-                                         name;
-                    }
-                } else {
-                    //A regular module.
-                    normalizedName = normalize(name, parentName, applyMap);
-
-                    //Normalized name may be a plugin ID due to map config
-                    //application in normalize. The map config values must
-                    //already be normalized, so do not need to redo that part.
-                    nameParts = splitPrefix(normalizedName);
-                    prefix = nameParts[0];
-                    normalizedName = nameParts[1];
-                    isNormalized = true;
-
-                    url = context.nameToUrl(normalizedName);
-                }
-            }
-
-            //If the id is a plugin id that cannot be determined if it needs
-            //normalization, stamp it with a unique ID so two matching relative
-            //ids that may conflict can be separate.
-            suffix = prefix && !pluginModule && !isNormalized ?
-                     '_unnormalized' + (unnormalizedCounter += 1) :
-                     '';
-
-            return {
-                prefix: prefix,
-                name: normalizedName,
-                parentMap: parentModuleMap,
-                unnormalized: !!suffix,
-                url: url,
-                originalName: originalName,
-                isDefine: isDefine,
-                id: (prefix ?
-                        prefix + '!' + normalizedName :
-                        normalizedName) + suffix
-            };
-        }
-
-        function getModule(depMap) {
-            var id = depMap.id,
-                mod = getOwn(registry, id);
-
-            if (!mod) {
-                mod = registry[id] = new context.Module(depMap);
-            }
-
-            return mod;
-        }
-
-        function on(depMap, name, fn) {
-            var id = depMap.id,
-                mod = getOwn(registry, id);
-
-            if (hasProp(defined, id) &&
-                    (!mod || mod.defineEmitComplete)) {
-                if (name === 'defined') {
-                    fn(defined[id]);
-                }
-            } else {
-                mod = getModule(depMap);
-                if (mod.error && name === 'error') {
-                    fn(mod.error);
-                } else {
-                    mod.on(name, fn);
-                }
-            }
-        }
-
-        function onError(err, errback) {
-            var ids = err.requireModules,
-                notified = false;
-
-            if (errback) {
-                errback(err);
-            } else {
-                each(ids, function (id) {
-                    var mod = getOwn(registry, id);
-                    if (mod) {
-                        //Set error on module, so it skips timeout checks.
-                        mod.error = err;
-                        if (mod.events.error) {
-                            notified = true;
-                            mod.emit('error', err);
-                        }
-                    }
-                });
-
-                if (!notified) {
-                    req.onError(err);
-                }
-            }
-        }
-
-        /**
-         * Internal method to transfer globalQueue items to this context's
-         * defQueue.
-         */
-        function takeGlobalQueue() {
-            //Push all the globalDefQueue items into the context's defQueue
-            if (globalDefQueue.length) {
-                //Array splice in the values since the context code has a
-                //local var ref to defQueue, so cannot just reassign the one
-                //on context.
-                apsp.apply(defQueue,
-                           [defQueue.length, 0].concat(globalDefQueue));
-                globalDefQueue = [];
-            }
-        }
-
-        handlers = {
-            'require': function (mod) {
-                if (mod.require) {
-                    return mod.require;
-                } else {
-                    return (mod.require = context.makeRequire(mod.map));
-                }
-            },
-            'exports': function (mod) {
-                mod.usingExports = true;
-                if (mod.map.isDefine) {
-                    if (mod.exports) {
-                        return (defined[mod.map.id] = mod.exports);
-                    } else {
-                        return (mod.exports = defined[mod.map.id] = {});
-                    }
-                }
-            },
-            'module': function (mod) {
-                if (mod.module) {
-                    return mod.module;
-                } else {
-                    return (mod.module = {
-                        id: mod.map.id,
-                        uri: mod.map.url,
-                        config: function () {
-                            return  getOwn(config.config, mod.map.id) || {};
-                        },
-                        exports: mod.exports || (mod.exports = {})
-                    });
-                }
-            }
-        };
-
-        function cleanRegistry(id) {
-            //Clean up machinery used for waiting modules.
-            delete registry[id];
-            delete enabledRegistry[id];
-        }
-
-        function breakCycle(mod, traced, processed) {
-            var id = mod.map.id;
-
-            if (mod.error) {
-                mod.emit('error', mod.error);
-            } else {
-                traced[id] = true;
-                each(mod.depMaps, function (depMap, i) {
-                    var depId = depMap.id,
-                        dep = getOwn(registry, depId);
-
-                    //Only force things that have not completed
-                    //being defined, so still in the registry,
-                    //and only if it has not been matched up
-                    //in the module already.
-                    if (dep && !mod.depMatched[i] && !processed[depId]) {
-                        if (getOwn(traced, depId)) {
-                            mod.defineDep(i, defined[depId]);
-                            mod.check(); //pass false?
-                        } else {
-                            breakCycle(dep, traced, processed);
-                        }
-                    }
-                });
-                processed[id] = true;
-            }
-        }
-
-        function checkLoaded() {
-            var err, usingPathFallback,
-                waitInterval = config.waitSeconds * 1000,
-                //It is possible to disable the wait interval by using waitSeconds of 0.
-                expired = waitInterval && (context.startTime + waitInterval) < new Date().getTime(),
-                noLoads = [],
-                reqCalls = [],
-                stillLoading = false,
-                needCycleCheck = true;
-
-            //Do not bother if this call was a result of a cycle break.
-            if (inCheckLoaded) {
-                return;
-            }
-
-            inCheckLoaded = true;
-
-            //Figure out the state of all the modules.
-            eachProp(enabledRegistry, function (mod) {
-                var map = mod.map,
-                    modId = map.id;
-
-                //Skip things that are not enabled or in error state.
-                if (!mod.enabled) {
-                    return;
-                }
-
-                if (!map.isDefine) {
-                    reqCalls.push(mod);
-                }
-
-                if (!mod.error) {
-                    //If the module should be executed, and it has not
-                    //been inited and time is up, remember it.
-                    if (!mod.inited && expired) {
-                        if (hasPathFallback(modId)) {
-                            usingPathFallback = true;
-                            stillLoading = true;
-                        } else {
-                            noLoads.push(modId);
-                            removeScript(modId);
-                        }
-                    } else if (!mod.inited && mod.fetched && map.isDefine) {
-                        stillLoading = true;
-                        if (!map.prefix) {
-                            //No reason to keep looking for unfinished
-                            //loading. If the only stillLoading is a
-                            //plugin resource though, keep going,
-                            //because it may be that a plugin resource
-                            //is waiting on a non-plugin cycle.
-                            return (needCycleCheck = false);
-                        }
-                    }
-                }
-            });
-
-            if (expired && noLoads.length) {
-                //If wait time expired, throw error of unloaded modules.
-                err = makeError('timeout', 'Load timeout for modules: ' + noLoads, null, noLoads);
-                err.contextName = context.contextName;
-                return onError(err);
-            }
-
-            //Not expired, check for a cycle.
-            if (needCycleCheck) {
-                each(reqCalls, function (mod) {
-                    breakCycle(mod, {}, {});
-                });
-            }
-
-            //If still waiting on loads, and the waiting load is something
-            //other than a plugin resource, or there are still outstanding
-            //scripts, then just try back later.
-            if ((!expired || usingPathFallback) && stillLoading) {
-                //Something is still waiting to load. Wait for it, but only
-                //if a timeout is not already in effect.
-                if ((isBrowser || isWebWorker) && !checkLoadedTimeoutId) {
-                    checkLoadedTimeoutId = setTimeout(function () {
-                        checkLoadedTimeoutId = 0;
-                        checkLoaded();
-                    }, 50);
-                }
-            }
-
-            inCheckLoaded = false;
-        }
-
-        Module = function (map) {
-            this.events = getOwn(undefEvents, map.id) || {};
-            this.map = map;
-            this.shim = getOwn(config.shim, map.id);
-            this.depExports = [];
-            this.depMaps = [];
-            this.depMatched = [];
-            this.pluginMaps = {};
-            this.depCount = 0;
-
-            /* this.exports this.factory
-               this.depMaps = [],
-               this.enabled, this.fetched
-            */
-        };
-
-        Module.prototype = {
-            init: function (depMaps, factory, errback, options) {
-                options = options || {};
-
-                //Do not do more inits if already done. Can happen if there
-                //are multiple define calls for the same module. That is not
-                //a normal, common case, but it is also not unexpected.
-                if (this.inited) {
-                    return;
-                }
-
-                this.factory = factory;
-
-                if (errback) {
-                    //Register for errors on this module.
-                    this.on('error', errback);
-                } else if (this.events.error) {
-                    //If no errback already, but there are error listeners
-                    //on this module, set up an errback to pass to the deps.
-                    errback = bind(this, function (err) {
-                        this.emit('error', err);
-                    });
-                }
-
-                //Do a copy of the dependency array, so that
-                //source inputs are not modified. For example
-                //"shim" deps are passed in here directly, and
-                //doing a direct modification of the depMaps array
-                //would affect that config.
-                this.depMaps = depMaps && depMaps.slice(0);
-
-                this.errback = errback;
-
-                //Indicate this module has be initialized
-                this.inited = true;
-
-                this.ignore = options.ignore;
-
-                //Could have option to init this module in enabled mode,
-                //or could have been previously marked as enabled. However,
-                //the dependencies are not known until init is called. So
-                //if enabled previously, now trigger dependencies as enabled.
-                if (options.enabled || this.enabled) {
-                    //Enable this module and dependencies.
-                    //Will call this.check()
-                    this.enable();
-                } else {
-                    this.check();
-                }
-            },
-
-            defineDep: function (i, depExports) {
-                //Because of cycles, defined callback for a given
-                //export can be called more than once.
-                if (!this.depMatched[i]) {
-                    this.depMatched[i] = true;
-                    this.depCount -= 1;
-                    this.depExports[i] = depExports;
-                }
-            },
-
-            fetch: function () {
-                if (this.fetched) {
-                    return;
-                }
-                this.fetched = true;
-
-                context.startTime = (new Date()).getTime();
-
-                var map = this.map;
-
-                //If the manager is for a plugin managed resource,
-                //ask the plugin to load it now.
-                if (this.shim) {
-                    context.makeRequire(this.map, {
-                        enableBuildCallback: true
-                    })(this.shim.deps || [], bind(this, function () {
-                        return map.prefix ? this.callPlugin() : this.load();
-                    }));
-                } else {
-                    //Regular dependency.
-                    return map.prefix ? this.callPlugin() : this.load();
-                }
-            },
-
-            load: function () {
-                var url = this.map.url;
-
-                //Regular dependency.
-                if (!urlFetched[url]) {
-                    urlFetched[url] = true;
-                    context.load(this.map.id, url);
-                }
-            },
-
-            /**
-             * Checks if the module is ready to define itself, and if so,
-             * define it.
-             */
-            check: function () {
-                if (!this.enabled || this.enabling) {
-                    return;
-                }
-
-                var err, cjsModule,
-                    id = this.map.id,
-                    depExports = this.depExports,
-                    exports = this.exports,
-                    factory = this.factory;
-
-                if (!this.inited) {
-                    this.fetch();
-                } else if (this.error) {
-                    this.emit('error', this.error);
-                } else if (!this.defining) {
-                    //The factory could trigger another require call
-                    //that would result in checking this module to
-                    //define itself again. If already in the process
-                    //of doing that, skip this work.
-                    this.defining = true;
-
-                    if (this.depCount < 1 && !this.defined) {
-                        if (isFunction(factory)) {
-                            //If there is an error listener, favor passing
-                            //to that instead of throwing an error. However,
-                            //only do it for define()'d  modules. require
-                            //errbacks should not be called for failures in
-                            //their callbacks (#699). However if a global
-                            //onError is set, use that.
-                            if ((this.events.error && this.map.isDefine) ||
-                                req.onError !== defaultOnError) {
-                                try {
-                                    exports = context.execCb(id, factory, depExports, exports);
-                                } catch (e) {
-                                    err = e;
-                                }
-                            } else {
-                                exports = context.execCb(id, factory, depExports, exports);
-                            }
-
-                            // Favor return value over exports. If node/cjs in play,
-                            // then will not have a return value anyway. Favor
-                            // module.exports assignment over exports object.
-                            if (this.map.isDefine && exports === undefined) {
-                                cjsModule = this.module;
-                                if (cjsModule) {
-                                    exports = cjsModule.exports;
-                                } else if (this.usingExports) {
-                                    //exports already set the defined value.
-                                    exports = this.exports;
-                                }
-                            }
-
-                            if (err) {
-                                err.requireMap = this.map;
-                                err.requireModules = this.map.isDefine ? [this.map.id] : null;
-                                err.requireType = this.map.isDefine ? 'define' : 'require';
-                                return onError((this.error = err));
-                            }
-
-                        } else {
-                            //Just a literal value
-                            exports = factory;
-                        }
-
-                        this.exports = exports;
-
-                        if (this.map.isDefine && !this.ignore) {
-                            defined[id] = exports;
-
-                            if (req.onResourceLoad) {
-                                req.onResourceLoad(context, this.map, this.depMaps);
-                            }
-                        }
-
-                        //Clean up
-                        cleanRegistry(id);
-
-                        this.defined = true;
-                    }
-
-                    //Finished the define stage. Allow calling check again
-                    //to allow define notifications below in the case of a
-                    //cycle.
-                    this.defining = false;
-
-                    if (this.defined && !this.defineEmitted) {
-                        this.defineEmitted = true;
-                        this.emit('defined', this.exports);
-                        this.defineEmitComplete = true;
-                    }
-
-                }
-            },
-
-            callPlugin: function () {
-                var map = this.map,
-                    id = map.id,
-                    //Map already normalized the prefix.
-                    pluginMap = makeModuleMap(map.prefix);
-
-                //Mark this as a dependency for this plugin, so it
-                //can be traced for cycles.
-                this.depMaps.push(pluginMap);
-
-                on(pluginMap, 'defined', bind(this, function (plugin) {
-                    var load, normalizedMap, normalizedMod,
-                        bundleId = getOwn(bundlesMap, this.map.id),
-                        name = this.map.name,
-                        parentName = this.map.parentMap ? this.map.parentMap.name : null,
-                        localRequire = context.makeRequire(map.parentMap, {
-                            enableBuildCallback: true
-                        });
-
-                    //If current map is not normalized, wait for that
-                    //normalized name to load instead of continuing.
-                    if (this.map.unnormalized) {
-                        //Normalize the ID if the plugin allows it.
-                        if (plugin.normalize) {
-                            name = plugin.normalize(name, function (name) {
-                                return normalize(name, parentName, true);
-                            }) || '';
-                        }
-
-                        //prefix and name should already be normalized, no need
-                        //for applying map config again either.
-                        normalizedMap = makeModuleMap(map.prefix + '!' + name,
-                                                      this.map.parentMap);
-                        on(normalizedMap,
-                            'defined', bind(this, function (value) {
-                                this.init([], function () { return value; }, null, {
-                                    enabled: true,
-                                    ignore: true
-                                });
-                            }));
-
-                        normalizedMod = getOwn(registry, normalizedMap.id);
-                        if (normalizedMod) {
-                            //Mark this as a dependency for this plugin, so it
-                            //can be traced for cycles.
-                            this.depMaps.push(normalizedMap);
-
-                            if (this.events.error) {
-                                normalizedMod.on('error', bind(this, function (err) {
-                                    this.emit('error', err);
-                                }));
-                            }
-                            normalizedMod.enable();
-                        }
-
-                        return;
-                    }
-
-                    //If a paths config, then just load that file instead to
-                    //resolve the plugin, as it is built into that paths layer.
-                    if (bundleId) {
-                        this.map.url = context.nameToUrl(bundleId);
-                        this.load();
-                        return;
-                    }
-
-                    load = bind(this, function (value) {
-                        this.init([], function () { return value; }, null, {
-                            enabled: true
-                        });
-                    });
-
-                    load.error = bind(this, function (err) {
-                        this.inited = true;
-                        this.error = err;
-                        err.requireModules = [id];
-
-                        //Remove temp unnormalized modules for this module,
-                        //since they will never be resolved otherwise now.
-                        eachProp(registry, function (mod) {
-                            if (mod.map.id.indexOf(id + '_unnormalized') === 0) {
-                                cleanRegistry(mod.map.id);
-                            }
-                        });
-
-                        onError(err);
-                    });
-
-                    //Allow plugins to load other code without having to know the
-                    //context or how to 'complete' the load.
-                    load.fromText = bind(this, function (text, textAlt) {
-                        /*jslint evil: true */
-                        var moduleName = map.name,
-                            moduleMap = makeModuleMap(moduleName),
-                            hasInteractive = useInteractive;
-
-                        //As of 2.1.0, support just passing the text, to reinforce
-                        //fromText only being called once per resource. Still
-                        //support old style of passing moduleName but discard
-                        //that moduleName in favor of the internal ref.
-                        if (textAlt) {
-                            text = textAlt;
-                        }
-
-                        //Turn off interactive script matching for IE for any define
-                        //calls in the text, then turn it back on at the end.
-                        if (hasInteractive) {
-                            useInteractive = false;
-                        }
-
-                        //Prime the system by creating a module instance for
-                        //it.
-                        getModule(moduleMap);
-
-                        //Transfer any config to this other module.
-                        if (hasProp(config.config, id)) {
-                            config.config[moduleName] = config.config[id];
-                        }
-
-                        try {
-                            req.exec(text);
-                        } catch (e) {
-                            return onError(makeError('fromtexteval',
-                                             'fromText eval for ' + id +
-                                            ' failed: ' + e,
-                                             e,
-                                             [id]));
-                        }
-
-                        if (hasInteractive) {
-                            useInteractive = true;
-                        }
-
-                        //Mark this as a dependency for the plugin
-                        //resource
-                        this.depMaps.push(moduleMap);
-
-                        //Support anonymous modules.
-                        context.completeLoad(moduleName);
-
-                        //Bind the value of that module to the value for this
-                        //resource ID.
-                        localRequire([moduleName], load);
-                    });
-
-                    //Use parentName here since the plugin's name is not reliable,
-                    //could be some weird string with no path that actually wants to
-                    //reference the parentName's path.
-                    plugin.load(map.name, localRequire, load, config);
-                }));
-
-                context.enable(pluginMap, this);
-                this.pluginMaps[pluginMap.id] = pluginMap;
-            },
-
-            enable: function () {
-                enabledRegistry[this.map.id] = this;
-                this.enabled = true;
-
-                //Set flag mentioning that the module is enabling,
-                //so that immediate calls to the defined callbacks
-                //for dependencies do not trigger inadvertent load
-                //with the depCount still being zero.
-                this.enabling = true;
-
-                //Enable each dependency
-                each(this.depMaps, bind(this, function (depMap, i) {
-                    var id, mod, handler;
-
-                    if (typeof depMap === 'string') {
-                        //Dependency needs to be converted to a depMap
-                        //and wired up to this module.
-                        depMap = makeModuleMap(depMap,
-                                               (this.map.isDefine ? this.map : this.map.parentMap),
-                                               false,
-                                               !this.skipMap);
-                        this.depMaps[i] = depMap;
-
-                        handler = getOwn(handlers, depMap.id);
-
-                        if (handler) {
-                            this.depExports[i] = handler(this);
-                            return;
-                        }
-
-                        this.depCount += 1;
-
-                        on(depMap, 'defined', bind(this, function (depExports) {
-                            this.defineDep(i, depExports);
-                            this.check();
-                        }));
-
-                        if (this.errback) {
-                            on(depMap, 'error', bind(this, this.errback));
-                        }
-                    }
-
-                    id = depMap.id;
-                    mod = registry[id];
-
-                    //Skip special modules like 'require', 'exports', 'module'
-                    //Also, don't call enable if it is already enabled,
-                    //important in circular dependency cases.
-                    if (!hasProp(handlers, id) && mod && !mod.enabled) {
-                        context.enable(depMap, this);
-                    }
-                }));
-
-                //Enable each plugin that is used in
-                //a dependency
-                eachProp(this.pluginMaps, bind(this, function (pluginMap) {
-                    var mod = getOwn(registry, pluginMap.id);
-                    if (mod && !mod.enabled) {
-                        context.enable(pluginMap, this);
-                    }
-                }));
-
-                this.enabling = false;
-
-                this.check();
-            },
-
-            on: function (name, cb) {
-                var cbs = this.events[name];
-                if (!cbs) {
-                    cbs = this.events[name] = [];
-                }
-                cbs.push(cb);
-            },
-
-            emit: function (name, evt) {
-                each(this.events[name], function (cb) {
-                    cb(evt);
-                });
-                if (name === 'error') {
-                    //Now that the error handler was triggered, remove
-                    //the listeners, since this broken Module instance
-                    //can stay around for a while in the registry.
-                    delete this.events[name];
-                }
-            }
-        };
-
-        function callGetModule(args) {
-            //Skip modules already defined.
-            if (!hasProp(defined, args[0])) {
-                getModule(makeModuleMap(args[0], null, true)).init(args[1], args[2]);
-            }
-        }
-
-        function removeListener(node, func, name, ieName) {
-            //Favor detachEvent because of IE9
-            //issue, see attachEvent/addEventListener comment elsewhere
-            //in this file.
-            if (node.detachEvent && !isOpera) {
-                //Probably IE. If not it will throw an error, which will be
-                //useful to know.
-                if (ieName) {
-                    node.detachEvent(ieName, func);
-                }
-            } else {
-                node.removeEventListener(name, func, false);
-            }
-        }
-
-        /**
-         * Given an event from a script node, get the requirejs info from it,
-         * and then removes the event listeners on the node.
-         * @param {Event} evt
-         * @returns {Object}
-         */
-        function getScriptData(evt) {
-            //Using currentTarget instead of target for Firefox 2.0's sake. Not
-            //all old browsers will be supported, but this one was easy enough
-            //to support and still makes sense.
-            var node = evt.currentTarget || evt.srcElement;
-
-            //Remove the listeners once here.
-            removeListener(node, context.onScriptLoad, 'load', 'onreadystatechange');
-            removeListener(node, context.onScriptError, 'error');
-
-            return {
-                node: node,
-                id: node && node.getAttribute('data-requiremodule')
-            };
-        }
-
-        function intakeDefines() {
-            var args;
-
-            //Any defined modules in the global queue, intake them now.
-            takeGlobalQueue();
-
-            //Make sure any remaining defQueue items get properly processed.
-            while (defQueue.length) {
-                args = defQueue.shift();
-                if (args[0] === null) {
-                    return onError(makeError('mismatch', 'Mismatched anonymous define() module: ' + args[args.length - 1]));
-                } else {
-                    //args are id, deps, factory. Should be normalized by the
-                    //define() function.
-                    callGetModule(args);
-                }
-            }
-        }
-
-        context = {
-            config: config,
-            contextName: contextName,
-            registry: registry,
-            defined: defined,
-            urlFetched: urlFetched,
-            defQueue: defQueue,
-            Module: Module,
-            makeModuleMap: makeModuleMap,
-            nextTick: req.nextTick,
-            onError: onError,
-
-            /**
-             * Set a configuration for the context.
-             * @param {Object} cfg config object to integrate.
-             */
-            configure: function (cfg) {
-                //Make sure the baseUrl ends in a slash.
-                if (cfg.baseUrl) {
-                    if (cfg.baseUrl.charAt(cfg.baseUrl.length - 1) !== '/') {
-                        cfg.baseUrl += '/';
-                    }
-                }
-
-                //Save off the paths since they require special processing,
-                //they are additive.
-                var shim = config.shim,
-                    objs = {
-                        paths: true,
-                        bundles: true,
-                        config: true,
-                        map: true
-                    };
-
-                eachProp(cfg, function (value, prop) {
-                    if (objs[prop]) {
-                        if (!config[prop]) {
-                            config[prop] = {};
-                        }
-                        mixin(config[prop], value, true, true);
-                    } else {
-                        config[prop] = value;
-                    }
-                });
-
-                //Reverse map the bundles
-                if (cfg.bundles) {
-                    eachProp(cfg.bundles, function (value, prop) {
-                        each(value, function (v) {
-                            if (v !== prop) {
-                                bundlesMap[v] = prop;
-                            }
-                        });
-                    });
-                }
-
-                //Merge shim
-                if (cfg.shim) {
-                    eachProp(cfg.shim, function (value, id) {
-                        //Normalize the structure
-                        if (isArray(value)) {
-                            value = {
-                                deps: value
-                            };
-                        }
-                        if ((value.exports || value.init) && !value.exportsFn) {
-                            value.exportsFn = context.makeShimExports(value);
-                        }
-                        shim[id] = value;
-                    });
-                    config.shim = shim;
-                }
-
-                //Adjust packages if necessary.
-                if (cfg.packages) {
-                    each(cfg.packages, function (pkgObj) {
-                        var location, name;
-
-                        pkgObj = typeof pkgObj === 'string' ? { name: pkgObj } : pkgObj;
-
-                        name = pkgObj.name;
-                        location = pkgObj.location;
-                        if (location) {
-                            config.paths[name] = pkgObj.location;
-                        }
-
-                        //Save pointer to main module ID for pkg name.
-                        //Remove leading dot in main, so main paths are normalized,
-                        //and remove any trailing .js, since different package
-                        //envs have different conventions: some use a module name,
-                        //some use a file name.
-                        config.pkgs[name] = pkgObj.name + '/' + (pkgObj.main || 'main')
-                                     .replace(currDirRegExp, '')
-                                     .replace(jsSuffixRegExp, '');
-                    });
-                }
-
-                //If there are any "waiting to execute" modules in the registry,
-                //update the maps for them, since their info, like URLs to load,
-                //may have changed.
-                eachProp(registry, function (mod, id) {
-                    //If module already has init called, since it is too
-                    //late to modify them, and ignore unnormalized ones
-                    //since they are transient.
-                    if (!mod.inited && !mod.map.unnormalized) {
-                        mod.map = makeModuleMap(id);
-                    }
-                });
-
-                //If a deps array or a config callback is specified, then call
-                //require with those args. This is useful when require is defined as a
-                //config object before require.js is loaded.
-                if (cfg.deps || cfg.callback) {
-                    context.require(cfg.deps || [], cfg.callback);
-                }
-            },
-
-            makeShimExports: function (value) {
-                function fn() {
-                    var ret;
-                    if (value.init) {
-                        ret = value.init.apply(global, arguments);
-                    }
-                    return ret || (value.exports && getGlobal(value.exports));
-                }
-                return fn;
-            },
-
-            makeRequire: function (relMap, options) {
-                options = options || {};
-
-                function localRequire(deps, callback, errback) {
-                    var id, map, requireMod;
-
-                    if (options.enableBuildCallback && callback && isFunction(callback)) {
-                        callback.__requireJsBuild = true;
-                    }
-
-                    if (typeof deps === 'string') {
-                        if (isFunction(callback)) {
-                            //Invalid call
-                            return onError(makeError('requireargs', 'Invalid require call'), errback);
-                        }
-
-                        //If require|exports|module are requested, get the
-                        //value for them from the special handlers. Caveat:
-                        //this only works while module is being defined.
-                        if (relMap && hasProp(handlers, deps)) {
-                            return handlers[deps](registry[relMap.id]);
-                        }
-
-                        //Synchronous access to one module. If require.get is
-                        //available (as in the Node adapter), prefer that.
-                        if (req.get) {
-                            return req.get(context, deps, relMap, localRequire);
-                        }
-
-                        //Normalize module name, if it contains . or ..
-                        map = makeModuleMap(deps, relMap, false, true);
-                        id = map.id;
-
-                        if (!hasProp(defined, id)) {
-                            return onError(makeError('notloaded', 'Module name "' +
-                                        id +
-                                        '" has not been loaded yet for context: ' +
-                                        contextName +
-                                        (relMap ? '' : '. Use require([])')));
-                        }
-                        return defined[id];
-                    }
-
-                    //Grab defines waiting in the global queue.
-                    intakeDefines();
-
-                    //Mark all the dependencies as needing to be loaded.
-                    context.nextTick(function () {
-                        //Some defines could have been added since the
-                        //require call, collect them.
-                        intakeDefines();
-
-                        requireMod = getModule(makeModuleMap(null, relMap));
-
-                        //Store if map config should be applied to this require
-                        //call for dependencies.
-                        requireMod.skipMap = options.skipMap;
-
-                        requireMod.init(deps, callback, errback, {
-                            enabled: true
-                        });
-
-                        checkLoaded();
-                    });
-
-                    return localRequire;
-                }
-
-                mixin(localRequire, {
-                    isBrowser: isBrowser,
-
-                    /**
-                     * Converts a module name + .extension into an URL path.
-                     * *Requires* the use of a module name. It does not support using
-                     * plain URLs like nameToUrl.
-                     */
-                    toUrl: function (moduleNamePlusExt) {
-                        var ext,
-                            index = moduleNamePlusExt.lastIndexOf('.'),
-                            segment = moduleNamePlusExt.split('/')[0],
-                            isRelative = segment === '.' || segment === '..';
-
-                        //Have a file extension alias, and it is not the
-                        //dots from a relative path.
-                        if (index !== -1 && (!isRelative || index > 1)) {
-                            ext = moduleNamePlusExt.substring(index, moduleNamePlusExt.length);
-                            moduleNamePlusExt = moduleNamePlusExt.substring(0, index);
-                        }
-
-                        return context.nameToUrl(normalize(moduleNamePlusExt,
-                                                relMap && relMap.id, true), ext,  true);
-                    },
-
-                    defined: function (id) {
-                        return hasProp(defined, makeModuleMap(id, relMap, false, true).id);
-                    },
-
-                    specified: function (id) {
-                        id = makeModuleMap(id, relMap, false, true).id;
-                        return hasProp(defined, id) || hasProp(registry, id);
-                    }
-                });
-
-                //Only allow undef on top level require calls
-                if (!relMap) {
-                    localRequire.undef = function (id) {
-                        //Bind any waiting define() calls to this context,
-                        //fix for #408
-                        takeGlobalQueue();
-
-                        var map = makeModuleMap(id, relMap, true),
-                            mod = getOwn(registry, id);
-
-                        removeScript(id);
-
-                        delete defined[id];
-                        delete urlFetched[map.url];
-                        delete undefEvents[id];
-
-                        //Clean queued defines too. Go backwards
-                        //in array so that the splices do not
-                        //mess up the iteration.
-                        eachReverse(defQueue, function(args, i) {
-                            if(args[0] === id) {
-                                defQueue.splice(i, 1);
-                            }
-                        });
-
-                        if (mod) {
-                            //Hold on to listeners in case the
-                            //module will be attempted to be reloaded
-                            //using a different config.
-                            if (mod.events.defined) {
-                                undefEvents[id] = mod.events;
-                            }
-
-                            cleanRegistry(id);
-                        }
-                    };
-                }
-
-                return localRequire;
-            },
-
-            /**
-             * Called to enable a module if it is still in the registry
-             * awaiting enablement. A second arg, parent, the parent module,
-             * is passed in for context, when this method is overridden by
-             * the optimizer. Not shown here to keep code compact.
-             */
-            enable: function (depMap) {
-                var mod = getOwn(registry, depMap.id);
-                if (mod) {
-                    getModule(depMap).enable();
-                }
-            },
-
-            /**
-             * Internal method used by environment adapters to complete a load event.
-             * A load event could be a script load or just a load pass from a synchronous
-             * load call.
-             * @param {String} moduleName the name of the module to potentially complete.
-             */
-            completeLoad: function (moduleName) {
-                var found, args, mod,
-                    shim = getOwn(config.shim, moduleName) || {},
-                    shExports = shim.exports;
-
-                takeGlobalQueue();
-
-                while (defQueue.length) {
-                    args = defQueue.shift();
-                    if (args[0] === null) {
-                        args[0] = moduleName;
-                        //If already found an anonymous module and bound it
-                        //to this name, then this is some other anon module
-                        //waiting for its completeLoad to fire.
-                        if (found) {
-                            break;
-                        }
-                        found = true;
-                    } else if (args[0] === moduleName) {
-                        //Found matching define call for this script!
-                        found = true;
-                    }
-
-                    callGetModule(args);
-                }
-
-                //Do this after the cycle of callGetModule in case the result
-                //of those calls/init calls changes the registry.
-                mod = getOwn(registry, moduleName);
-
-                if (!found && !hasProp(defined, moduleName) && mod && !mod.inited) {
-                    if (config.enforceDefine && (!shExports || !getGlobal(shExports))) {
-                        if (hasPathFallback(moduleName)) {
-                            return;
-                        } else {
-                            return onError(makeError('nodefine',
-                                             'No define call for ' + moduleName,
-                                             null,
-                                             [moduleName]));
-                        }
-                    } else {
-                        //A script that does not call define(), so just simulate
-                        //the call for it.
-                        callGetModule([moduleName, (shim.deps || []), shim.exportsFn]);
-                    }
-                }
-
-                checkLoaded();
-            },
-
-            /**
-             * Converts a module name to a file path. Supports cases where
-             * moduleName may actually be just an URL.
-             * Note that it **does not** call normalize on the moduleName,
-             * it is assumed to have already been normalized. This is an
-             * internal API, not a public one. Use toUrl for the public API.
-             */
-            nameToUrl: function (moduleName, ext, skipExt) {
-                var paths, syms, i, parentModule, url,
-                    parentPath, bundleId,
-                    pkgMain = getOwn(config.pkgs, moduleName);
-
-                if (pkgMain) {
-                    moduleName = pkgMain;
-                }
-
-                bundleId = getOwn(bundlesMap, moduleName);
-
-                if (bundleId) {
-                    return context.nameToUrl(bundleId, ext, skipExt);
-                }
-
-                //If a colon is in the URL, it indicates a protocol is used and it is just
-                //an URL to a file, or if it starts with a slash, contains a query arg (i.e. ?)
-                //or ends with .js, then assume the user meant to use an url and not a module id.
-                //The slash is important for protocol-less URLs as well as full paths.
-                if (req.jsExtRegExp.test(moduleName)) {
-                    //Just a plain path, not module name lookup, so just return it.
-                    //Add extension if it is included. This is a bit wonky, only non-.js things pass
-                    //an extension, this method probably needs to be reworked.
-                    url = moduleName + (ext || '');
-                } else {
-                    //A module that needs to be converted to a path.
-                    paths = config.paths;
-
-                    syms = moduleName.split('/');
-                    //For each module name segment, see if there is a path
-                    //registered for it. Start with most specific name
-                    //and work up from it.
-                    for (i = syms.length; i > 0; i -= 1) {
-                        parentModule = syms.slice(0, i).join('/');
-
-                        parentPath = getOwn(paths, parentModule);
-                        if (parentPath) {
-                            //If an array, it means there are a few choices,
-                            //Choose the one that is desired
-                            if (isArray(parentPath)) {
-                                parentPath = parentPath[0];
-                            }
-                            syms.splice(0, i, parentPath);
-                            break;
-                        }
-                    }
-
-                    //Join the path parts together, then figure out if baseUrl is needed.
-                    url = syms.join('/');
-                    url += (ext || (/^data\:|\?/.test(url) || skipExt ? '' : '.js'));
-                    url = (url.charAt(0) === '/' || url.match(/^[\w\+\.\-]+:/) ? '' : config.baseUrl) + url;
-                }
-
-                return config.urlArgs ? url +
-                                        ((url.indexOf('?') === -1 ? '?' : '&') +
-                                         config.urlArgs) : url;
-            },
-
-            //Delegates to req.load. Broken out as a separate function to
-            //allow overriding in the optimizer.
-            load: function (id, url) {
-                req.load(context, id, url);
-            },
-
-            /**
-             * Executes a module callback function. Broken out as a separate function
-             * solely to allow the build system to sequence the files in the built
-             * layer in the right sequence.
-             *
-             * @private
-             */
-            execCb: function (name, callback, args, exports) {
-                return callback.apply(exports, args);
-            },
-
-            /**
-             * callback for script loads, used to check status of loading.
-             *
-             * @param {Event} evt the event from the browser for the script
-             * that was loaded.
-             */
-            onScriptLoad: function (evt) {
-                //Using currentTarget instead of target for Firefox 2.0's sake. Not
-                //all old browsers will be supported, but this one was easy enough
-                //to support and still makes sense.
-                if (evt.type === 'load' ||
-                        (readyRegExp.test((evt.currentTarget || evt.srcElement).readyState))) {
-                    //Reset interactive script so a script node is not held onto for
-                    //to long.
-                    interactiveScript = null;
-
-                    //Pull out the name of the module and the context.
-                    var data = getScriptData(evt);
-                    context.completeLoad(data.id);
-                }
-            },
-
-            /**
-             * Callback for script errors.
-             */
-            onScriptError: function (evt) {
-                var data = getScriptData(evt);
-                if (!hasPathFallback(data.id)) {
-                    return onError(makeError('scripterror', 'Script error for: ' + data.id, evt, [data.id]));
-                }
-            }
-        };
-
-        context.require = context.makeRequire();
-        return context;
-    }
-
-    /**
-     * Main entry point.
-     *
-     * If the only argument to require is a string, then the module that
-     * is represented by that string is fetched for the appropriate context.
-     *
-     * If the first argument is an array, then it will be treated as an array
-     * of dependency string names to fetch. An optional function callback can
-     * be specified to execute when all of those dependencies are available.
-     *
-     * Make a local req variable to help Caja compliance (it assumes things
-     * on a require that are not standardized), and to give a short
-     * name for minification/local scope use.
-     */
-    req = requirejs = function (deps, callback, errback, optional) {
-
-        //Find the right context, use default
-        var context, config,
-            contextName = defContextName;
-
-        // Determine if have config object in the call.
-        if (!isArray(deps) && typeof deps !== 'string') {
-            // deps is a config object
-            config = deps;
-            if (isArray(callback)) {
-                // Adjust args if there are dependencies
-                deps = callback;
-                callback = errback;
-                errback = optional;
-            } else {
-                deps = [];
-            }
-        }
-
-        if (config && config.context) {
-            contextName = config.context;
-        }
-
-        context = getOwn(contexts, contextName);
-        if (!context) {
-            context = contexts[contextName] = req.s.newContext(contextName);
-        }
-
-        if (config) {
-            context.configure(config);
-        }
-
-        return context.require(deps, callback, errback);
-    };
-
-    /**
-     * Support require.config() to make it easier to cooperate with other
-     * AMD loaders on globally agreed names.
-     */
-    req.config = function (config) {
-        return req(config);
-    };
-
-    /**
-     * Execute something after the current tick
-     * of the event loop. Override for other envs
-     * that have a better solution than setTimeout.
-     * @param  {Function} fn function to execute later.
-     */
-    req.nextTick = typeof setTimeout !== 'undefined' ? function (fn) {
-        setTimeout(fn, 4);
-    } : function (fn) { fn(); };
-
-    /**
-     * Export require as a global, but only if it does not already exist.
-     */
-    if (!require) {
-        require = req;
-    }
-
-    req.version = version;
-
-    //Used to filter out dependencies that are already paths.
-    req.jsExtRegExp = /^\/|:|\?|\.js$/;
-    req.isBrowser = isBrowser;
-    s = req.s = {
-        contexts: contexts,
-        newContext: newContext
-    };
-
-    //Create default context.
-    req({});
-
-    //Exports some context-sensitive methods on global require.
-    each([
-        'toUrl',
-        'undef',
-        'defined',
-        'specified'
-    ], function (prop) {
-        //Reference from contexts instead of early binding to default context,
-        //so that during builds, the latest instance of the default context
-        //with its config gets used.
-        req[prop] = function () {
-            var ctx = contexts[defContextName];
-            return ctx.require[prop].apply(ctx, arguments);
-        };
-    });
-
-    if (isBrowser) {
-        head = s.head = document.getElementsByTagName('head')[0];
-        //If BASE tag is in play, using appendChild is a problem for IE6.
-        //When that browser dies, this can be removed. Details in this jQuery bug:
-        //http://dev.jquery.com/ticket/2709
-        baseElement = document.getElementsByTagName('base')[0];
-        if (baseElement) {
-            head = s.head = baseElement.parentNode;
-        }
-    }
-
-    /**
-     * Any errors that require explicitly generates will be passed to this
-     * function. Intercept/override it if you want custom error handling.
-     * @param {Error} err the error object.
-     */
-    req.onError = defaultOnError;
-
-    /**
-     * Creates the node for the load command. Only used in browser envs.
-     */
-    req.createNode = function (config, moduleName, url) {
-        var node = config.xhtml ?
-                document.createElementNS('http://www.w3.org/1999/xhtml', 'html:script') :
-                document.createElement('script');
-        node.type = config.scriptType || 'text/javascript';
-        node.charset = 'utf-8';
-        node.async = true;
-        return node;
-    };
-
-    /**
-     * Does the request to load a module for the browser case.
-     * Make this a separate function to allow other environments
-     * to override it.
-     *
-     * @param {Object} context the require context to find state.
-     * @param {String} moduleName the name of the module.
-     * @param {Object} url the URL to the module.
-     */
-    req.load = function (context, moduleName, url) {
-        var config = (context && context.config) || {},
-            node;
-        if (isBrowser) {
-            //In the browser so use a script tag
-            node = req.createNode(config, moduleName, url);
-
-            node.setAttribute('data-requirecontext', context.contextName);
-            node.setAttribute('data-requiremodule', moduleName);
-
-            //Set up load listener. Test attachEvent first because IE9 has
-            //a subtle issue in its addEventListener and script onload firings
-            //that do not match the behavior of all other browsers with
-            //addEventListener support, which fire the onload event for a
-            //script right after the script execution. See:
-            //https://connect.microsoft.com/IE/feedback/details/648057/script-onload-event-is-not-fired-immediately-after-script-execution
-            //UNFORTUNATELY Opera implements attachEvent but does not follow the script
-            //script execution mode.
-            if (node.attachEvent &&
-                    //Check if node.attachEvent is artificially added by custom script or
-                    //natively supported by browser
-                    //read https://github.com/jrburke/requirejs/issues/187
-                    //if we can NOT find [native code] then it must NOT natively supported.
-                    //in IE8, node.attachEvent does not have toString()
-                    //Note the test for "[native code" with no closing brace, see:
-                    //https://github.com/jrburke/requirejs/issues/273
-                    !(node.attachEvent.toString && node.attachEvent.toString().indexOf('[native code') < 0) &&
-                    !isOpera) {
-                //Probably IE. IE (at least 6-8) do not fire
-                //script onload right after executing the script, so
-                //we cannot tie the anonymous define call to a name.
-                //However, IE reports the script as being in 'interactive'
-                //readyState at the time of the define call.
-                useInteractive = true;
-
-                node.attachEvent('onreadystatechange', context.onScriptLoad);
-                //It would be great to add an error handler here to catch
-                //404s in IE9+. However, onreadystatechange will fire before
-                //the error handler, so that does not help. If addEventListener
-                //is used, then IE will fire error before load, but we cannot
-                //use that pathway given the connect.microsoft.com issue
-                //mentioned above about not doing the 'script execute,
-                //then fire the script load event listener before execute
-                //next script' that other browsers do.
-                //Best hope: IE10 fixes the issues,
-                //and then destroys all installs of IE 6-9.
-                //node.attachEvent('onerror', context.onScriptError);
-            } else {
-                node.addEventListener('load', context.onScriptLoad, false);
-                node.addEventListener('error', context.onScriptError, false);
-            }
-            node.src = url;
-
-            //For some cache cases in IE 6-8, the script executes before the end
-            //of the appendChild execution, so to tie an anonymous define
-            //call to the module name (which is stored on the node), hold on
-            //to a reference to this node, but clear after the DOM insertion.
-            currentlyAddingScript = node;
-            if (baseElement) {
-                head.insertBefore(node, baseElement);
-            } else {
-                head.appendChild(node);
-            }
-            currentlyAddingScript = null;
-
-            return node;
-        } else if (isWebWorker) {
-            try {
-                //In a web worker, use importScripts. This is not a very
-                //efficient use of importScripts, importScripts will block until
-                //its script is downloaded and evaluated. However, if web workers
-                //are in play, the expectation that a build has been done so that
-                //only one script needs to be loaded anyway. This may need to be
-                //reevaluated if other use cases become common.
-                importScripts(url);
-
-                //Account for anonymous modules
-                context.completeLoad(moduleName);
-            } catch (e) {
-                context.onError(makeError('importscripts',
-                                'importScripts failed for ' +
-                                    moduleName + ' at ' + url,
-                                e,
-                                [moduleName]));
-            }
-        }
-    };
-
-    function getInteractiveScript() {
-        if (interactiveScript && interactiveScript.readyState === 'interactive') {
-            return interactiveScript;
-        }
-
-        eachReverse(scripts(), function (script) {
-            if (script.readyState === 'interactive') {
-                return (interactiveScript = script);
-            }
-        });
-        return interactiveScript;
-    }
-
-    //Look for a data-main script attribute, which could also adjust the baseUrl.
-    if (isBrowser && !cfg.skipDataMain) {
-        //Figure out baseUrl. Get it from the script tag with require.js in it.
-        eachReverse(scripts(), function (script) {
-            //Set the 'head' where we can append children by
-            //using the script's parent.
-            if (!head) {
-                head = script.parentNode;
-            }
-
-            //Look for a data-main attribute to set main script for the page
-            //to load. If it is there, the path to data main becomes the
-            //baseUrl, if it is not already set.
-            dataMain = script.getAttribute('data-main');
-            if (dataMain) {
-                //Preserve dataMain in case it is a path (i.e. contains '?')
-                mainScript = dataMain;
-
-                //Set final baseUrl if there is not already an explicit one.
-                if (!cfg.baseUrl) {
-                    //Pull off the directory of data-main for use as the
-                    //baseUrl.
-                    src = mainScript.split('/');
-                    mainScript = src.pop();
-                    subPath = src.length ? src.join('/')  + '/' : './';
-
-                    cfg.baseUrl = subPath;
-                }
-
-                //Strip off any trailing .js since mainScript is now
-                //like a module name.
-                mainScript = mainScript.replace(jsSuffixRegExp, '');
-
-                 //If mainScript is still a path, fall back to dataMain
-                if (req.jsExtRegExp.test(mainScript)) {
-                    mainScript = dataMain;
-                }
-
-                //Put the data-main script in the files to load.
-                cfg.deps = cfg.deps ? cfg.deps.concat(mainScript) : [mainScript];
-
-                return true;
-            }
-        });
-    }
-
-    /**
-     * The function that handles definitions of modules. Differs from
-     * require() in that a string for the module should be the first argument,
-     * and the function to execute after dependencies are loaded should
-     * return a value to define the module corresponding to the first argument's
-     * name.
-     */
-    define = function (name, deps, callback) {
-        var node, context;
-
-        //Allow for anonymous modules
-        if (typeof name !== 'string') {
-            //Adjust args appropriately
-            callback = deps;
-            deps = name;
-            name = null;
-        }
-
-        //This module may not have dependencies
-        if (!isArray(deps)) {
-            callback = deps;
-            deps = null;
-        }
-
-        //If no name, and callback is a function, then figure out if it a
-        //CommonJS thing with dependencies.
-        if (!deps && isFunction(callback)) {
-            deps = [];
-            //Remove comments from the callback string,
-            //look for require calls, and pull them into the dependencies,
-            //but only if there are function args.
-            if (callback.length) {
-                callback
-                    .toString()
-                    .replace(commentRegExp, '')
-                    .replace(cjsRequireRegExp, function (match, dep) {
-                        deps.push(dep);
-                    });
-
-                //May be a CommonJS thing even without require calls, but still
-                //could use exports, and module. Avoid doing exports and module
-                //work though if it just needs require.
-                //REQUIRES the function to expect the CommonJS variables in the
-                //order listed below.
-                deps = (callback.length === 1 ? ['require'] : ['require', 'exports', 'module']).concat(deps);
-            }
-        }
-
-        //If in IE 6-8 and hit an anonymous define() call, do the interactive
-        //work.
-        if (useInteractive) {
-            node = currentlyAddingScript || getInteractiveScript();
-            if (node) {
-                if (!name) {
-                    name = node.getAttribute('data-requiremodule');
-                }
-                context = contexts[node.getAttribute('data-requirecontext')];
-            }
-        }
-
-        //Always save off evaluating the def call until the script onload handler.
-        //This allows multiple modules to be in a file without prematurely
-        //tracing dependencies, and allows for anonymous module support,
-        //where the module name is not known until the script onload event
-        //occurs. If no context, use the global queue, and get it processed
-        //in the onscript load callback.
-        (context ? context.defQueue : globalDefQueue).push([name, deps, callback]);
-    };
-
-    define.amd = {
-        jQuery: true
-    };
-
-
-    /**
-     * Executes the text. Normally just uses eval, but can be modified
-     * to use a better, environment-specific call. Only used for transpiling
-     * loader plugins, not for plain JS modules.
-     * @param {String} text the text to execute/evaluate.
-     */
-    req.exec = function (text) {
-        /*jslint evil: true */
-        return eval(text);
-    };
-
-    //Set up with config info.
-    req(cfg);
-}(this));
-
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-// Property Compiler
-// ----------------
-
-'use strict';
-
-Object.defineProperty(exports, '__esModule', {
-  value: true
-});
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
-
-var _propertyCompilerTokenizer = require("property-compiler/tokenizer");
-
-var _propertyCompilerTokenizer2 = _interopRequireDefault(_propertyCompilerTokenizer);
-
-var TERMINATORS = [';', ',', '==', '>', '<', '>=', '<=', '>==', '<==', '!=', '!==', '===', '&&', '||', '+', '-', '/', '*', '{', '}'];
-
-function reduceMemos(memo, paths) {
-  var newMemo = [];
-  paths = !_.isArray(paths) ? [paths] : paths;
-  _.each(paths, function (path) {
-    _.each(memo, function (mem) {
-      newMemo.push(_.compact([mem, path]).join('.').replace('.[', '['));
-    });
-  });
-  return newMemo;
-}
-
-// TODO: Make this farrrrrr more robust...very minimal right now
-
-function compile(prop, name) {
-  var output = {};
-
-  if (prop.__params) return prop.__params;
-
-  var str = prop.toString(),
-      //.replace(/(?:\/\*(?:[\s\S]*?)\*\/)|(?:([\s;])+\/\/(?:.*)$)/gm, '$1'), // String representation of function sans comments
-  nextToken = _propertyCompilerTokenizer2['default'].tokenize(str),
-      token,
-      finishedPaths = [],
-      listening = 0,
-      paths = [],
-      path,
-      attrs = [],
-      workingpath = [];
-  do {
-
-    token = nextToken();
-
-    if (token.value === 'this') {
-      listening++;
-      workingpath = [];
-    }
-
-    // TODO: handle gets on collections
-    if (token.value === 'get') {
-      path = nextToken();
-      while (_.isUndefined(path.value)) {
-        path = nextToken();
-      }
-
-      // Replace any access to a collection with the generic @each placeholder and push dependancy
-      workingpath.push(path.value.replace(/\[.+\]/g, ".@each").replace(/^\./, ''));
-    }
-
-    if (token.value === 'pluck') {
-      path = nextToken();
-      while (_.isUndefined(path.value)) {
-        path = nextToken();
-      }
-
-      workingpath.push('@each.' + path.value);
-    }
-
-    if (token.value === 'slice' || token.value === 'clone' || token.value === 'filter') {
-      path = nextToken();
-      if (path.type.type === '(') workingpath.push('@each');
-    }
-
-    if (token.value === 'at') {
-      path = nextToken();
-      while (_.isUndefined(path.value)) {
-        path = nextToken();
-      }
-      workingpath.push('@each');
-    }
-
-    if (token.value === 'where' || token.value === 'findWhere') {
-      workingpath.push('@each');
-      path = nextToken();
-      attrs = [];
-      var itr = 0;
-      while (path.type.type !== ')') {
-        if (path.value) {
-          if (itr % 2 === 0) {
-            attrs.push(path.value);
-          }
-          itr++;
-        }
-        path = nextToken();
-      }
-      workingpath.push(attrs);
-    }
-
-    if (listening && (_.indexOf(TERMINATORS, token.type.type) > -1 || _.indexOf(TERMINATORS, token.value) > -1)) {
-      workingpath = _.reduce(workingpath, reduceMemos, ['']);
-      finishedPaths = _.compact(_.union(finishedPaths, workingpath));
-      workingpath = [];
-      listening--;
-    }
-  } while (token.start !== token.end);
-
-  // console.log('COMPUTED PROPERTY', name, 'registered with these dependancy paths:', finishedPaths);
-
-  // Save our finished paths directly on the function
-  prop.__params = finishedPaths;
-
-  // Return the dependancies list
-  return finishedPaths;
-}
-
-exports['default'] = { compile: compile };
-module.exports = exports['default'];
-},{"property-compiler/tokenizer":2}],2:[function(require,module,exports){
-/*jshint -W054 */
-// jshint ignore: start
-
-// A second optional argument can be given to further configure
-// the parser process. These options are recognized:
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-var _exports = {};
-
-var options, input, inputLen, sourceFile;
-
-var defaultOptions = _exports.defaultOptions = {
-  // `ecmaVersion` indicates the ECMAScript version to parse. Must
-  // be either 3, or 5, or 6. This influences support for strict
-  // mode, the set of reserved words, support for getters and
-  // setters and other features. ES6 support is only partial.
-  ecmaVersion: 5,
-  // Turn on `strictSemicolons` to prevent the parser from doing
-  // automatic semicolon insertion.
-  strictSemicolons: false,
-  // When `allowTrailingCommas` is false, the parser will not allow
-  // trailing commas in array and object literals.
-  allowTrailingCommas: true,
-  // By default, reserved words are not enforced. Enable
-  // `forbidReserved` to enforce them. When this option has the
-  // value "everywhere", reserved words and keywords can also not be
-  // used as property names.
-  forbidReserved: false,
-  // When enabled, a return at the top level is not considered an
-  // error.
-  allowReturnOutsideFunction: false,
-  // When `locations` is on, `loc` properties holding objects with
-  // `start` and `end` properties in `{line, column}` form (with
-  // line being 1-based and column 0-based) will be attached to the
-  // nodes.
-  locations: false,
-  // A function can be passed as `onComment` option, which will
-  // cause Acorn to call that function with `(block, text, start,
-  // end)` parameters whenever a comment is skipped. `block` is a
-  // boolean indicating whether this is a block (`/* */`) comment,
-  // `text` is the content of the comment, and `start` and `end` are
-  // character offsets that denote the start and end of the comment.
-  // When the `locations` option is on, two more parameters are
-  // passed, the full `{line, column}` locations of the start and
-  // end of the comments. Note that you are not allowed to call the
-  // parser from the callback—that will corrupt its internal state.
-  onComment: null,
-  // Nodes have their start and end characters offsets recorded in
-  // `start` and `end` properties (directly on the node, rather than
-  // the `loc` object, which holds line/column data. To also add a
-  // [semi-standardized][range] `range` property holding a `[start,
-  // end]` array with the same numbers, set the `ranges` option to
-  // `true`.
-  //
-  // [range]: https://bugzilla.mozilla.org/show_bug.cgi?id=745678
-  ranges: false,
-  // It is possible to parse multiple files into a single AST by
-  // passing the tree produced by parsing the first file as
-  // `program` option in subsequent parses. This will add the
-  // toplevel forms of the parsed file to the `Program` (top) node
-  // of an existing parse tree.
-  program: null,
-  // When `locations` is on, you can pass this to record the source
-  // file in every node's `loc` object.
-  sourceFile: null,
-  // This value, if given, is stored in every node, whether
-  // `locations` is on or off.
-  directSourceFile: null
-};
-
-function setOptions(opts) {
-  options = opts || {};
-  for (var opt in defaultOptions) if (!Object.prototype.hasOwnProperty.call(options, opt)) options[opt] = defaultOptions[opt];
-  sourceFile = options.sourceFile || null;
-
-  isKeyword = options.ecmaVersion >= 6 ? isEcma6Keyword : isEcma5AndLessKeyword;
-}
-
-// The `getLineInfo` function is mostly useful when the
-// `locations` option is off (for performance reasons) and you
-// want to find the line/column position for a given character
-// offset. `input` should be the code string that the offset refers
-// into.
-
-var getLineInfo = _exports.getLineInfo = function (input, offset) {
-  for (var line = 1, cur = 0;;) {
-    lineBreak.lastIndex = cur;
-    var match = lineBreak.exec(input);
-    if (match && match.index < offset) {
-      ++line;
-      cur = match.index + match[0].length;
-    } else break;
-  }
-  return { line: line, column: offset - cur };
-};
-
-// Acorn is organized as a tokenizer and a recursive-descent parser.
-// The `tokenize` export provides an interface to the tokenizer.
-// Because the tokenizer is optimized for being efficiently used by
-// the Acorn parser itself, this interface is somewhat crude and not
-// very modular. Performing another parse or call to `tokenize` will
-// reset the internal state, and invalidate existing tokenizers.
-
-_exports.tokenize = function (inpt, opts) {
-  input = String(inpt);inputLen = input.length;
-  setOptions(opts);
-  initTokenState();
-
-  var t = {};
-  function getToken(forceRegexp) {
-    lastEnd = tokEnd;
-    readToken(forceRegexp);
-    t.start = tokStart;t.end = tokEnd;
-    t.startLoc = tokStartLoc;t.endLoc = tokEndLoc;
-    t.type = tokType;t.value = tokVal;
-    return t;
-  }
-  getToken.jumpTo = function (pos, reAllowed) {
-    tokPos = pos;
-    if (options.locations) {
-      tokCurLine = 1;
-      tokLineStart = lineBreak.lastIndex = 0;
-      var match;
-      while ((match = lineBreak.exec(input)) && match.index < pos) {
-        ++tokCurLine;
-        tokLineStart = match.index + match[0].length;
-      }
-    }
-    tokRegexpAllowed = reAllowed;
-    skipSpace();
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+
+},{"jquery":43,"underscore":42}],42:[function(require,module,exports){
+//     Underscore.js 1.8.3
+//     http://underscorejs.org
+//     (c) 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+//     Underscore may be freely distributed under the MIT license.
+
+(function() {
+
+  // Baseline setup
+  // --------------
+
+  // Establish the root object, `window` in the browser, or `exports` on the server.
+  var root = this;
+
+  // Save the previous value of the `_` variable.
+  var previousUnderscore = root._;
+
+  // Save bytes in the minified (but not gzipped) version:
+  var ArrayProto = Array.prototype, ObjProto = Object.prototype, FuncProto = Function.prototype;
+
+  // Create quick reference variables for speed access to core prototypes.
+  var
+    push             = ArrayProto.push,
+    slice            = ArrayProto.slice,
+    toString         = ObjProto.toString,
+    hasOwnProperty   = ObjProto.hasOwnProperty;
+
+  // All **ECMAScript 5** native function implementations that we hope to use
+  // are declared here.
+  var
+    nativeIsArray      = Array.isArray,
+    nativeKeys         = Object.keys,
+    nativeBind         = FuncProto.bind,
+    nativeCreate       = Object.create;
+
+  // Naked function reference for surrogate-prototype-swapping.
+  var Ctor = function(){};
+
+  // Create a safe reference to the Underscore object for use below.
+  var _ = function(obj) {
+    if (obj instanceof _) return obj;
+    if (!(this instanceof _)) return new _(obj);
+    this._wrapped = obj;
   };
-  return getToken;
-};
 
-// State is kept in (closure-)global variables. We already saw the
-// `options`, `input`, and `inputLen` variables above.
-
-// The current position of the tokenizer in the input.
-
-var tokPos;
-
-// The start and end offsets of the current token.
-
-var tokStart, tokEnd;
-
-// When `options.locations` is true, these hold objects
-// containing the tokens start and end line/column pairs.
-
-var tokStartLoc, tokEndLoc;
-
-// The type and value of the current token. Token types are objects,
-// named by variables against which they can be compared, and
-// holding properties that describe them (indicating, for example,
-// the precedence of an infix operator, and the original name of a
-// keyword token). The kind of value that's held in `tokVal` depends
-// on the type of the token. For literals, it is the literal value,
-// for operators, the operator name, and so on.
-
-var tokType, tokVal;
-
-// Interal state for the tokenizer. To distinguish between division
-// operators and regular expressions, it remembers whether the last
-// token was one that is allowed to be followed by an expression.
-// (If it is, a slash is probably a regexp, if it isn't it's a
-// division operator. See the `parseStatement` function for a
-// caveat.)
-
-var tokRegexpAllowed;
-
-// When `options.locations` is true, these are used to keep
-// track of the current line, and know when a new line has been
-// entered.
-
-var tokCurLine, tokLineStart;
-
-// These store the position of the previous token, which is useful
-// when finishing a node and assigning its `end` position.
-
-var lastStart, lastEnd, lastEndLoc;
-
-// This is the parser's state. `inFunction` is used to reject
-// `return` statements outside of functions, `labels` to verify that
-// `break` and `continue` have somewhere to jump to, and `strict`
-// indicates whether strict mode is on.
-
-var inFunction, labels, strict;
-
-// This function is used to raise exceptions on parse errors. It
-// takes an offset integer (into the current `input`) to indicate
-// the location of the error, attaches the position to the end
-// of the error message, and then raises a `SyntaxError` with that
-// message.
-
-function raise(pos, message) {
-  var loc = getLineInfo(input, pos);
-  message += " (" + loc.line + ":" + loc.column + ")";
-  var err = new SyntaxError(message);
-  err.pos = pos;err.loc = loc;err.raisedAt = tokPos;
-  throw err;
-}
-
-// Reused empty array added for node fields that are always empty.
-
-var empty = [];
-
-// ## Token types
-
-// The assignment of fine-grained, information-carrying type objects
-// allows the tokenizer to store the information it has about a
-// token in a way that is very cheap for the parser to look up.
-
-// All token type variables start with an underscore, to make them
-// easy to recognize.
-
-// These are the general types. The `type` property is only used to
-// make them recognizeable when debugging.
-
-var _num = { type: "num" },
-    _regexp = { type: "regexp" },
-    _string = { type: "string" };
-var _name = { type: "name" },
-    _eof = { type: "eof" };
-
-// Keyword tokens. The `keyword` property (also used in keyword-like
-// operators) indicates that the token originated from an
-// identifier-like word, which is used when parsing property names.
-//
-// The `beforeExpr` property is used to disambiguate between regular
-// expressions and divisions. It is set on all token types that can
-// be followed by an expression (thus, a slash after them would be a
-// regular expression).
-//
-// `isLoop` marks a keyword as starting a loop, which is important
-// to know when parsing a label, in order to allow or disallow
-// continue jumps to that label.
-
-var _break = { keyword: "break" },
-    _case = { keyword: "case", beforeExpr: true },
-    _catch = { keyword: "catch" };
-var _continue = { keyword: "continue" },
-    _debugger = { keyword: "debugger" },
-    _default = { keyword: "default" };
-var _do = { keyword: "do", isLoop: true },
-    _else = { keyword: "else", beforeExpr: true };
-var _finally = { keyword: "finally" },
-    _for = { keyword: "for", isLoop: true },
-    _function = { keyword: "function" };
-var _if = { keyword: "if" },
-    _return = { keyword: "return", beforeExpr: true },
-    _switch = { keyword: "switch" };
-var _throw = { keyword: "throw", beforeExpr: true },
-    _try = { keyword: "try" },
-    _var = { keyword: "var" };
-var _let = { keyword: "let" },
-    _const = { keyword: "const" };
-var _while = { keyword: "while", isLoop: true },
-    _with = { keyword: "with" },
-    _new = { keyword: "new", beforeExpr: true };
-var _this = { keyword: "this" };
-
-// The keywords that denote values.
-
-var _null = { keyword: "null", atomValue: null },
-    _true = { keyword: "true", atomValue: true };
-var _false = { keyword: "false", atomValue: false };
-
-// Some keywords are treated as regular operators. `in` sometimes
-// (when parsing `for`) needs to be tested against specifically, so
-// we assign a variable name to it for quick comparing.
-
-var _in = { keyword: "in", binop: 7, beforeExpr: true };
-
-// Map keyword names to token types.
-
-var keywordTypes = { "break": _break, "case": _case, "catch": _catch,
-  "continue": _continue, "debugger": _debugger, "default": _default,
-  "do": _do, "else": _else, "finally": _finally, "for": _for,
-  "function": _function, "if": _if, "return": _return, "switch": _switch,
-  "throw": _throw, "try": _try, "var": _var, "let": _let, "const": _const,
-  "while": _while, "with": _with,
-  "null": _null, "true": _true, "false": _false, "new": _new, "in": _in,
-  "instanceof": { keyword: "instanceof", binop: 7, beforeExpr: true }, "this": _this,
-  "typeof": { keyword: "typeof", prefix: true, beforeExpr: true },
-  "void": { keyword: "void", prefix: true, beforeExpr: true },
-  "delete": { keyword: "delete", prefix: true, beforeExpr: true } };
-
-// Punctuation token types. Again, the `type` property is purely for debugging.
-
-var _bracketL = { type: "[", beforeExpr: true },
-    _bracketR = { type: "]" },
-    _braceL = { type: "{", beforeExpr: true };
-var _braceR = { type: "}" },
-    _parenL = { type: "(", beforeExpr: true },
-    _parenR = { type: ")" };
-var _comma = { type: ",", beforeExpr: true },
-    _semi = { type: ";", beforeExpr: true };
-var _colon = { type: ":", beforeExpr: true },
-    _dot = { type: "." },
-    _ellipsis = { type: "..." },
-    _question = { type: "?", beforeExpr: true };
-
-// Operators. These carry several kinds of properties to help the
-// parser use them properly (the presence of these properties is
-// what categorizes them as operators).
-//
-// `binop`, when present, specifies that this operator is a binary
-// operator, and will refer to its precedence.
-//
-// `prefix` and `postfix` mark the operator as a prefix or postfix
-// unary operator. `isUpdate` specifies that the node produced by
-// the operator should be of type UpdateExpression rather than
-// simply UnaryExpression (`++` and `--`).
-//
-// `isAssign` marks all of `=`, `+=`, `-=` etcetera, which act as
-// binary operators with a very low precedence, that should result
-// in AssignmentExpression nodes.
-
-var _slash = { binop: 10, beforeExpr: true },
-    _eq = { isAssign: true, beforeExpr: true };
-var _assign = { isAssign: true, beforeExpr: true };
-var _incDec = { postfix: true, prefix: true, isUpdate: true },
-    _prefix = { prefix: true, beforeExpr: true };
-var _logicalOR = { binop: 1, beforeExpr: true };
-var _logicalAND = { binop: 2, beforeExpr: true };
-var _bitwiseOR = { binop: 3, beforeExpr: true };
-var _bitwiseXOR = { binop: 4, beforeExpr: true };
-var _bitwiseAND = { binop: 5, beforeExpr: true };
-var _equality = { binop: 6, beforeExpr: true };
-var _relational = { binop: 7, beforeExpr: true };
-var _bitShift = { binop: 8, beforeExpr: true };
-var _plusMin = { binop: 9, prefix: true, beforeExpr: true };
-var _multiplyModulo = { binop: 10, beforeExpr: true };
-
-// Provide access to the token types for external users of the
-// tokenizer.
-
-_exports.tokTypes = { bracketL: _bracketL, bracketR: _bracketR, braceL: _braceL, braceR: _braceR,
-  parenL: _parenL, parenR: _parenR, comma: _comma, semi: _semi, colon: _colon,
-  dot: _dot, ellipsis: _ellipsis, question: _question, slash: _slash, eq: _eq,
-  name: _name, eof: _eof, num: _num, regexp: _regexp, string: _string };
-for (var kw in keywordTypes) _exports.tokTypes["_" + kw] = keywordTypes[kw];
-
-// This is a trick taken from Esprima. It turns out that, on
-// non-Chrome browsers, to check whether a string is in a set, a
-// predicate containing a big ugly `switch` statement is faster than
-// a regular expression, and on Chrome the two are about on par.
-// This function uses `eval` (non-lexical) to produce such a
-// predicate from a space-separated string of words.
-//
-// It starts by sorting the words by length.
-
-function makePredicate(words) {
-  words = words.split(" ");
-  var f = "",
-      cats = [];
-  out: for (var i = 0; i < words.length; ++i) {
-    for (var j = 0; j < cats.length; ++j) if (cats[j][0].length == words[i].length) {
-      cats[j].push(words[i]);
-      continue out;
+  // Export the Underscore object for **Node.js**, with
+  // backwards-compatibility for the old `require()` API. If we're in
+  // the browser, add `_` as a global object.
+  if (typeof exports !== 'undefined') {
+    if (typeof module !== 'undefined' && module.exports) {
+      exports = module.exports = _;
     }
-    cats.push([words[i]]);
-  }
-  function compareTo(arr) {
-    if (arr.length == 1) return f += "return str === " + JSON.stringify(arr[0]) + ";";
-    f += "switch(str){";
-    for (var i = 0; i < arr.length; ++i) f += "case " + JSON.stringify(arr[i]) + ":";
-    f += "return true}return false;";
-  }
-
-  // When there are more than three length categories, an outer
-  // switch first dispatches on the lengths, to save on comparisons.
-
-  if (cats.length > 3) {
-    cats.sort(function (a, b) {
-      return b.length - a.length;
-    });
-    f += "switch(str.length){";
-    for (var i = 0; i < cats.length; ++i) {
-      var cat = cats[i];
-      f += "case " + cat[0].length + ":";
-      compareTo(cat);
-    }
-    f += "}";
-
-    // Otherwise, simply generate a flat `switch` statement.
+    exports._ = _;
   } else {
-      compareTo(words);
-    }
-  return new Function("str", f);
-}
-
-// The ECMAScript 3 reserved word list.
-
-var isReservedWord3 = makePredicate("abstract boolean byte char class double enum export extends final float goto implements import int interface long native package private protected public short static super synchronized throws transient volatile");
-
-// ECMAScript 5 reserved words.
-
-var isReservedWord5 = makePredicate("class enum extends super const export import");
-
-// The additional reserved words in strict mode.
-
-var isStrictReservedWord = makePredicate("implements interface let package private protected public static yield");
-
-// The forbidden variable names in strict mode.
-
-var isStrictBadIdWord = makePredicate("eval arguments");
-
-// And the keywords.
-
-var ecma5AndLessKeywords = "break case catch continue debugger default do else finally for function if return switch throw try var while with null true false instanceof typeof void delete new in this";
-
-var isEcma5AndLessKeyword = makePredicate(ecma5AndLessKeywords);
-
-var isEcma6Keyword = makePredicate(ecma5AndLessKeywords + " let const");
-
-var isKeyword = isEcma5AndLessKeyword;
-
-// ## Character categories
-
-// Big ugly regular expressions that match characters in the
-// whitespace, identifier, and identifier-start categories. These
-// are only applied when a character is found to actually have a
-// code point above 128.
-
-var nonASCIIwhitespace = /[\u1680\u180e\u2000-\u200a\u202f\u205f\u3000\ufeff]/;
-var nonASCIIidentifierStartChars = "ªµºÀ-ÖØ-öø-ˁˆ-ˑˠ-ˤˬˮͰ-ʹͶͷͺ-ͽΆΈ-ΊΌΎ-ΡΣ-ϵϷ-ҁҊ-ԧԱ-Ֆՙա-ևא-תװ-ײؠ-يٮٯٱ-ۓەۥۦۮۯۺ-ۼۿܐܒ-ܯݍ-ޥޱߊ-ߪߴߵߺࠀ-ࠕࠚࠤࠨࡀ-ࡘࢠࢢ-ࢬऄ-हऽॐक़-ॡॱ-ॷॹ-ॿঅ-ঌএঐও-নপ-রলশ-হঽৎড়ঢ়য়-ৡৰৱਅ-ਊਏਐਓ-ਨਪ-ਰਲਲ਼ਵਸ਼ਸਹਖ਼-ੜਫ਼ੲ-ੴઅ-ઍએ-ઑઓ-નપ-રલળવ-હઽૐૠૡଅ-ଌଏଐଓ-ନପ-ରଲଳଵ-ହଽଡ଼ଢ଼ୟ-ୡୱஃஅ-ஊஎ-ஐஒ-கஙசஜஞடணதந-பம-ஹௐఅ-ఌఎ-ఐఒ-నప-ళవ-హఽౘౙౠౡಅ-ಌಎ-ಐಒ-ನಪ-ಳವ-ಹಽೞೠೡೱೲഅ-ഌഎ-ഐഒ-ഺഽൎൠൡൺ-ൿඅ-ඖක-නඳ-රලව-ෆก-ะาำเ-ๆກຂຄງຈຊຍດ-ທນ-ຟມ-ຣລວສຫອ-ະາຳຽເ-ໄໆໜ-ໟༀཀ-ཇཉ-ཬྈ-ྌက-ဪဿၐ-ၕၚ-ၝၡၥၦၮ-ၰၵ-ႁႎႠ-ჅჇჍა-ჺჼ-ቈቊ-ቍቐ-ቖቘቚ-ቝበ-ኈኊ-ኍነ-ኰኲ-ኵኸ-ኾዀዂ-ዅወ-ዖዘ-ጐጒ-ጕጘ-ፚᎀ-ᎏᎠ-Ᏼᐁ-ᙬᙯ-ᙿᚁ-ᚚᚠ-ᛪᛮ-ᛰᜀ-ᜌᜎ-ᜑᜠ-ᜱᝀ-ᝑᝠ-ᝬᝮ-ᝰក-ឳៗៜᠠ-ᡷᢀ-ᢨᢪᢰ-ᣵᤀ-ᤜᥐ-ᥭᥰ-ᥴᦀ-ᦫᧁ-ᧇᨀ-ᨖᨠ-ᩔᪧᬅ-ᬳᭅ-ᭋᮃ-ᮠᮮᮯᮺ-ᯥᰀ-ᰣᱍ-ᱏᱚ-ᱽᳩ-ᳬᳮ-ᳱᳵᳶᴀ-ᶿḀ-ἕἘ-Ἕἠ-ὅὈ-Ὅὐ-ὗὙὛὝὟ-ώᾀ-ᾴᾶ-ᾼιῂ-ῄῆ-ῌῐ-ΐῖ-Ίῠ-Ῥῲ-ῴῶ-ῼⁱⁿₐ-ₜℂℇℊ-ℓℕℙ-ℝℤΩℨK-ℭℯ-ℹℼ-ℿⅅ-ⅉⅎⅠ-ↈⰀ-Ⱞⰰ-ⱞⱠ-ⳤⳫ-ⳮⳲⳳⴀ-ⴥⴧⴭⴰ-ⵧⵯⶀ-ⶖⶠ-ⶦⶨ-ⶮⶰ-ⶶⶸ-ⶾⷀ-ⷆⷈ-ⷎⷐ-ⷖⷘ-ⷞⸯ々-〇〡-〩〱-〵〸-〼ぁ-ゖゝ-ゟァ-ヺー-ヿㄅ-ㄭㄱ-ㆎㆠ-ㆺㇰ-ㇿ㐀-䶵一-鿌ꀀ-ꒌꓐ-ꓽꔀ-ꘌꘐ-ꘟꘪꘫꙀ-ꙮꙿ-ꚗꚠ-ꛯꜗ-ꜟꜢ-ꞈꞋ-ꞎꞐ-ꞓꞠ-Ɦꟸ-ꠁꠃ-ꠅꠇ-ꠊꠌ-ꠢꡀ-ꡳꢂ-ꢳꣲ-ꣷꣻꤊ-ꤥꤰ-ꥆꥠ-ꥼꦄ-ꦲꧏꨀ-ꨨꩀ-ꩂꩄ-ꩋꩠ-ꩶꩺꪀ-ꪯꪱꪵꪶꪹ-ꪽꫀꫂꫛ-ꫝꫠ-ꫪꫲ-ꫴꬁ-ꬆꬉ-ꬎꬑ-ꬖꬠ-ꬦꬨ-ꬮꯀ-ꯢ가-힣ힰ-ퟆퟋ-ퟻ豈-舘並-龎ﬀ-ﬆﬓ-ﬗיִײַ-ﬨשׁ-זּטּ-לּמּנּסּףּפּצּ-ﮱﯓ-ﴽﵐ-ﶏﶒ-ﷇﷰ-ﷻﹰ-ﹴﹶ-ﻼＡ-Ｚａ-ｚｦ-ﾾￂ-ￇￊ-ￏￒ-ￗￚ-ￜ";
-var nonASCIIidentifierChars = "̀-ͯ҃-֑҇-ׇֽֿׁׂׅׄؐ-ؚؠ-ىٲ-ۓۧ-ۨۻ-ۼܰ-݊ࠀ-ࠔࠛ-ࠣࠥ-ࠧࠩ-࠭ࡀ-ࡗࣤ-ࣾऀ-ःऺ-़ा-ॏ॑-ॗॢ-ॣ०-९ঁ-ঃ়া-ৄেৈৗয়-ৠਁ-ਃ਼ਾ-ੂੇੈੋ-੍ੑ੦-ੱੵઁ-ઃ઼ા-ૅે-ૉો-્ૢ-ૣ૦-૯ଁ-ଃ଼ା-ୄେୈୋ-୍ୖୗୟ-ୠ୦-୯ஂா-ூெ-ைொ-்ௗ௦-௯ఁ-ఃె-ైొ-్ౕౖౢ-ౣ౦-౯ಂಃ಼ಾ-ೄೆ-ೈೊ-್ೕೖೢ-ೣ೦-೯ംഃെ-ൈൗൢ-ൣ൦-൯ංඃ්ා-ුූෘ-ෟෲෳิ-ฺเ-ๅ๐-๙ິ-ູ່-ໍ໐-໙༘༙༠-༩༹༵༷ཁ-ཇཱ-྄྆-྇ྍ-ྗྙ-ྼ࿆က-ဩ၀-၉ၧ-ၭၱ-ၴႂ-ႍႏ-ႝ፝-፟ᜎ-ᜐᜠ-ᜰᝀ-ᝐᝲᝳក-ឲ៝០-៩᠋-᠍᠐-᠙ᤠ-ᤫᤰ-᤻ᥑ-ᥭᦰ-ᧀᧈ-ᧉ᧐-᧙ᨀ-ᨕᨠ-ᩓ᩠-᩿᩼-᪉᪐-᪙ᭆ-ᭋ᭐-᭙᭫-᭳᮰-᮹᯦-᯳ᰀ-ᰢ᱀-᱉ᱛ-ᱽ᳐-᳒ᴀ-ᶾḁ-ἕ‌‍‿⁀⁔⃐-⃥⃜⃡-⃰ⶁ-ⶖⷠ-ⷿ〡-〨゙゚Ꙁ-ꙭꙴ-꙽ꚟ꛰-꛱ꟸ-ꠀ꠆ꠋꠣ-ꠧꢀ-ꢁꢴ-꣄꣐-꣙ꣳ-ꣷ꤀-꤉ꤦ-꤭ꤰ-ꥅꦀ-ꦃ꦳-꧀ꨀ-ꨧꩀ-ꩁꩌ-ꩍ꩐-꩙ꩻꫠ-ꫩꫲ-ꫳꯀ-ꯡ꯬꯭꯰-꯹ﬠ-ﬨ︀-️︠-︦︳︴﹍-﹏０-９＿";
-var nonASCIIidentifierStart = new RegExp("[" + nonASCIIidentifierStartChars + "]");
-var nonASCIIidentifier = new RegExp("[" + nonASCIIidentifierStartChars + nonASCIIidentifierChars + "]");
-
-// Whether a single character denotes a newline.
-
-var newline = /[\n\r\u2028\u2029]/;
-
-// Matches a whole line break (where CRLF is considered a single
-// line break). Used to count lines.
-
-var lineBreak = /\r\n|[\n\r\u2028\u2029]/g;
-
-// Test whether a given character code starts an identifier.
-
-var isIdentifierStart = _exports.isIdentifierStart = function (code) {
-  if (code < 65) return code === 36;
-  if (code < 91) return true;
-  if (code < 97) return code === 95;
-  if (code < 123) return true;
-  return code >= 0xaa && nonASCIIidentifierStart.test(String.fromCharCode(code));
-};
-
-// Test whether a given character is part of an identifier.
-
-var isIdentifierChar = _exports.isIdentifierChar = function (code) {
-  if (code < 48) return code === 36;
-  if (code < 58) return true;
-  if (code < 65) return false;
-  if (code < 91) return true;
-  if (code < 97) return code === 95;
-  if (code < 123) return true;
-  return code >= 0xaa && nonASCIIidentifier.test(String.fromCharCode(code));
-};
-
-// ## Tokenizer
-
-// These are used when `options.locations` is on, for the
-// `tokStartLoc` and `tokEndLoc` properties.
-
-function Position() {
-  this.line = tokCurLine;
-  this.column = tokPos - tokLineStart;
-}
-
-// Reset the token state. Used at the start of a parse.
-
-function initTokenState() {
-  tokCurLine = 1;
-  tokPos = tokLineStart = 0;
-  tokRegexpAllowed = true;
-  skipSpace();
-}
-
-// Called at the end of every token. Sets `tokEnd`, `tokVal`, and
-// `tokRegexpAllowed`, and skips the space after the token, so that
-// the next one's `tokStart` will point at the right position.
-
-function finishToken(type, val) {
-  tokEnd = tokPos;
-  if (options.locations) tokEndLoc = new Position();
-  tokType = type;
-  skipSpace();
-  tokVal = val;
-  tokRegexpAllowed = type.beforeExpr;
-}
-
-function skipBlockComment() {
-  var startLoc = options.onComment && options.locations && new Position();
-  var start = tokPos,
-      end = input.indexOf("*/", tokPos += 2);
-  if (end === -1) raise(tokPos - 2, "Unterminated comment");
-  tokPos = end + 2;
-  if (options.locations) {
-    lineBreak.lastIndex = start;
-    var match;
-    while ((match = lineBreak.exec(input)) && match.index < tokPos) {
-      ++tokCurLine;
-      tokLineStart = match.index + match[0].length;
-    }
-  }
-  if (options.onComment) options.onComment(true, input.slice(start + 2, end), start, tokPos, startLoc, options.locations && new Position());
-}
-
-function skipLineComment() {
-  var start = tokPos;
-  var startLoc = options.onComment && options.locations && new Position();
-  var ch = input.charCodeAt(tokPos += 2);
-  while (tokPos < inputLen && ch !== 10 && ch !== 13 && ch !== 8232 && ch !== 8233) {
-    ++tokPos;
-    ch = input.charCodeAt(tokPos);
-  }
-  if (options.onComment) options.onComment(false, input.slice(start + 2, tokPos), start, tokPos, startLoc, options.locations && new Position());
-}
-
-// Called at the start of the parse and after every token. Skips
-// whitespace and comments, and.
-
-function skipSpace() {
-  while (tokPos < inputLen) {
-    var ch = input.charCodeAt(tokPos);
-    if (ch === 32) {
-      // ' '
-      ++tokPos;
-    } else if (ch === 13) {
-      ++tokPos;
-      var next = input.charCodeAt(tokPos);
-      if (next === 10) {
-        ++tokPos;
-      }
-      if (options.locations) {
-        ++tokCurLine;
-        tokLineStart = tokPos;
-      }
-    } else if (ch === 10 || ch === 8232 || ch === 8233) {
-      ++tokPos;
-      if (options.locations) {
-        ++tokCurLine;
-        tokLineStart = tokPos;
-      }
-    } else if (ch > 8 && ch < 14) {
-      ++tokPos;
-    } else if (ch === 47) {
-      // '/'
-      var next = input.charCodeAt(tokPos + 1);
-      if (next === 42) {
-        // '*'
-        skipBlockComment();
-      } else if (next === 47) {
-        // '/'
-        skipLineComment();
-      } else break;
-    } else if (ch === 160) {
-      // '\xa0'
-      ++tokPos;
-    } else if (ch >= 5760 && nonASCIIwhitespace.test(String.fromCharCode(ch))) {
-      ++tokPos;
-    } else {
-      break;
-    }
-  }
-}
-
-// ### Token reading
-
-// This is the function that is called to fetch the next token. It
-// is somewhat obscure, because it works in character codes rather
-// than characters, and because operator parsing has been inlined
-// into it.
-//
-// All in the name of speed.
-//
-// The `forceRegexp` parameter is used in the one case where the
-// `tokRegexpAllowed` trick does not work. See `parseStatement`.
-
-function readToken_dot() {
-  var next = input.charCodeAt(tokPos + 1);
-  if (next >= 48 && next <= 57) return readNumber(true);
-  var next2 = input.charCodeAt(tokPos + 2);
-  if (options.ecmaVersion >= 6 && next === 46 && next2 === 46) {
-    // 46 = dot '.'
-    tokPos += 3;
-    return finishToken(_ellipsis);
-  } else {
-    ++tokPos;
-    return finishToken(_dot);
-  }
-}
-
-function readToken_slash() {
-  // '/'
-  var next = input.charCodeAt(tokPos + 1);
-  if (tokRegexpAllowed) {
-    ++tokPos;return readRegexp();
-  }
-  if (next === 61) return finishOp(_assign, 2);
-  return finishOp(_slash, 1);
-}
-
-function readToken_mult_modulo() {
-  // '%*'
-  var next = input.charCodeAt(tokPos + 1);
-  if (next === 61) return finishOp(_assign, 2);
-  return finishOp(_multiplyModulo, 1);
-}
-
-function readToken_pipe_amp(code) {
-  // '|&'
-  var next = input.charCodeAt(tokPos + 1);
-  if (next === code) return finishOp(code === 124 ? _logicalOR : _logicalAND, 2);
-  if (next === 61) return finishOp(_assign, 2);
-  return finishOp(code === 124 ? _bitwiseOR : _bitwiseAND, 1);
-}
-
-function readToken_caret() {
-  // '^'
-  var next = input.charCodeAt(tokPos + 1);
-  if (next === 61) return finishOp(_assign, 2);
-  return finishOp(_bitwiseXOR, 1);
-}
-
-function readToken_plus_min(code) {
-  // '+-'
-  var next = input.charCodeAt(tokPos + 1);
-  if (next === code) {
-    if (next == 45 && input.charCodeAt(tokPos + 2) == 62 && newline.test(input.slice(lastEnd, tokPos))) {
-      // A `-->` line comment
-      tokPos += 3;
-      skipLineComment();
-      skipSpace();
-      return readToken();
-    }
-    return finishOp(_incDec, 2);
-  }
-  if (next === 61) return finishOp(_assign, 2);
-  return finishOp(_plusMin, 1);
-}
-
-function readToken_lt_gt(code) {
-  // '<>'
-  var next = input.charCodeAt(tokPos + 1);
-  var size = 1;
-  if (next === code) {
-    size = code === 62 && input.charCodeAt(tokPos + 2) === 62 ? 3 : 2;
-    if (input.charCodeAt(tokPos + size) === 61) return finishOp(_assign, size + 1);
-    return finishOp(_bitShift, size);
-  }
-  if (next == 33 && code == 60 && input.charCodeAt(tokPos + 2) == 45 && input.charCodeAt(tokPos + 3) == 45) {
-    // `<!--`, an XML-style comment that should be interpreted as a line comment
-    tokPos += 4;
-    skipLineComment();
-    skipSpace();
-    return readToken();
-  }
-  if (next === 61) size = input.charCodeAt(tokPos + 2) === 61 ? 3 : 2;
-  return finishOp(_relational, size);
-}
-
-function readToken_eq_excl(code) {
-  // '=!'
-  var next = input.charCodeAt(tokPos + 1);
-  if (next === 61) return finishOp(_equality, input.charCodeAt(tokPos + 2) === 61 ? 3 : 2);
-  return finishOp(code === 61 ? _eq : _prefix, 1);
-}
-
-function getTokenFromCode(code) {
-  switch (code) {
-    // The interpretation of a dot depends on whether it is followed
-    // by a digit or another two dots.
-    case 46:
-      // '.'
-      return readToken_dot();
-
-    // Punctuation tokens.
-    case 40:
-      ++tokPos;return finishToken(_parenL);
-    case 41:
-      ++tokPos;return finishToken(_parenR);
-    case 59:
-      ++tokPos;return finishToken(_semi);
-    case 44:
-      ++tokPos;return finishToken(_comma);
-    case 91:
-      ++tokPos;return finishToken(_bracketL);
-    case 93:
-      ++tokPos;return finishToken(_bracketR);
-    case 123:
-      ++tokPos;return finishToken(_braceL);
-    case 125:
-      ++tokPos;return finishToken(_braceR);
-    case 58:
-      ++tokPos;return finishToken(_colon);
-    case 63:
-      ++tokPos;return finishToken(_question);
-
-    // '0x' is a hexadecimal number.
-    case 48:
-      // '0'
-      var next = input.charCodeAt(tokPos + 1);
-      if (next === 120 || next === 88) return readHexNumber();
-    // Anything else beginning with a digit is an integer, octal
-    // number, or float.
-    /* falls through */
-    case 49:case 50:case 51:case 52:case 53:case 54:case 55:case 56:case 57:
-      // 1-9
-      return readNumber(false);
-
-    // Quotes produce strings.
-    case 34:case 39:
-      // '"', "'"
-      return readString(code);
-
-    // Operators are parsed inline in tiny state machines. '=' (61) is
-    // often referred to. `finishOp` simply skips the amount of
-    // characters it is given as second argument, and returns a token
-    // of the type given by its first argument.
-
-    case 47:
-      // '/'
-      return readToken_slash();
-
-    case 37:case 42:
-      // '%*'
-      return readToken_mult_modulo();
-
-    case 124:case 38:
-      // '|&'
-      return readToken_pipe_amp(code);
-
-    case 94:
-      // '^'
-      return readToken_caret();
-
-    case 43:case 45:
-      // '+-'
-      return readToken_plus_min(code);
-
-    case 60:case 62:
-      // '<>'
-      return readToken_lt_gt(code);
-
-    case 61:case 33:
-      // '=!'
-      return readToken_eq_excl(code);
-
-    case 126:
-      // '~'
-      return finishOp(_prefix, 1);
+    root._ = _;
   }
 
-  return false;
-}
-
-function readToken(forceRegexp) {
-  if (!forceRegexp) tokStart = tokPos;else tokPos = tokStart + 1;
-  if (options.locations) tokStartLoc = new Position();
-  if (forceRegexp) return readRegexp();
-  if (tokPos >= inputLen) return finishToken(_eof);
-
-  var code = input.charCodeAt(tokPos);
-  // Identifier or keyword. '\uXXXX' sequences are allowed in
-  // identifiers, so '\' also dispatches to that.
-  if (isIdentifierStart(code) || code === 92 /* '\' */) return readWord();
-
-  var tok = getTokenFromCode(code);
-
-  if (tok === false) {
-    // If we are here, we either found a non-ASCII identifier
-    // character, or something that's entirely disallowed.
-    var ch = String.fromCharCode(code);
-    if (ch === "\\" || nonASCIIidentifierStart.test(ch)) return readWord();
-    raise(tokPos, "Unexpected character '" + ch + "'");
-  }
-  return tok;
-}
-
-function finishOp(type, size) {
-  var str = input.slice(tokPos, tokPos + size);
-  tokPos += size;
-  finishToken(type, str);
-}
-
-// Parse a regular expression. Some context-awareness is necessary,
-// since a '/' inside a '[]' set does not end the expression.
-
-function readRegexp() {
-  var content = "",
-      escaped,
-      inClass,
-      start = tokPos;
-  for (;;) {
-    if (tokPos >= inputLen) raise(start, "Unterminated regular expression");
-    var ch = input.charAt(tokPos);
-    if (newline.test(ch)) raise(start, "Unterminated regular expression");
-    if (!escaped) {
-      if (ch === "[") inClass = true;else if (ch === "]" && inClass) inClass = false;else if (ch === "/" && !inClass) break;
-      escaped = ch === "\\";
-    } else escaped = false;
-    ++tokPos;
-  }
-  var content = input.slice(start, tokPos);
-  ++tokPos;
-  // Need to use `readWord1` because '\uXXXX' sequences are allowed
-  // here (don't ask).
-  var mods = readWord1();
-  if (mods && !/^[gmsiy]*$/.test(mods)) raise(start, "Invalid regular expression flag");
-  try {
-    var value = new RegExp(content, mods);
-  } catch (e) {
-    if (e instanceof SyntaxError) raise(start, "Error parsing regular expression: " + e.message);
-    raise(e);
-  }
-  return finishToken(_regexp, value);
-}
-
-// Read an integer in the given radix. Return null if zero digits
-// were read, the integer value otherwise. When `len` is given, this
-// will return `null` unless the integer has exactly `len` digits.
-
-function readInt(radix, len) {
-  var start = tokPos,
-      total = 0;
-  for (var i = 0, e = len == null ? Infinity : len; i < e; ++i) {
-    var code = input.charCodeAt(tokPos),
-        val;
-    if (code >= 97) val = code - 97 + 10; // a
-    else if (code >= 65) val = code - 65 + 10; // A
-      else if (code >= 48 && code <= 57) val = code - 48; // 0-9
-        else val = Infinity;
-    if (val >= radix) break;
-    ++tokPos;
-    total = total * radix + val;
-  }
-  if (tokPos === start || len != null && tokPos - start !== len) return null;
-
-  return total;
-}
-
-function readHexNumber() {
-  tokPos += 2; // 0x
-  var val = readInt(16);
-  if (val == null) raise(tokStart + 2, "Expected hexadecimal number");
-  if (isIdentifierStart(input.charCodeAt(tokPos))) raise(tokPos, "Identifier directly after number");
-  return finishToken(_num, val);
-}
-
-// Read an integer, octal integer, or floating-point number.
-
-function readNumber(startsWithDot) {
-  var start = tokPos,
-      isFloat = false,
-      octal = input.charCodeAt(tokPos) === 48;
-  if (!startsWithDot && readInt(10) === null) raise(start, "Invalid number");
-  if (input.charCodeAt(tokPos) === 46) {
-    ++tokPos;
-    readInt(10);
-    isFloat = true;
-  }
-  var next = input.charCodeAt(tokPos);
-  if (next === 69 || next === 101) {
-    // 'eE'
-    next = input.charCodeAt(++tokPos);
-    if (next === 43 || next === 45) ++tokPos; // '+-'
-    if (readInt(10) === null) raise(start, "Invalid number");
-    isFloat = true;
-  }
-  if (isIdentifierStart(input.charCodeAt(tokPos))) raise(tokPos, "Identifier directly after number");
-
-  var str = input.slice(start, tokPos),
-      val;
-  if (isFloat) val = parseFloat(str);else if (!octal || str.length === 1) val = parseInt(str, 10);else if (/[89]/.test(str) || strict) raise(start, "Invalid number");else val = parseInt(str, 8);
-  return finishToken(_num, val);
-}
-
-// Read a string value, interpreting backslash-escapes.
-
-function readString(quote) {
-  tokPos++;
-  var out = "";
-  for (;;) {
-    if (tokPos >= inputLen) raise(tokStart, "Unterminated string constant");
-    var ch = input.charCodeAt(tokPos);
-    if (ch === quote) {
-      ++tokPos;
-      return finishToken(_string, out);
-    }
-    if (ch === 92) {
-      // '\'
-      ch = input.charCodeAt(++tokPos);
-      var octal = /^[0-7]+/.exec(input.slice(tokPos, tokPos + 3));
-      if (octal) octal = octal[0];
-      while (octal && parseInt(octal, 8) > 255) octal = octal.slice(0, -1);
-      if (octal === "0") octal = null;
-      ++tokPos;
-      if (octal) {
-        if (strict) raise(tokPos - 2, "Octal literal in strict mode");
-        out += String.fromCharCode(parseInt(octal, 8));
-        tokPos += octal.length - 1;
-      } else {
-        switch (ch) {
-          case 110:
-            out += "\n";break; // 'n' -> '\n'
-          case 114:
-            out += "\r";break; // 'r' -> '\r'
-          case 120:
-            out += String.fromCharCode(readHexChar(2));break; // 'x'
-          case 117:
-            out += String.fromCharCode(readHexChar(4));break; // 'u'
-          case 85:
-            out += String.fromCharCode(readHexChar(8));break; // 'U'
-          case 116:
-            out += "\t";break; // 't' -> '\t'
-          case 98:
-            out += "\b";break; // 'b' -> '\b'
-          case 118:
-            out += "\u000b";break; // 'v' -> '\u000b'
-          case 102:
-            out += "\f";break; // 'f' -> '\f'
-          case 48:
-            out += "\0";break; // 0 -> '\0'
-          case 13:
-            if (input.charCodeAt(tokPos) === 10) ++tokPos; // '\r\n'
-          /* falls through */
-          case 10:
-            // ' \n'
-            if (options.locations) {
-              tokLineStart = tokPos;++tokCurLine;
-            }
-            break;
-          default:
-            out += String.fromCharCode(ch);break;
-        }
-      }
-    } else {
-      if (ch === 13 || ch === 10 || ch === 8232 || ch === 8233) raise(tokStart, "Unterminated string constant");
-      out += String.fromCharCode(ch); // '\'
-      ++tokPos;
-    }
-  }
-}
-
-// Used to read character escape sequences ('\x', '\u', '\U').
-
-function readHexChar(len) {
-  var n = readInt(16, len);
-  if (n === null) raise(tokStart, "Bad character escape sequence");
-  return n;
-}
-
-// Used to signal to callers of `readWord1` whether the word
-// contained any escape sequences. This is needed because words with
-// escape sequences must not be interpreted as keywords.
-
-var containsEsc;
-
-// Read an identifier, and return it as a string. Sets `containsEsc`
-// to whether the word contained a '\u' escape.
-//
-// Only builds up the word character-by-character when it actually
-// containeds an escape, as a micro-optimization.
-
-function readWord1() {
-  containsEsc = false;
-  var word,
-      first = true,
-      start = tokPos;
-  for (;;) {
-    var ch = input.charCodeAt(tokPos);
-    if (isIdentifierChar(ch)) {
-      if (containsEsc) word += input.charAt(tokPos);
-      ++tokPos;
-    } else if (ch === 92) {
-      // "\"
-      if (!containsEsc) word = input.slice(start, tokPos);
-      containsEsc = true;
-      if (input.charCodeAt(++tokPos) != 117) // "u"
-        raise(tokPos, "Expecting Unicode escape sequence \\uXXXX");
-      ++tokPos;
-      var esc = readHexChar(4);
-      var escStr = String.fromCharCode(esc);
-      if (!escStr) raise(tokPos - 1, "Invalid Unicode escape");
-      if (!(first ? isIdentifierStart(esc) : isIdentifierChar(esc))) raise(tokPos - 4, "Invalid Unicode escape");
-      word += escStr;
-    } else {
-      break;
-    }
-    first = false;
-  }
-  return containsEsc ? word : input.slice(start, tokPos);
-}
-
-// Read an identifier or keyword token. Will check for reserved
-// words when necessary.
-
-function readWord() {
-  var word = readWord1();
-  var type = _name;
-  if (!containsEsc && isKeyword(word)) type = keywordTypes[word];
-  return finishToken(type, word);
-}
-
-exports["default"] = { tokenize: _exports.tokenize };
-module.exports = exports["default"];
-},{}],3:[function(require,module,exports){
-// Rebound Component
-// ----------------
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-var _domHelper = require("dom-helper");
-
-var _domHelper2 = _interopRequireDefault(_domHelper);
-
-var _htmlbarsRuntimeRender = require("htmlbars-runtime/render");
-
-var _htmlbarsRuntimeRender2 = _interopRequireDefault(_htmlbarsRuntimeRender);
-
-var _reboundComponentHooks = require("rebound-component/hooks");
-
-var _reboundComponentHooks2 = _interopRequireDefault(_reboundComponentHooks);
-
-var _reboundComponentHelpers = require("rebound-component/helpers");
-
-var _reboundComponentHelpers2 = _interopRequireDefault(_reboundComponentHelpers);
-
-var _reboundComponentUtils = require("rebound-component/utils");
-
-var _reboundComponentUtils2 = _interopRequireDefault(_reboundComponentUtils);
-
-var _reboundDataReboundData = require("rebound-data/rebound-data");
-
-// Returns true if `str` starts with `test`
-function startsWith(str, test) {
-  if (str === test) return true;
-  str = _reboundComponentUtils2["default"].splitPath(str);
-  test = _reboundComponentUtils2["default"].splitPath(test);
-  while (test[0] && str[0]) {
-    if (str[0] !== test[0] && str[0] !== '@each' && test[0] !== '@each') return false;
-    test.shift();
-    str.shift();
-  }
-  return true;
-}
-
-// New Backbone Component
-var Component = _reboundDataReboundData.Model.extend({
-
-  isComponent: true,
-
-  _render: function _render() {
-    var i = 0,
-        len = this._toRender.length,
-        key;
-    delete this._renderTimeout;
-    for (i = 0; i < len; i++) {
-      this._toRender.shift().notify();
-    }
-    this._toRender.added = {};
-    for (key in this.env.revalidateQueue) {
-      this.env.revalidateQueue[key].revalidate();
-    }
-  },
-
-  _callOnComponent: function _callOnComponent(name, event) {
-    if (!_.isFunction(this[name])) {
-      throw "ERROR: No method named " + name + " on component " + this.__name + "!";
-    }
-    return this[name].call(this, event);
-  },
-
-  _listenToService: function _listenToService(key, service) {
-    var _this = this;
-
-    var self = this;
-    this.listenTo(service, 'all', function (type, model, value, options) {
-      var attr,
-          path = model.__path(),
-          changed;
-      if (type.indexOf('change:') === 0) {
-        changed = model.changedAttributes();
-        for (attr in changed) {
-          // TODO: Modifying arguments array is bad. change this
-          type = 'change:' + key + '.' + path + (path && '.') + attr; // jshint ignore:line
-          options.service = key;
-          _this.trigger.call(_this, type, model, value, options);
-        }
-        return;
-      }
-      return _this.trigger.call(_this, type, model, value, options);
-    });
-  },
-
-  deinitialize: function deinitialize() {
-    var _this2 = this;
-
-    if (this.consumers.length) return;
-    _.each(this.services, function (service, key) {
-      _.each(service.consumers, function (consumer, index) {
-        if (consumer.component === _this2) service.consumers.splice(index, 1);
-      });
-    });
-    delete this.services;
-    Rebound.Model.prototype.deinitialize.apply(this, arguments);
-  },
-
-  // LazyComponents have an onLoad function that calls all the registered callbacks
-  // after it has been hydrated. If we are calling onLoad on an already loaded
-  // component, just call the callback provided.
-  onLoad: function onLoad(cb) {
-    cb(this);
-  },
-
-  // Set is overridden on components to accept components as a valid input type.
-  // Components set on other Components are mixed in as a shared object. {raw: true}
-  // It also marks itself as a consumer of this component
-  set: function set(key, val, options) {
-    var attrs, attr, serviceOptions;
-    if (typeof key === 'object') {
-      attrs = key.isModel ? key.attributes : key;
-      options = val;
-    } else (attrs = {})[key] = val;
-    options || (options = {});
-
-    // If reset option passed, do a reset. If nothing passed, return.
-    if (options.reset === true) return this.reset(attrs, options);
-    if (options.defaults === true) this.defaults = attrs;
-    if (_.isEmpty(attrs)) return;
-
-    // For each attribute passed:
-    for (key in attrs) {
-      attr = attrs[key];
-      if (attr && attr.isComponent) {
-        if (attr.isLazyComponent && attr._component) attr = attr._component;
-        serviceOptions || (serviceOptions = _.defaults(_.clone(options), { raw: true }));
-        attr.consumers.push({ key: key, component: this });
-        this.services[key] = attr;
-        this._listenToService(key, attr);
-        Rebound.Model.prototype.set.call(this, key, attr, serviceOptions);
-      }
-      Rebound.Model.prototype.set.call(this, key, attr, options);
-    }
-
-    return this;
-  },
-
-  constructor: function constructor(options) {
-    var key,
-        attr,
-        self = this;
-    options = options || (options = {});
-    _.bindAll(this, '_callOnComponent', '_listenToService', '_render');
-    this.cid = _.uniqueId('component');
-    this.env = _reboundComponentHooks2["default"].createChildEnv(_reboundComponentHooks2["default"].createFreshEnv());
-    // Call on component is used by the {{on}} helper to call all event callbacks in the scope of the component
-    this.env.helpers._callOnComponent = this._callOnComponent;
-    this.attributes = {};
-    this.changed = {};
-    this.consumers = [];
-    this.services = {};
-    this.__parent__ = this.__root__ = this;
-    this.listenTo(this, 'all', this._onChange);
-
-    // Take our parsed data and add it to our backbone data structure. Does a deep defaults set.
-    // In the model, primatives (arrays, objects, etc) are converted to Backbone Objects
-    // Functions are compiled to find their dependancies and added as computed properties
-    // Set our component's context with the passed data merged with the component's defaults
-    if (options.debug) window.debug = true;
-    this.set(this.defaults || {});
-    if (options.debug) window.debug = false;
-    this.set(options.data || {});
-
-    // Get any additional routes passed in from options
-    this.routes = _.defaults(options.routes || {}, this.routes);
-    // Ensure that all route functions exist
-    _.each(this.routes, function (value, key, routes) {
-      if (typeof value !== 'string') {
-        throw 'Function name passed to routes in  ' + this.__name + ' component must be a string!';
-      }
-      if (!this[value]) {
-        throw 'Callback function ' + value + ' does not exist on the  ' + this.__name + ' component!';
-      }
-    }, this);
-
-    // Set our outlet and template if we have them
-    this.el = options.outlet || document.createDocumentFragment();
-    this.$el = _.isUndefined(window.Backbone.$) ? false : window.Backbone.$(this.el);
-    this.template = options.template || this.template;
-    this.el.data = this;
-
-    // Render our dom and place the dom in our custom element
-    // TODO: Check if template is a string, and if the compiler exists on the page, and compile if needed
-    if (this.template) {
-      this.template.reboundTemplate || (this.template = _reboundComponentHooks2["default"].wrap(this.template));
-      this.template = this.template.render(this, this.env, { contextualElement: this.el }, {});
-      this.el.appendChild(this.template.fragment);
-
-      // Add active class to this newly rendered template's link elements that require it
-      (0, _reboundComponentUtils2["default"])(this.el).markLinks();
-    }
-
-    // Our Component is fully created now, but not rendered. Call created callback.
-    if (_.isFunction(this.createdCallback)) this.createdCallback.call(this);
-
-    this.initialize();
-  },
-
-  $: function $(selector) {
-    if (!this.$el) {
-      return console.error('No DOM manipulation library on the page!');
-    }
-    return this.$el.find(selector);
-  },
-
-  // Trigger all events on both the component and the element
-  trigger: function trigger(eventName) {
-    if (this.el) {
-      (0, _reboundComponentUtils2["default"])(this.el).trigger(eventName, arguments);
-    }
-    Backbone.Model.prototype.trigger.apply(this, arguments);
-  },
-
-  _onAttributeChange: function _onAttributeChange(attrName, oldVal, newVal) {
-    // Commented out because tracking attribute changes and making sure they dont infinite loop is hard.
-    // TODO: Make work.
-    // try{ newVal = JSON.parse(newVal); } catch (e){ newVal = newVal; }
-    //
-    // // data attributes should be referanced by their camel case name
-    // attrName = attrName.replace(/^data-/g, "").replace(/-([a-z])/g, function (g) { return g[1].toUpperCase(); });
-    //
-    // oldVal = this.get(attrName);
-    //
-    // if(newVal === null){ this.unset(attrName); }
-    //
-    // // If oldVal is a number, and newVal is only numerical, preserve type
-    // if(_.isNumber(oldVal) && _.isString(newVal) && newVal.match(/^[0-9]*$/i)){
-    //   newVal = parseInt(newVal);
-    // }
-    //
-    // else{ this.set(attrName, newVal, {quiet: true}); }
-  },
-
-  _onChange: function _onChange(type, model, collection, options) {
-    var shortcircuit = { change: 1, sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1, dirty: 1 };
-    if (shortcircuit[type]) return;
-
-    var data, changed;
-    model || (model = {});
-    collection || (collection = {});
-    options || (options = {});
-    !collection.isData && type.indexOf('change:') === -1 && (options = collection) && (collection = model);
-    this._toRender || (this._toRender = []);
-
-    if (type === 'reset' && options.previousAttributes || type.indexOf('change:') !== -1) {
-      data = model;
-      changed = model.changedAttributes();
-    } else if (type === 'add' || type === 'remove' || type === 'reset' && options.previousModels) {
-      data = collection;
-      changed = {
-        '@each': data
+  // Current version.
+  _.VERSION = '1.8.3';
+
+  // Internal function that returns an efficient (for current engines) version
+  // of the passed-in callback, to be repeatedly applied in other Underscore
+  // functions.
+  var optimizeCb = function(func, context, argCount) {
+    if (context === void 0) return func;
+    switch (argCount == null ? 3 : argCount) {
+      case 1: return function(value) {
+        return func.call(context, value);
+      };
+      case 2: return function(value, other) {
+        return func.call(context, value, other);
+      };
+      case 3: return function(value, index, collection) {
+        return func.call(context, value, index, collection);
+      };
+      case 4: return function(accumulator, value, index, collection) {
+        return func.call(context, accumulator, value, index, collection);
       };
     }
-
-    if (!data || !changed) return;
-
-    var push = function push(arr) {
-      var i,
-          len = arr.length;
-      this.added || (this.added = {});
-      for (i = 0; i < len; i++) {
-        if (this.added[arr[i].cid]) continue;
-        this.added[arr[i].cid] = 1;
-        this.push(arr[i]);
-      }
+    return function() {
+      return func.apply(context, arguments);
     };
-    var context = this;
-    var basePath = data.__path();
-    // If this event came from within a service, include the service key in the base path
-    if (options.service) basePath = options.service + '.' + basePath;
-    var parts = _reboundComponentUtils2["default"].splitPath(basePath);
-    var key, obsPath, path, observers;
+  };
 
-    // For each changed key, walk down the data tree from the root to the data
-    // element that triggered the event and add all relevent callbacks to this
-    // object's _toRender queue.
-    do {
-      for (key in changed) {
-        path = (basePath + (basePath && key && '.') + key).replace(context.__path(), '').replace(/\[[^\]]+\]/g, ".@each").replace(/^\./, '');
-        for (obsPath in context.__observers) {
-          observers = context.__observers[obsPath];
-          if (startsWith(obsPath, path)) {
-            // If this is a collection event, trigger everything, otherwise only trigger property change callbacks
-            if (_.isArray(changed[key]) || data.isCollection) push.call(this._toRender, observers.collection);
-            push.call(this._toRender, observers.model);
-          }
+  // A mostly-internal function to generate callbacks that can be applied
+  // to each element in a collection, returning the desired result — either
+  // identity, an arbitrary callback, a property matcher, or a property accessor.
+  var cb = function(value, context, argCount) {
+    if (value == null) return _.identity;
+    if (_.isFunction(value)) return optimizeCb(value, context, argCount);
+    if (_.isObject(value)) return _.matcher(value);
+    return _.property(value);
+  };
+  _.iteratee = function(value, context) {
+    return cb(value, context, Infinity);
+  };
+
+  // An internal function for creating assigner functions.
+  var createAssigner = function(keysFunc, undefinedOnly) {
+    return function(obj) {
+      var length = arguments.length;
+      if (length < 2 || obj == null) return obj;
+      for (var index = 1; index < length; index++) {
+        var source = arguments[index],
+            keys = keysFunc(source),
+            l = keys.length;
+        for (var i = 0; i < l; i++) {
+          var key = keys[i];
+          if (!undefinedOnly || obj[key] === void 0) obj[key] = source[key];
         }
       }
-    } while (context !== data && (context = context.get(parts.shift(), { isPath: true })));
-
-    // Queue our render callback to be called after the current call stack has been exhausted
-    window.clearTimeout(this._renderTimeout);
-    if (this.el && this.el.testing) return this._render();
-    this._renderTimeout = window.setTimeout(this._render, 0);
-  }
-
-});
-
-Component.extend = function (protoProps, staticProps) {
-  var parent = this,
-      child,
-      reservedMethods = {
-    'trigger': 1, 'constructor': 1, 'get': 1, 'set': 1, 'has': 1,
-    'extend': 1, 'escape': 1, 'unset': 1, 'clear': 1, 'cid': 1,
-    'attributes': 1, 'changed': 1, 'toJSON': 1, 'validationError': 1, 'isValid': 1,
-    'isNew': 1, 'hasChanged': 1, 'changedAttributes': 1, 'previous': 1, 'previousAttributes': 1
-  },
-      configProperties = {
-    'routes': 1, 'template': 1, 'defaults': 1, 'outlet': 1, 'url': 1,
-    'urlRoot': 1, 'idAttribute': 1, 'id': 1, 'createdCallback': 1, 'attachedCallback': 1,
-    'detachedCallback': 1
+      return obj;
+    };
   };
 
-  protoProps || (protoProps = {});
-  staticProps || (staticProps = {});
-  protoProps.defaults = {};
-  // staticProps.services = {};
+  // An internal function for creating a new object that inherits from another.
+  var baseCreate = function(prototype) {
+    if (!_.isObject(prototype)) return {};
+    if (nativeCreate) return nativeCreate(prototype);
+    Ctor.prototype = prototype;
+    var result = new Ctor;
+    Ctor.prototype = null;
+    return result;
+  };
 
-  // If given a constructor, use it, otherwise use the default one defined above
-  if (protoProps && _.has(protoProps, 'constructor')) {
-    child = protoProps.constructor;
-  } else {
-    child = function () {
-      return parent.apply(this, arguments);
+  var property = function(key) {
+    return function(obj) {
+      return obj == null ? void 0 : obj[key];
+    };
+  };
+
+  // Helper for collection methods to determine whether a collection
+  // should be iterated as an array or as an object
+  // Related: http://people.mozilla.org/~jorendorff/es6-draft.html#sec-tolength
+  // Avoids a very nasty iOS 8 JIT bug on ARM-64. #2094
+  var MAX_ARRAY_INDEX = Math.pow(2, 53) - 1;
+  var getLength = property('length');
+  var isArrayLike = function(collection) {
+    var length = getLength(collection);
+    return typeof length == 'number' && length >= 0 && length <= MAX_ARRAY_INDEX;
+  };
+
+  // Collection Functions
+  // --------------------
+
+  // The cornerstone, an `each` implementation, aka `forEach`.
+  // Handles raw objects in addition to array-likes. Treats all
+  // sparse array-likes as if they were dense.
+  _.each = _.forEach = function(obj, iteratee, context) {
+    iteratee = optimizeCb(iteratee, context);
+    var i, length;
+    if (isArrayLike(obj)) {
+      for (i = 0, length = obj.length; i < length; i++) {
+        iteratee(obj[i], i, obj);
+      }
+    } else {
+      var keys = _.keys(obj);
+      for (i = 0, length = keys.length; i < length; i++) {
+        iteratee(obj[keys[i]], keys[i], obj);
+      }
+    }
+    return obj;
+  };
+
+  // Return the results of applying the iteratee to each element.
+  _.map = _.collect = function(obj, iteratee, context) {
+    iteratee = cb(iteratee, context);
+    var keys = !isArrayLike(obj) && _.keys(obj),
+        length = (keys || obj).length,
+        results = Array(length);
+    for (var index = 0; index < length; index++) {
+      var currentKey = keys ? keys[index] : index;
+      results[index] = iteratee(obj[currentKey], currentKey, obj);
+    }
+    return results;
+  };
+
+  // Create a reducing function iterating left or right.
+  function createReduce(dir) {
+    // Optimized iterator function as using arguments.length
+    // in the main function will deoptimize the, see #1991.
+    function iterator(obj, iteratee, memo, keys, index, length) {
+      for (; index >= 0 && index < length; index += dir) {
+        var currentKey = keys ? keys[index] : index;
+        memo = iteratee(memo, obj[currentKey], currentKey, obj);
+      }
+      return memo;
+    }
+
+    return function(obj, iteratee, memo, context) {
+      iteratee = optimizeCb(iteratee, context, 4);
+      var keys = !isArrayLike(obj) && _.keys(obj),
+          length = (keys || obj).length,
+          index = dir > 0 ? 0 : length - 1;
+      // Determine the initial value if none is provided.
+      if (arguments.length < 3) {
+        memo = obj[keys ? keys[index] : index];
+        index += dir;
+      }
+      return iterator(obj, iteratee, memo, keys, index, length);
     };
   }
 
-  // Our class should inherit everything from its parent, defined above
-  var Surrogate = function Surrogate() {
-    this.constructor = child;
-  };
-  Surrogate.prototype = parent.prototype;
-  child.prototype = new Surrogate();
-
-  _reboundComponentUtils2["default"].extractComputedProps(protoProps);
-
-  // For each property passed into our component base class
-  for (var key in protoProps) {
-    var get = undefined,
-        set = undefined;
-
-    // If a configuration property, or not actually on the obj, ignore it
-    if (!protoProps.hasOwnProperty(key) || configProperties[key]) continue;
-
-    var value = protoProps[key];
-
-    // If a primative or backbone type object, or computed property (function which takes no arguments and returns a value) move it to our defaults
-    if (!_.isFunction(value) || value.isComputedProto || value.isModel || value.isComponent) {
-      protoProps.defaults[key] = value;
-      delete protoProps[key];
-    }
-
-    // If a reserved method, yell
-    if (reservedMethods[key]) {
-      throw "ERROR: " + key + " is a reserved method name in " + staticProps.__name + "!";
-    }
-
-    // All other values are component methods, leave them be unless already defined.
-  }
-
-  // Extend our prototype with any remaining protoProps, overriting pre-defined ones
-  if (protoProps) {
-    _.extend(child.prototype, protoProps, staticProps);
-  }
-
-  // Set our ancestry
-  child.__super__ = parent.prototype;
-
-  return child;
-};
-
-Component.registerComponent = function registerComponent(name, options) {
-  var script = options.prototype;
-  var template = options.template;
-  var style = options.style;
-  name = name;
-
-  var component = this.extend(script, { __name: name });
-  var proto = Object.create(HTMLElement.prototype, {});
-
-  proto.createdCallback = function () {
-    new component({
-      debug: options.debug,
-      template: template,
-      outlet: this,
-      data: Rebound.seedData,
-      content: Rebound.content
-    });
-  };
-
-  proto.attachedCallback = function () {
-    script.attachedCallback && script.attachedCallback.call(this.data);
-  };
-
-  proto.detachedCallback = function () {
-    script.detachedCallback && script.detachedCallback.call(this.data);
-  };
-
-  proto.attributeChangedCallback = function (attrName, oldVal, newVal) {
-    this.data._onAttributeChange(attrName, oldVal, newVal);
-    script.attributeChangedCallback && script.attributeChangedCallback.call(this.data, attrName, oldVal, newVal);
-  };
-
-  return document.registerElement(name, { prototype: proto });
-};
-
-_.bindAll(Component, 'registerComponent');
-
-exports["default"] = Component;
-module.exports = exports["default"];
-},{"dom-helper":15,"htmlbars-runtime/render":22,"rebound-component/helpers":4,"rebound-component/hooks":5,"rebound-component/utils":7,"rebound-data/rebound-data":11}],4:[function(require,module,exports){
-// Rebound Helpers
-// ----------------
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-var _reboundComponentLazyValue = require("rebound-component/lazy-value");
-
-var _reboundComponentLazyValue2 = _interopRequireDefault(_reboundComponentLazyValue);
-
-var _reboundComponentUtils = require("rebound-component/utils");
-
-var _reboundComponentUtils2 = _interopRequireDefault(_reboundComponentUtils);
-
-var helpers = {},
-    partials = {};
-
-helpers.registerPartial = function (name, func) {
-  if (func && _.isString(name)) return partials[name] = func;
-};
-
-helpers.hasHelper = function (env, scope, name) {
-  env && env.helpers || (env = { helpers: helpers });
-  return !!(helpers[name] || env.helpers[name]);
-};
-
-// lookupHelper returns the given function from the helpers object. Manual checks prevent user from overriding reserved words.
-helpers.lookupHelper = function (env, scope, name) {
-  if (_.isString(env)) name = env;
-  env && env.helpers || (env = { helpers: helpers });
-  // If a reserved helper, return it
-  if (name === 'attribute') return env.helpers.attribute;
-  if (name === 'if') return env.helpers["if"];
-  if (name === 'unless') return env.helpers.unless;
-  if (name === 'each') return env.helpers.each;
-  if (name === 'partial') return env.helpers.partial;
-  if (name === 'on') return env.helpers.on;
-  if (name === 'debugger') return env.helpers["debugger"];
-  if (name === 'log') return env.helpers.log;
-
-  // If not a reserved helper, check env, then global helpers, or return undefined.
-  if (!helpers.hasHelper(env, null, name)) console.error('No helper named', name, 'registered with Rebound');
-  return helpers[name] || env.helpers[name];
-};
-
-helpers.registerHelper = function (name, callback, env) {
-  if (!_.isString(name)) return console.error('Name provided to registerHelper must be a string!');
-  if (!_.isFunction(callback)) return console.error('Callback provided to regierHelper must be a function!');
-  if (helpers.hasHelper(env, null, name)) return console.error('A helper called "' + name + '" is already registered!');
-
-  helpers[name] = callback;
-};
-
-/*******************************
-        Default helpers
-********************************/
-
-helpers["debugger"] = function (params, hash, options, env) {
-  /* jshint -W087 */
-  debugger;
-  return '';
-};
-
-helpers.log = function (params, hash, options, env) {
-  console.log.apply(console, params);
-  return '';
-};
-
-helpers.on = function (params, hash, options, env) {
-  var i,
-      callback,
-      delegate,
-      element,
-      eventName = params[0],
-      len = params.length;
-
-  // By default everything is delegated on the parent component
-  if (len === 2) {
-    callback = params[1];
-    delegate = options.element;
-    element = options.element;
-  }
-  // If a selector is provided, delegate on the helper's element
-  else if (len === 3) {
-      callback = params[2];
-      delegate = params[1];
-      element = options.element;
-    }
-
-  // Attach event
-  (0, _reboundComponentUtils2["default"])(element).on(eventName, delegate, hash, function (event) {
-    return env.helpers._callOnComponent(callback, event);
-  });
-};
-
-helpers.length = function (params, hash, options, env) {
-  return params[0] && params[0].length || 0;
-};
-
-function isTruthy(condition) {
-
-  if (condition === true || condition === false) return condition;
-
-  if (condition === undefined || condition === null) {
-    condition = false;
-  }
-
-  condition.isModel && (condition = true);
-
-  // If our condition is an array, handle properly
-  if (_.isArray(condition) || condition.isCollection) {
-    condition = condition.length ? true : false;
-  }
-
-  // Handle string values
-  condition === 'true' && (condition = true);
-  condition === 'false' && (condition = false);
-
-  return condition;
-}
-
-helpers["if"] = function (params, hash, templates) {
-
-  var condition = isTruthy(params[0]);
-
-  // If yield does not exist, this is not a block helper.
-  if (!this["yield"]) {
-    return condition ? params[1] : params[2] || '';
-  }
-
-  // Render the apropreate block statement
-  if (condition && this["yield"]) {
-    this["yield"]();
-  } else if (!condition && templates.inverse && templates.inverse["yield"]) {
-    templates.inverse["yield"]();
-  } else {
-    return '';
-  }
-};
-
-// Unless proxies to the if helper with an inverted conditional value.
-helpers.unless = function (params, hash, templates) {
-  params[0] = !isTruthy(params[0]);
-  return helpers["if"].apply(templates.template || {}, [params, hash, templates]);
-};
-
-// Given an array, predicate and optional extra variable, finds the index in the array where predicate is true
-function findIndex(arr, predicate, cid) {
-  if (arr === null) {
-    throw new TypeError('findIndex called on null or undefined');
-  }
-  if (typeof predicate !== 'function') {
-    throw new TypeError('predicate must be a function');
-  }
-  var list = Object(arr);
-  var length = list.length >>> 0;
-  var thisArg = arguments[1];
-  var value;
-
-  for (var i = 0; i < length; i++) {
-    value = list[i];
-    if (predicate.call(thisArg, value, i, list, cid)) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-function shouldRender(value) {
-  return _.isArray(value) && value.length > 0 || _.isObject(value) && Object.keys(value).length > 0;
-}
-
-helpers.each = function (params, hash, templates) {
-
-  if (_.isNull(params[0]) || _.isUndefined(params[0])) {
-    console.warn("Undefined value passed to each helper.", params, hash);
-    return null;
-  }
-
-  var key,
-      eachId,
-      value = params[0].isCollection ? params[0].models : params[0].isModel ? params[0].attributes : params[0]; // Accepts collections, arrays, or models
-
-  if (shouldRender(value)) {
-    for (key in value) {
-      eachId = value[key] && value[key].isData ? value[key].cid : params[0].cid + key;
-      if (value.hasOwnProperty(key)) this.yieldItem(eachId, [value[key], key]);
-    }
-  } else {
-    if (templates.inverse && templates.inverse["yield"]) templates.inverse["yield"]();
-  }
-
-  return _.uniqueId("rand");
-};
-
-helpers.partial = function (params, hash, options, env) {
-  var partial = partials[params[0]];
-  if (partial && partial.isHTMLBars) {
-    return partial.render(options.context, env);
-  }
-};
-
-exports["default"] = helpers;
-exports.partials = partials;
-},{"rebound-component/lazy-value":6,"rebound-component/utils":7}],5:[function(require,module,exports){
-// Rebound Hooks
-// ----------------
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-var _reboundComponentLazyValue = require("rebound-component/lazy-value");
-
-var _reboundComponentLazyValue2 = _interopRequireDefault(_reboundComponentLazyValue);
-
-var _reboundComponentUtils = require("rebound-component/utils");
-
-var _reboundComponentUtils2 = _interopRequireDefault(_reboundComponentUtils);
-
-var _reboundComponentHelpers = require("rebound-component/helpers");
-
-var _reboundComponentHelpers2 = _interopRequireDefault(_reboundComponentHelpers);
-
-var _htmlbarsRuntimeHooks = require("htmlbars-runtime/hooks");
-
-var _htmlbarsRuntimeHooks2 = _interopRequireDefault(_htmlbarsRuntimeHooks);
-
-var _domHelper = require("dom-helper");
-
-var _domHelper2 = _interopRequireDefault(_domHelper);
-
-var _htmlbarsUtilObjectUtils = require("htmlbars-util/object-utils");
-
-var _htmlbarsRuntimeRender = require("htmlbars-runtime/render");
-
-var _htmlbarsRuntimeRender2 = _interopRequireDefault(_htmlbarsRuntimeRender);
-
-var attributes = { abbr: 1, "accept-charset": 1, accept: 1, accesskey: 1, action: 1,
-  align: 1, alink: 1, alt: 1, archive: 1, axis: 1,
-  background: 1, bgcolor: 1, border: 1, cellpadding: 1, cellspacing: 1,
-  char: 1, charoff: 1, charset: 1, checked: 1, cite: 1,
-  "class": 1, classid: 1, clear: 1, code: 1, codebase: 1,
-  codetype: 1, color: 1, cols: 1, colspan: 1, compact: 1,
-  content: 1, coords: 1, data: 1, datetime: 1, declare: 1,
-  defer: 1, dir: 1, disabled: 1, enctype: 1, face: 1,
-  "for": 1, frame: 1, frameborder: 1, headers: 1, height: 1,
-  href: 1, hreflang: 1, hspace: 1, "http-equiv": 1, id: 1,
-  ismap: 1, label: 1, lang: 1, language: 1, link: 1,
-  longdesc: 1, marginheight: 1, marginwidth: 1, maxlength: 1, media: 1,
-  method: 1, multiple: 1, name: 1, nohref: 1, noresize: 1,
-  noshade: 1, nowrap: 1, object: 1, onblur: 1, onchange: 1,
-  onclick: 1, ondblclick: 1, onfocus: 1, onkeydown: 1, onkeypress: 1,
-  onkeyup: 1, onload: 1, onmousedown: 1, onmousemove: 1, onmouseout: 1,
-  onmouseover: 1, onmouseup: 1, onreset: 1, onselect: 1, onsubmit: 1,
-  onunload: 1, profile: 1, prompt: 1, readonly: 1, rel: 1,
-  rev: 1, rows: 1, rowspan: 1, rules: 1, scheme: 1,
-  scope: 1, scrolling: 1, selected: 1, shape: 1, size: 1,
-  span: 1, src: 1, standby: 1, start: 1, style: 1,
-  summary: 1, tabindex: 1, target: 1, text: 1, title: 1,
-  type: 1, usemap: 1, valign: 1, value: 1, valuetype: 1,
-  version: 1, vlink: 1, vspace: 1, width: 1 };
-
-/*******************************
-        Hook Utils
-********************************/
-
-_htmlbarsRuntimeHooks2["default"].get = function get(env, scope, path) {
-
-  if (path === 'this') path = '';
-
-  var setPath = path;
-
-  var key,
-      value,
-      rest = _reboundComponentUtils2["default"].splitPath(path);
-  key = rest.shift();
-
-  // If this path referances a block param, use that as the context instead.
-  if (scope.localPresent[key]) {
-    value = scope.locals[key];
-    path = rest.join('.');
-  } else {
-    value = scope.self;
-  }
-
-  if (scope.streams[setPath]) return scope.streams[setPath];
-  return scope.streams[setPath] = streamProperty(value, path);
-};
-
-// Given an object (context) and a path, create a LazyValue object that returns the value of object at context and add it as an observer of the context.
-function streamProperty(context, path) {
-
-  // Lazy value that returns the value of context.path
-  var lazyValue = new _reboundComponentLazyValue2["default"](function () {
-    return context.get(path, { isPath: true });
-  }, { context: context });
-
-  // Save our path so parent lazyvalues can know the data var or helper they are getting info from
-  lazyValue.path = path;
-
-  // Save the observer at this path
-  lazyValue.addObserver(path, context);
-
-  return lazyValue;
-}
-
-function streamHelper(morph, env, scope, visitor, params, hash, helper, templates, context) {
-
-  if (!_.isFunction(helper)) return console.error(scope + ' is not a valid helper!');
-
-  // Create a lazy value that returns the value of our evaluated helper.
-  var lazyValue = new _reboundComponentLazyValue2["default"](function () {
-    var plainParams = [],
-        plainHash = {};
-
-    // Assemble our args and hash variables. For each lazyvalue param, push the lazyValue's value so helpers with no concept of lazyvalues.
-    _.each(params, function (param, index) {
-      plainParams.push(param && param.isLazyValue ? param.value : param);
-    });
-    _.each(hash, function (hash, key) {
-      plainHash[key] = hash && hash.isLazyValue ? hash.value : hash;
-    });
-
-    // Call our helper functions with our assembled args.
-    return helper.call(context || {}, plainParams, plainHash, templates, env);
-  }, { morph: morph, path: helper.name });
-
-  // For each param or hash value passed to our helper, add it to our helper's dependant list. Helper will re-evaluate when one changes.
-  params.forEach(function (param) {
-    if (param && param.isLazyValue) {
-      lazyValue.addDependentValue(param);
-    }
-  });
-  for (var key in hash) {
-    if (hash[key] && hash[key].isLazyValue) {
-      lazyValue.addDependentValue(hash[key]);
-    }
-  }
-
-  return lazyValue;
-}
-
-_htmlbarsRuntimeHooks2["default"].invokeHelper = function invokeHelper(morph, env, scope, visitor, params, hash, helper, templates, context) {
-  if (morph && scope.streams[morph.guid]) {
-    scope.streams[morph.guid].value;
-    return scope.streams[morph.guid];
-  }
-  if (!helper) return { value: '' };
-
-  var lazyValue = streamHelper.apply(this, arguments);
-  lazyValue.path = helper.name;
-  lazyValue.value;
-  // if(morph) scope.streams[morph.guid] = lazyValue;
-  return lazyValue;
-};
-
-_htmlbarsRuntimeHooks2["default"].cleanupRenderNode = function () {};
-
-_htmlbarsRuntimeHooks2["default"].destroyRenderNode = function (renderNode) {};
-_htmlbarsRuntimeHooks2["default"].willCleanupTree = function (renderNode) {
-  // for(let i in renderNode.lazyValues)
-  //   if(renderNode.lazyValues[i].isLazyValue)
-  //     renderNode.lazyValues[i].destroy();
-};
-
-/*******************************
-        Default Hooks
-********************************/
-
-// Helper Hooks
-
-_htmlbarsRuntimeHooks2["default"].hasHelper = _reboundComponentHelpers2["default"].hasHelper;
-
-_htmlbarsRuntimeHooks2["default"].lookupHelper = _reboundComponentHelpers2["default"].lookupHelper;
-
-// Rebound's default environment
-// The application environment is propagated down each render call and
-// augmented with helpers as it goes
-_htmlbarsRuntimeHooks2["default"].createFreshEnv = function () {
-  return {
-    helpers: _reboundComponentHelpers2["default"],
-    hooks: _htmlbarsRuntimeHooks2["default"],
-    streams: {},
-    dom: new _domHelper2["default"]["default"](),
-    useFragmentCache: true,
-    revalidateQueue: {},
-    isReboundEnv: true
-  };
-};
-
-_htmlbarsRuntimeHooks2["default"].createChildEnv = function (parent) {
-  var env = (0, _htmlbarsUtilObjectUtils.createObject)(parent);
-  env.helpers = (0, _htmlbarsUtilObjectUtils.createObject)(parent.helpers);
-  return env;
-};
-
-_htmlbarsRuntimeHooks2["default"].createFreshScope = function () {
-  // because `in` checks have unpredictable performance, keep a
-  // separate dictionary to track whether a local was bound.
-  // See `bindLocal` for more information.
-  return { self: null, blocks: {}, locals: {}, localPresent: {}, streams: {} };
-};
-
-_htmlbarsRuntimeHooks2["default"].createChildScope = function (parent) {
-  var scope = (0, _htmlbarsUtilObjectUtils.createObject)(parent);
-  scope.locals = (0, _htmlbarsUtilObjectUtils.createObject)(parent.locals);
-  scope.localPresent = (0, _htmlbarsUtilObjectUtils.createObject)(parent.localPresent);
-  scope.streams = (0, _htmlbarsUtilObjectUtils.createObject)(parent.streams);
-  return scope;
-};
-
-// Scope Hooks
-_htmlbarsRuntimeHooks2["default"].bindScope = function bindScope(env, scope) {
-  // Initial setup of scope
-  env.scope = scope;
-};
-
-_htmlbarsRuntimeHooks2["default"].wrap = function wrap(template) {
-  // Return a wrapper function that will merge user provided helpers and hooks with our defaults
-  return {
-    reboundTemplate: true,
-    meta: template.meta,
-    arity: template.arity,
-    raw: template,
-    render: function render(data, env, options, blockArguments) {
-      if (env === undefined) env = _htmlbarsRuntimeHooks2["default"].createFreshEnv();
-      if (options === undefined) options = {};
-      // jshint ignore:line
-      // Create a fresh scope if it doesn't exist
-      var scope = _htmlbarsRuntimeHooks2["default"].createFreshScope();
-
-      env = _htmlbarsRuntimeHooks2["default"].createChildEnv(env);
-      _.extend(env.helpers, options.helpers);
-
-      // Ensure we have a contextual element to pass to render
-      options.contextualElement || (options.contextualElement = document.body);
-      options.self = data;
-      options.blockArguments = blockArguments;
-
-      // Call our func with merged helpers and hooks
-      env.template = _htmlbarsRuntimeRender2["default"]["default"](template, env, scope, options);
-      env.template.uid = _.uniqueId('template');
-      return env.template;
-    }
-  };
-};
-
-_htmlbarsRuntimeHooks2["default"].wrapPartial = function wrapPartial(template) {
-  // Return a wrapper function that will merge user provided helpers and hooks with our defaults
-  return {
-    reboundTemplate: true,
-    meta: template.meta,
-    arity: template.arity,
-    raw: template,
-    render: function render(scope, env, options, blockArguments) {
-      if (env === undefined) env = _htmlbarsRuntimeHooks2["default"].createFreshEnv();
-      if (options === undefined) options = {};
-      // jshint ignore:line
-      env = _htmlbarsRuntimeHooks2["default"].createChildEnv(env);
-
-      // Ensure we have a contextual element to pass to render
-      options.contextualElement || (options.contextualElement = document.body);
-
-      // Call our func with merged helpers and hooks
-      env.template = _htmlbarsRuntimeRender2["default"]["default"](template, env, scope, options);
-      env.template.uid = _.uniqueId('template');
-      return env.template;
-    }
-  };
-};
-
-function rerender(path, node, lazyValue, env) {
-  lazyValue.onNotify(function () {
-    node.isDirty = true;
-    env.revalidateQueue[env.template.uid] = env.template;
-  });
-}
-
-_htmlbarsRuntimeHooks2["default"].linkRenderNode = function linkRenderNode(renderNode, env, scope, path, params, hash) {
-
-  // If this node has already been rendered, it is already linked to its streams
-  if (renderNode.rendered) return;
-
-  // Save the path on our render node for easier debugging
-  renderNode.path = path;
-  renderNode.lazyValues || (renderNode.lazyValues = {});
-
-  if (params && params.length) {
-    for (var i = 0; i < params.length; i++) {
-      if (params[i].isLazyValue) {
-        rerender(path, renderNode, params[i], env);
-      }
-    }
-  }
-  if (hash) {
-    for (var key in hash) {
-      if (hash.hasOwnProperty(key) && hash[key].isLazyValue) {
-        rerender(path, renderNode, hash[key], env);
-      }
-    }
-  }
-};
-
-// Hooks
-
-_htmlbarsRuntimeHooks2["default"].getValue = function (referance) {
-  return referance && referance.isLazyValue ? referance.value : referance;
-};
-
-_htmlbarsRuntimeHooks2["default"].subexpr = function subexpr(env, scope, helperName, params, hash) {
-  var helper = _reboundComponentHelpers2["default"].lookupHelper(helperName, env),
-      lazyValue,
-      i,
-      l,
-      name = "subexpr " + helperName + ": ";
-  for (i = 0, l = params.length; i < l; i++) {
-    if (params[i].isLazyValue) name += params[i].cid;
-  }
-
-  if (env.streams[name]) return env.streams[name];
-
-  if (helper) {
-    lazyValue = streamHelper(null, env, scope, null, params, hash, helper, {}, null);
-  } else {
-    lazyValue = _htmlbarsRuntimeHooks2["default"].get(env, scope, helperName);
-  }
-
-  for (i = 0, l = params.length; i < l; i++) {
-    if (params[i].isLazyValue) {
-      lazyValue.addDependentValue(params[i]);
-    }
-  }
-
-  lazyValue.path = helperName;
-  env.streams[name] = lazyValue;
-  return lazyValue;
-};
-
-_htmlbarsRuntimeHooks2["default"].concat = function concat(env, params) {
-
-  var name = "concat: ",
-      i,
-      l;
-
-  if (params.length === 1) {
-    return params[0];
-  }
-
-  for (i = 0, l = params.length; i < l; i++) {
-    name += params[i] && params[i].isLazyValue ? params[i].cid : params[i];
-  }
-
-  if (env.streams[name]) return env.streams[name];
-
-  var lazyValue = new _reboundComponentLazyValue2["default"](function (params) {
-    var value = "";
-
-    for (i = 0, l = params.length; i < l; i++) {
-      value += params[i] && params[i].isLazyValue ? params[i].value : params[i] || '';
-    }
-
-    return value;
-  }, { context: params[0].context });
-
-  for (i = 0, l = params.length; i < l; i++) {
-    lazyValue.addDependentValue(params[i]);
-  }
-
-  env.scope.streams[name] = lazyValue;
-  lazyValue.path = name;
-  return lazyValue;
-};
-
-// Content Hook
-_htmlbarsRuntimeHooks2["default"].content = function content(morph, env, context, path, lazyValue) {
-  var value,
-      observer = subtreeObserver,
-      domElement = morph.contextualElement,
-      helper = _reboundComponentHelpers2["default"].lookupHelper(path, env);
-
-  var updateTextarea = function updateTextarea(lazyValue) {
-    domElement.value = lazyValue.value;
-  };
-
-  // Two way databinding for textareas
-  if (domElement.tagName === 'TEXTAREA') {
-    lazyValue.onNotify(updateTextarea);
-    (0, _reboundComponentUtils2["default"])(domElement).on('change keyup', function (event) {
-      lazyValue.set(lazyValue.path, this.value);
-    });
-  }
-
-  return lazyValue.value;
-};
-
-_htmlbarsRuntimeHooks2["default"].attribute = function attribute(attrMorph, env, scope, name, value) {
-  var val = value.isLazyValue ? value.value : value,
-      domElement = attrMorph.element,
-      checkboxChange,
-      type = domElement.getAttribute("type"),
-      attr,
-      inputTypes = { 'null': true, 'text': true, 'email': true, 'password': true,
-    'search': true, 'url': true, 'tel': true, 'hidden': true,
-    'number': true, 'color': true, 'date': true, 'datetime': true,
-    'datetime-local:': true, 'month': true, 'range': true,
-    'time': true, 'week': true
-  };
-
-  // If is a text input element's value prop with only one variable, wire default events
-  if (domElement.tagName === 'INPUT' && inputTypes[type] && name === 'value') {
-
-    // If our special input events have not been bound yet, bind them and set flag
-    if (!attrMorph.inputObserver) {
-
-      (0, _reboundComponentUtils2["default"])(domElement).on('change input propertychange', function (event) {
-        value.set(value.path, this.value);
-      });
-
-      attrMorph.inputObserver = true;
-    }
-
-    // Set the attribute on our element for visual referance
-    _.isUndefined(val) ? domElement.removeAttribute(name) : domElement.setAttribute(name, val);
-
-    attr = val;
-    return domElement.value !== String(attr) ? domElement.value = attr || '' : attr;
-  } else if (domElement.tagName === 'INPUT' && (type === 'checkbox' || type === 'radio') && name === 'checked') {
-
-    // If our special input events have not been bound yet, bind them and set flag
-    if (!attrMorph.eventsBound) {
-
-      (0, _reboundComponentUtils2["default"])(domElement).on('change propertychange', function (event) {
-        value.set(value.path, this.checked ? true : false, { quiet: true });
-      });
-
-      attrMorph.eventsBound = true;
-    }
-
-    // Set the attribute on our element for visual referance
-    !val ? domElement.removeAttribute(name) : domElement.setAttribute(name, val);
-
-    return domElement.checked = val ? true : undefined;
-  }
-
-  // Special case for link elements with dynamic classes.
-  // If the router has assigned it a truthy 'active' property, ensure that the extra class is present on re-render.
-  else if (domElement.tagName === 'A' && name === 'class') {
-      if (_.isUndefined(val)) {
-        domElement.active ? domElement.setAttribute('class', 'active') : domElement.classList.remove('class');
-      } else {
-        domElement.setAttribute(name, val + (domElement.active ? ' active' : ''));
-      }
+  // **Reduce** builds up a single result from a list of values, aka `inject`,
+  // or `foldl`.
+  _.reduce = _.foldl = _.inject = createReduce(1);
+
+  // The right-associative version of reduce, also known as `foldr`.
+  _.reduceRight = _.foldr = createReduce(-1);
+
+  // Return the first value which passes a truth test. Aliased as `detect`.
+  _.find = _.detect = function(obj, predicate, context) {
+    var key;
+    if (isArrayLike(obj)) {
+      key = _.findIndex(obj, predicate, context);
     } else {
-      _.isString(val) && (val = val.trim());
-      val || (val = undefined);
-      if (_.isUndefined(val)) {
-        domElement.removeAttribute(name);
-      } else {
-        domElement.setAttribute(name, val);
-      }
+      key = _.findKey(obj, predicate, context);
     }
-
-  _htmlbarsRuntimeHooks2["default"].linkRenderNode(attrMorph, env, scope, '@attribute', [value], {});
-};
-
-_htmlbarsRuntimeHooks2["default"].partial = function partial(renderNode, env, scope, path) {
-  if (!path) console.error('Partial helper must be passed path!');
-  path = path.isLazyValue ? path.value : path;
-  var part = this.wrapPartial(_reboundComponentHelpers.partials[path]);
-  if (part && part.render) {
-    env = Object.create(env);
-    env.template = part.render(scope, env, { contextualElement: renderNode.contextualElement });
-    return env.template.fragment;
-  }
-};
-
-_htmlbarsRuntimeHooks2["default"].component = function (morph, env, scope, tagName, params, attrs, templates, visitor) {
-
-  // Components are only ever rendered once
-  if (morph.componentIsRendered) return;
-
-  if (env.hooks.hasHelper(env, scope, tagName)) {
-    return env.hooks.block(morph, env, scope, tagName, params, attrs, templates["default"], templates.inverse, visitor);
-  }
-
-  var component,
-      element,
-      outlet,
-      seedData = {},
-      componentData = {};
-
-  // Create a plain data object to pass to our new component as seed data
-  for (var key in attrs) {
-    seedData[key] = _htmlbarsRuntimeHooks2["default"].getValue(attrs[key]);
-  }
-
-  // For each param passed to our shared component, add it to our custom element
-  // TODO: there has to be a better way to get seed data to element instances
-  // Global seed data is consumed by element as its created. This is not scoped and very dumb.
-  Rebound.seedData = seedData;
-  element = document.createElement(tagName);
-  component = element.data;
-  delete Rebound.seedData;
-
-  // For each lazy param passed to our component, create its lazyValue
-  for (var key in seedData) {
-    componentData[key] = streamProperty(component, key);
-  }
-
-  // Set up two way binding between component and original context for non-data attributes
-  // Syncing between models and collections passed are handled in model and collection
-
-  var _loop = function () {
-    var key = prop;
-    if (componentData[key].isLazyValue && attrs[key].isLazyValue) {
-
-      // For each lazy param passed to our component, have it update the original context when changed.
-      componentData[key].onNotify(function () {
-        attrs[key].set(attrs[key].path, componentData[key].value);
-      });
-
-      // For each lazy param passed to our component, have it update the component when changed.
-      attrs[key].onNotify(function () {
-        componentData[key].set(key, attrs[key].value);
-      });
-
-      // Seed the cache
-      componentData[key].value;
-    }
+    if (key !== void 0 && key !== -1) return obj[key];
   };
 
-  for (var prop in componentData) {
-    _loop();
-  }
-
-  // TODO: Move this to Component
-  // // For each change on our component, update the states of the original context and the element's proeprties.
-  component.listenTo(component, 'change', function (model) {
-    var json = component.toJSON();
-
-    if (_.isString(json)) return; // If is a string, this model is seralizing already
-
-    // Set the properties on our element for visual referance if we are on a top level attribute
-    _.each(json, function (value, key) {
-      // TODO: Currently, showing objects as properties on the custom element causes problems.
-      // Linked models between the context and component become the same exact model and all hell breaks loose.
-      // Find a way to remedy this. Until then, don't show objects.
-      if (_.isObject(value)) {
-        return;
-      }
-      value = _.isObject(value) ? JSON.stringify(value) : value;
-      try {
-        attributes[key] ? element.setAttribute(key, value) : element.dataset[key] = value;
-      } catch (e) {
-        console.error(e.message);
-      }
+  // Return all the elements that pass a truth test.
+  // Aliased as `select`.
+  _.filter = _.select = function(obj, predicate, context) {
+    var results = [];
+    predicate = cb(predicate, context);
+    _.each(obj, function(value, index, list) {
+      if (predicate(value, index, list)) results.push(value);
     });
-  });
+    return results;
+  };
 
-  /** The attributeChangedCallback on our custom element updates the component's data. **/
+  // Return all the elements for which a truth test fails.
+  _.reject = function(obj, predicate, context) {
+    return _.filter(obj, _.negate(cb(predicate)), context);
+  };
 
-  /*******************************************************
-  
-    End data dependancy chain
-  
-  *******************************************************/
-
-  // TODO: break this out into its own function
-  // Set the properties on our element for visual referance if we are on a top level attribute
-  var compjson = component.toJSON();
-  _.each(compjson, function (value, key) {
-    // TODO: Currently, showing objects as properties on the custom element causes problems.
-    // Linked models between the context and component become the same exact model and all hell breaks loose.
-    // Find a way to remedy this. Until then, don't show objects.
-    if (_.isObject(value)) {
-      return;
+  // Determine whether all of the elements match a truth test.
+  // Aliased as `all`.
+  _.every = _.all = function(obj, predicate, context) {
+    predicate = cb(predicate, context);
+    var keys = !isArrayLike(obj) && _.keys(obj),
+        length = (keys || obj).length;
+    for (var index = 0; index < length; index++) {
+      var currentKey = keys ? keys[index] : index;
+      if (!predicate(obj[currentKey], currentKey, obj)) return false;
     }
-    value = _.isObject(value) ? JSON.stringify(value) : value;
-    if (!_.isNull(value) && !_.isUndefined(value)) {
-      try {
-        attributes[key] ? element.setAttribute(key, value) : element.dataset[key] = value;
-      } catch (e) {
-        console.error(e.message);
-      }
-    }
-  });
-
-  // Walk the dom, without traversing into other custom elements, and search for
-  // `<content>` outlets to render templates into.
-  (0, _reboundComponentUtils2["default"])(element).walkTheDOM(function (el) {
-    if (element === el) return true;
-    if (el.tagName === 'CONTENT') outlet = el;
-    if (el.tagName.indexOf('-') > -1) return false;
     return true;
-  });
-
-  // If a `<content>` outlet is present in component's template, and a template
-  // is provided, render it into the outlet
-  if (templates["default"] && _.isElement(outlet)) {
-    outlet.innerHTML = '';
-    outlet.appendChild(_htmlbarsRuntimeRender2["default"]["default"](templates["default"], env, scope, {}).fragment);
-  }
-
-  morph.setNode(element);
-  morph.componentIsRendered = true;
-};
-
-exports["default"] = _htmlbarsRuntimeHooks2["default"];
-module.exports = exports["default"];
-},{"dom-helper":15,"htmlbars-runtime/hooks":20,"htmlbars-runtime/render":22,"htmlbars-util/object-utils":29,"rebound-component/helpers":4,"rebound-component/lazy-value":6,"rebound-component/utils":7}],6:[function(require,module,exports){
-// Rebound Lazy Value
-// ----------------
-
-'use strict';
-
-Object.defineProperty(exports, '__esModule', {
-  value: true
-});
-var NIL = function NIL() {},
-    EMPTY_ARRAY = [];
-
-function LazyValue(fn, options) {
-  options || (options = {});
-  this.cid = _.uniqueId('lazyValue');
-  this.valueFn = fn;
-  this.context = options.context || null;
-}
-
-LazyValue.prototype = Object.defineProperties({
-  isLazyValue: true,
-  children: null,
-  observers: null,
-  cache: NIL,
-  valueFn: null,
-  subscribers: null, // TODO: do we need multiple subscribers?
-  _childValues: null,
-
-  set: function set(key, value, options) {
-    if (this.context) {
-      return this.context.set(key, value, options);
-    }
-    return null;
-  },
-
-  addDependentValue: function addDependentValue(value) {
-    var children = this.children;
-    if (!children) {
-      children = this.children = [value];
-    } else {
-      children.push(value);
-    }
-
-    if (value && value.isLazyValue) {
-      value.onNotify(this);
-    }
-
-    return this;
-  },
-
-  addObserver: function addObserver(path, context) {
-    var observers = this.observers || (this.observers = []),
-        position,
-        res;
-
-    if (!_.isObject(context) || !_.isString(path)) return console.error('Error adding observer for', context, path);
-
-    // Ensure _observers exists and is an object
-    context.__observers = context.__observers || {};
-    // Ensure __observers[path] exists and is an array
-    context.__observers[path] = context.__observers[path] || { collection: [], model: [] };
-
-    // Save the type of object events this observer is for
-    res = context.get(this.path, { isPath: true });
-    res = res && res.isCollection ? 'collection' : 'model';
-
-    // Add our callback, save the position it is being inserted so we can garbage collect later.
-    position = context.__observers[path][res].push(this) - 1;
-
-    // Lazyvalue needs referance to its observers to remove listeners on destroy
-    observers.push({ context: context, path: path, index: position });
-
-    return this;
-  },
-
-  notify: function notify(sender) {
-    var cache = this.cache,
-        subscribers;
-
-    if (cache !== NIL) {
-      subscribers = this.subscribers;
-      cache = this.cache = NIL;
-      if (!subscribers) {
-        return;
-      }
-      for (var i = 0, l = subscribers.length; i < l; i++) {
-        subscribers[i].isLazyValue ? subscribers[i].notify() : subscribers[i](this);
-      }
-    }
-  },
-
-  onNotify: function onNotify(callback) {
-    var subscribers = this.subscribers || (this.subscribers = []);
-    subscribers.push(callback);
-    return this;
-  },
-
-  destroy: function destroy() {
-    _.each(this.children, function (child) {
-      if (child && child.isLazyValue) {
-        child.destroy();
-      }
-    });
-    _.each(this.subscribers, function (subscriber) {
-      if (subscriber && subscriber.isLazyValue) {
-        subscriber.destroy();
-      }
-    });
-
-    this.children = this.cache = this.valueFn = this.subscribers = this._childValues = null;
-
-    _.each(this.observers, function (observer) {
-      if (_.isObject(observer.context.__observers[observer.path])) {
-        delete observer.context.__observers[observer.path][observer.index];
-      }
-    });
-
-    this.observers = null;
-  }
-}, {
-  value: { // just for reusing the array, might not work well if children.length changes after computation
-
-    get: function get() {
-      var cache = this.cache;
-      if (cache !== NIL) {
-        return cache;
-      }
-
-      var children = this.children;
-      if (children) {
-        var child,
-            values = this._childValues || new Array(children.length);
-
-        for (var i = 0, l = children.length; i < l; i++) {
-          child = children[i];
-          values[i] = child && child.isLazyValue ? child.value : child;
-        }
-        this.cache = this.valueFn(values);
-      } else {
-        this.cache = this.valueFn(EMPTY_ARRAY);
-      }
-      return this.cache;
-    },
-    configurable: true,
-    enumerable: true
-  }
-});
-
-exports['default'] = LazyValue;
-module.exports = exports['default'];
-},{}],7:[function(require,module,exports){
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-var _qs = require("qs");
-
-var _qs2 = _interopRequireDefault(_qs);
-
-// Rebound Utils
-// ----------------
-
-var QS_STRINGIFY_OPTS = {
-  allowDots: true,
-  encode: false,
-  delimiter: '&'
-};
-
-var QS_PARSE_OPTS = {
-  allowDots: true,
-  delimiter: /[;,&]/
-};
-
-var $ = function $(query) {
-  return new utils(query);
-};
-
-$.qs = {
-  stringify: function stringify(str) {
-    return _qs2["default"].stringify(str, QS_STRINGIFY_OPTS);
-  },
-  parse: function parse(obj) {
-    return _qs2["default"].parse(obj, QS_PARSE_OPTS);
-  }
-};
-
-var utils = function utils(query) {
-  var i, selector;
-  if (_.isArray(query)) {
-    selector = [];
-    _.each(query, function (item, index) {
-      if (_.isElement(item) || item === document || item === window) selector.push(item);else if (_.isString(item)) Array.prototype.push.apply(selector, document.querySelectorAll(item));
-    });
-  } else if (_.isElement(query) || query === document || query === window) selector = [query];else if (_.isString(query)) selector = document.querySelectorAll(query);else selector = [];
-
-  this.length = selector.length;
-
-  // Add selector to object for method chaining
-  for (i = 0; i < this.length; i++) {
-    this[i] = selector[i];
-  }
-
-  return this;
-};
-
-function returnFalse() {
-  return false;
-}
-function returnTrue() {
-  return true;
-}
-
-// Shim console for IE9
-if (!(window.console && console.log)) {
-  console = {
-    log: function log() {},
-    debug: function debug() {},
-    info: function info() {},
-    warn: function warn() {},
-    error: function error() {}
   };
-}
 
-$.Event = function (src, props) {
-  // Allow instantiation without the 'new' keyword
-  if (!(this instanceof $.Event)) {
-    return new $.Event(src, props);
-  }
-
-  // Event object
-  if (src && src.type) {
-    this.originalEvent = src;
-    this.type = src.type;
-
-    // Events bubbling up the document may have been marked as prevented
-    // by a handler lower down the tree; reflect the correct value.
-    this.isDefaultPrevented = src.defaultPrevented || src.defaultPrevented === undefined &&
-    // Support: Android<4.0
-    src.returnValue === false ? returnTrue : returnFalse;
-
-    // Event type
-  } else {
-      this.type = src;
+  // Determine if at least one element in the object matches a truth test.
+  // Aliased as `any`.
+  _.some = _.any = function(obj, predicate, context) {
+    predicate = cb(predicate, context);
+    var keys = !isArrayLike(obj) && _.keys(obj),
+        length = (keys || obj).length;
+    for (var index = 0; index < length; index++) {
+      var currentKey = keys ? keys[index] : index;
+      if (predicate(obj[currentKey], currentKey, obj)) return true;
     }
+    return false;
+  };
 
-  // Put explicitly provided properties onto the event object
-  if (props) {
-    _.extend(this, props);
-  }
+  // Determine if the array or object contains a given item (using `===`).
+  // Aliased as `includes` and `include`.
+  _.contains = _.includes = _.include = function(obj, item, fromIndex, guard) {
+    if (!isArrayLike(obj)) obj = _.values(obj);
+    if (typeof fromIndex != 'number' || guard) fromIndex = 0;
+    return _.indexOf(obj, item, fromIndex) >= 0;
+  };
 
-  // Copy over all original event properties
-  _.extend(this, _.pick(this.originalEvent, ["altKey", "bubbles", "cancelable", "ctrlKey", "currentTarget", "eventPhase", "metaKey", "relatedTarget", "shiftKey", "target", "timeStamp", "view", "which", "char", "charCode", "key", "keyCode", "button", "buttons", "clientX", "clientY", "", "offsetX", "offsetY", "pageX", "pageY", "screenX", "screenY", "toElement"]));
+  // Invoke a method (with arguments) on every item in a collection.
+  _.invoke = function(obj, method) {
+    var args = slice.call(arguments, 2);
+    var isFunc = _.isFunction(method);
+    return _.map(obj, function(value) {
+      var func = isFunc ? method : value[method];
+      return func == null ? func : func.apply(value, args);
+    });
+  };
 
-  // Create a timestamp if incoming event doesn't have one
-  this.timeStamp = src && src.timeStamp || new Date().getTime();
+  // Convenience version of a common use case of `map`: fetching a property.
+  _.pluck = function(obj, key) {
+    return _.map(obj, _.property(key));
+  };
 
-  // Mark it as fixed
-  this.isEvent = true;
-};
+  // Convenience version of a common use case of `filter`: selecting only objects
+  // containing specific `key:value` pairs.
+  _.where = function(obj, attrs) {
+    return _.filter(obj, _.matcher(attrs));
+  };
 
-$.Event.prototype = {
-  constructor: $.Event,
-  isDefaultPrevented: returnFalse,
-  isPropagationStopped: returnFalse,
-  isImmediatePropagationStopped: returnFalse,
+  // Convenience version of a common use case of `find`: getting the first object
+  // containing specific `key:value` pairs.
+  _.findWhere = function(obj, attrs) {
+    return _.find(obj, _.matcher(attrs));
+  };
 
-  preventDefault: function preventDefault() {
-    var e = this.originalEvent;
-
-    this.isDefaultPrevented = returnTrue;
-
-    if (e && e.preventDefault) {
-      e.preventDefault();
-    }
-  },
-  stopPropagation: function stopPropagation() {
-    var e = this.originalEvent;
-
-    this.isPropagationStopped = returnTrue;
-
-    if (e && e.stopPropagation) {
-      e.stopPropagation();
-    }
-  },
-  stopImmediatePropagation: function stopImmediatePropagation() {
-    var e = this.originalEvent;
-
-    this.isImmediatePropagationStopped = returnTrue;
-
-    if (e && e.stopImmediatePropagation) {
-      e.stopImmediatePropagation();
-    }
-
-    this.stopPropagation();
-  }
-};
-
-utils.prototype = {
-
-  // Given a valid data path, split it into an array of its parts.
-  // ex: foo.bar[0].baz --> ['foo', 'var', '0', 'baz']
-  splitPath: function splitPath(path) {
-    path = ('.' + path + '.').split(/(?:\.|\[|\])+/);
-    path.pop();
-    path.shift();
-    return path;
-  },
-
-  // Applies function `func` depth first to every node in the subtree starting from `root`
-  // If the callback returns `false`, short circuit that tree.
-  walkTheDOM: function walkTheDOM(func) {
-    var el,
-        root,
-        len = this.length,
-        result;
-    while (len--) {
-      root = this[len];
-      result = func(root);
-      if (result === false) return;
-      root = root.firstChild;
-      while (root) {
-        $(root).walkTheDOM(func);
-        root = root.nextSibling;
+  // Return the maximum element (or element-based computation).
+  _.max = function(obj, iteratee, context) {
+    var result = -Infinity, lastComputed = -Infinity,
+        value, computed;
+    if (iteratee == null && obj != null) {
+      obj = isArrayLike(obj) ? obj : _.values(obj);
+      for (var i = 0, length = obj.length; i < length; i++) {
+        value = obj[i];
+        if (value > result) {
+          result = value;
+        }
       }
-    }
-  },
-
-  // Searches each key in an object and tests if the property has a lookupGetter or
-  // lookupSetter. If either are preset convert the property into a computed property.
-  extractComputedProps: function extractComputedProps(obj) {
-    for (var key in obj) {
-      var get = undefined,
-          set = undefined;
-      if (!obj.hasOwnProperty(key)) continue;
-      var desc = Object.getOwnPropertyDescriptor(obj, key);
-      get = desc.hasOwnProperty('get') && desc.get;
-      set = desc.hasOwnProperty('set') && desc.set;
-      if (get || set) {
-        delete obj[key];
-        obj[key] = { get: get, set: set, isComputedProto: true };
-      }
-    }
-  },
-
-  // Events registry. An object containing all events bound through this util shared among all instances.
-  _events: {},
-
-  // Takes the targed the event fired on and returns all callbacks for the delegated element
-  _hasDelegate: function _hasDelegate(target, delegate, eventType) {
-    var callbacks = [];
-
-    // Get our callbacks
-    if (target.delegateGroup && this._events[target.delegateGroup][eventType]) {
-      _.each(this._events[target.delegateGroup][eventType], function (callbacksList, delegateId) {
-        if (_.isArray(callbacksList) && (delegateId === delegate.delegateId || delegate.matchesSelector && delegate.matchesSelector(delegateId))) {
-          callbacks = callbacks.concat(callbacksList);
+    } else {
+      iteratee = cb(iteratee, context);
+      _.each(obj, function(value, index, list) {
+        computed = iteratee(value, index, list);
+        if (computed > lastComputed || computed === -Infinity && result === -Infinity) {
+          result = value;
+          lastComputed = computed;
         }
       });
     }
+    return result;
+  };
 
-    return callbacks;
-  },
-
-  // Triggers an event on a given dom node
-  trigger: function trigger(eventName, options) {
-    var el,
-        len = this.length;
-    while (len--) {
-      el = this[len];
-      if (document.createEvent) {
-        var event = document.createEvent('HTMLEvents');
-        event.initEvent(eventName, true, false);
-        el.dispatchEvent(event);
-      } else {
-        el.fireEvent('on' + eventName);
-      }
-    }
-  },
-
-  off: function off(eventType, handler) {
-    var el,
-        len = this.length,
-        eventCount;
-
-    while (len--) {
-
-      el = this[len];
-      eventCount = 0;
-
-      if (el.delegateGroup) {
-        if (this._events[el.delegateGroup][eventType] && _.isArray(this._events[el.delegateGroup][eventType][el.delegateId])) {
-          _.each(this._events[el.delegateGroup][eventType], function (delegate, index, delegateList) {
-            _.each(delegateList, function (callback, index, callbackList) {
-              if (callback === handler) {
-                delete callbackList[index];
-                return;
-              }
-              eventCount++;
-            });
-          });
+  // Return the minimum element (or element-based computation).
+  _.min = function(obj, iteratee, context) {
+    var result = Infinity, lastComputed = Infinity,
+        value, computed;
+    if (iteratee == null && obj != null) {
+      obj = isArrayLike(obj) ? obj : _.values(obj);
+      for (var i = 0, length = obj.length; i < length; i++) {
+        value = obj[i];
+        if (value < result) {
+          result = value;
         }
       }
+    } else {
+      iteratee = cb(iteratee, context);
+      _.each(obj, function(value, index, list) {
+        computed = iteratee(value, index, list);
+        if (computed < lastComputed || computed === Infinity && result === Infinity) {
+          result = value;
+          lastComputed = computed;
+        }
+      });
+    }
+    return result;
+  };
 
-      // If there are no more of this event type delegated for this group, remove the listener
-      if (eventCount === 0 && el.removeEventListener) {
-        el.removeEventListener(eventType, handler, false);
+  // Shuffle a collection, using the modern version of the
+  // [Fisher-Yates shuffle](http://en.wikipedia.org/wiki/Fisher–Yates_shuffle).
+  _.shuffle = function(obj) {
+    var set = isArrayLike(obj) ? obj : _.values(obj);
+    var length = set.length;
+    var shuffled = Array(length);
+    for (var index = 0, rand; index < length; index++) {
+      rand = _.random(0, index);
+      if (rand !== index) shuffled[index] = shuffled[rand];
+      shuffled[rand] = set[index];
+    }
+    return shuffled;
+  };
+
+  // Sample **n** random values from a collection.
+  // If **n** is not specified, returns a single random element.
+  // The internal `guard` argument allows it to work with `map`.
+  _.sample = function(obj, n, guard) {
+    if (n == null || guard) {
+      if (!isArrayLike(obj)) obj = _.values(obj);
+      return obj[_.random(obj.length - 1)];
+    }
+    return _.shuffle(obj).slice(0, Math.max(0, n));
+  };
+
+  // Sort the object's values by a criterion produced by an iteratee.
+  _.sortBy = function(obj, iteratee, context) {
+    iteratee = cb(iteratee, context);
+    return _.pluck(_.map(obj, function(value, index, list) {
+      return {
+        value: value,
+        index: index,
+        criteria: iteratee(value, index, list)
+      };
+    }).sort(function(left, right) {
+      var a = left.criteria;
+      var b = right.criteria;
+      if (a !== b) {
+        if (a > b || a === void 0) return 1;
+        if (a < b || b === void 0) return -1;
       }
-      if (eventCount === 0 && el.detachEvent) {
-        el.detachEvent('on' + eventType, handler);
+      return left.index - right.index;
+    }), 'value');
+  };
+
+  // An internal function used for aggregate "group by" operations.
+  var group = function(behavior) {
+    return function(obj, iteratee, context) {
+      var result = {};
+      iteratee = cb(iteratee, context);
+      _.each(obj, function(value, index) {
+        var key = iteratee(value, index, obj);
+        behavior(result, value, key);
+      });
+      return result;
+    };
+  };
+
+  // Groups the object's values by a criterion. Pass either a string attribute
+  // to group by, or a function that returns the criterion.
+  _.groupBy = group(function(result, value, key) {
+    if (_.has(result, key)) result[key].push(value); else result[key] = [value];
+  });
+
+  // Indexes the object's values by a criterion, similar to `groupBy`, but for
+  // when you know that your index values will be unique.
+  _.indexBy = group(function(result, value, key) {
+    result[key] = value;
+  });
+
+  // Counts instances of an object that group by a certain criterion. Pass
+  // either a string attribute to count by, or a function that returns the
+  // criterion.
+  _.countBy = group(function(result, value, key) {
+    if (_.has(result, key)) result[key]++; else result[key] = 1;
+  });
+
+  // Safely create a real, live array from anything iterable.
+  _.toArray = function(obj) {
+    if (!obj) return [];
+    if (_.isArray(obj)) return slice.call(obj);
+    if (isArrayLike(obj)) return _.map(obj, _.identity);
+    return _.values(obj);
+  };
+
+  // Return the number of elements in an object.
+  _.size = function(obj) {
+    if (obj == null) return 0;
+    return isArrayLike(obj) ? obj.length : _.keys(obj).length;
+  };
+
+  // Split a collection into two arrays: one whose elements all satisfy the given
+  // predicate, and one whose elements all do not satisfy the predicate.
+  _.partition = function(obj, predicate, context) {
+    predicate = cb(predicate, context);
+    var pass = [], fail = [];
+    _.each(obj, function(value, key, obj) {
+      (predicate(value, key, obj) ? pass : fail).push(value);
+    });
+    return [pass, fail];
+  };
+
+  // Array Functions
+  // ---------------
+
+  // Get the first element of an array. Passing **n** will return the first N
+  // values in the array. Aliased as `head` and `take`. The **guard** check
+  // allows it to work with `_.map`.
+  _.first = _.head = _.take = function(array, n, guard) {
+    if (array == null) return void 0;
+    if (n == null || guard) return array[0];
+    return _.initial(array, array.length - n);
+  };
+
+  // Returns everything but the last entry of the array. Especially useful on
+  // the arguments object. Passing **n** will return all the values in
+  // the array, excluding the last N.
+  _.initial = function(array, n, guard) {
+    return slice.call(array, 0, Math.max(0, array.length - (n == null || guard ? 1 : n)));
+  };
+
+  // Get the last element of an array. Passing **n** will return the last N
+  // values in the array.
+  _.last = function(array, n, guard) {
+    if (array == null) return void 0;
+    if (n == null || guard) return array[array.length - 1];
+    return _.rest(array, Math.max(0, array.length - n));
+  };
+
+  // Returns everything but the first entry of the array. Aliased as `tail` and `drop`.
+  // Especially useful on the arguments object. Passing an **n** will return
+  // the rest N values in the array.
+  _.rest = _.tail = _.drop = function(array, n, guard) {
+    return slice.call(array, n == null || guard ? 1 : n);
+  };
+
+  // Trim out all falsy values from an array.
+  _.compact = function(array) {
+    return _.filter(array, _.identity);
+  };
+
+  // Internal implementation of a recursive `flatten` function.
+  var flatten = function(input, shallow, strict, startIndex) {
+    var output = [], idx = 0;
+    for (var i = startIndex || 0, length = getLength(input); i < length; i++) {
+      var value = input[i];
+      if (isArrayLike(value) && (_.isArray(value) || _.isArguments(value))) {
+        //flatten current level of array or arguments object
+        if (!shallow) value = flatten(value, shallow, strict);
+        var j = 0, len = value.length;
+        output.length += len;
+        while (j < len) {
+          output[idx++] = value[j++];
+        }
+      } else if (!strict) {
+        output[idx++] = value;
       }
     }
-  },
+    return output;
+  };
 
-  on: function on(eventName, delegate, data, handler) {
-    var el,
-        events = this._events,
-        len = this.length,
-        eventNames = eventName.split(' '),
-        delegateId,
-        delegateGroup;
+  // Flatten out an array, either recursively (by default), or just one level.
+  _.flatten = function(array, shallow) {
+    return flatten(array, shallow, false);
+  };
 
-    while (len--) {
-      el = this[len];
+  // Return a version of the array that does not contain the specified value(s).
+  _.without = function(array) {
+    return _.difference(array, slice.call(arguments, 1));
+  };
 
-      // Normalize data input
-      if (_.isFunction(delegate)) {
-        handler = delegate;
-        delegate = el;
-        data = {};
+  // Produce a duplicate-free version of the array. If the array has already
+  // been sorted, you have the option of using a faster algorithm.
+  // Aliased as `unique`.
+  _.uniq = _.unique = function(array, isSorted, iteratee, context) {
+    if (!_.isBoolean(isSorted)) {
+      context = iteratee;
+      iteratee = isSorted;
+      isSorted = false;
+    }
+    if (iteratee != null) iteratee = cb(iteratee, context);
+    var result = [];
+    var seen = [];
+    for (var i = 0, length = getLength(array); i < length; i++) {
+      var value = array[i],
+          computed = iteratee ? iteratee(value, i, array) : value;
+      if (isSorted) {
+        if (!i || seen !== computed) result.push(value);
+        seen = computed;
+      } else if (iteratee) {
+        if (!_.contains(seen, computed)) {
+          seen.push(computed);
+          result.push(value);
+        }
+      } else if (!_.contains(result, value)) {
+        result.push(value);
       }
-      if (_.isFunction(data)) {
-        handler = data;
-        data = {};
+    }
+    return result;
+  };
+
+  // Produce an array that contains the union: each distinct element from all of
+  // the passed-in arrays.
+  _.union = function() {
+    return _.uniq(flatten(arguments, true, true));
+  };
+
+  // Produce an array that contains every item shared between all the
+  // passed-in arrays.
+  _.intersection = function(array) {
+    var result = [];
+    var argsLength = arguments.length;
+    for (var i = 0, length = getLength(array); i < length; i++) {
+      var item = array[i];
+      if (_.contains(result, item)) continue;
+      for (var j = 1; j < argsLength; j++) {
+        if (!_.contains(arguments[j], item)) break;
       }
-      if (!_.isString(delegate) && !_.isElement(delegate)) {
-        console.error("Delegate value passed to Rebound's $.on is neither an element or css selector");
+      if (j === argsLength) result.push(item);
+    }
+    return result;
+  };
+
+  // Take the difference between one array and a number of other arrays.
+  // Only the elements present in just the first array will remain.
+  _.difference = function(array) {
+    var rest = flatten(arguments, true, true, 1);
+    return _.filter(array, function(value){
+      return !_.contains(rest, value);
+    });
+  };
+
+  // Zip together multiple lists into a single array -- elements that share
+  // an index go together.
+  _.zip = function() {
+    return _.unzip(arguments);
+  };
+
+  // Complement of _.zip. Unzip accepts an array of arrays and groups
+  // each array's elements on shared indices
+  _.unzip = function(array) {
+    var length = array && _.max(array, getLength).length || 0;
+    var result = Array(length);
+
+    for (var index = 0; index < length; index++) {
+      result[index] = _.pluck(array, index);
+    }
+    return result;
+  };
+
+  // Converts lists into objects. Pass either a single array of `[key, value]`
+  // pairs, or two parallel arrays of the same length -- one of keys, and one of
+  // the corresponding values.
+  _.object = function(list, values) {
+    var result = {};
+    for (var i = 0, length = getLength(list); i < length; i++) {
+      if (values) {
+        result[list[i]] = values[i];
+      } else {
+        result[list[i][0]] = list[i][1];
+      }
+    }
+    return result;
+  };
+
+  // Generator function to create the findIndex and findLastIndex functions
+  function createPredicateIndexFinder(dir) {
+    return function(array, predicate, context) {
+      predicate = cb(predicate, context);
+      var length = getLength(array);
+      var index = dir > 0 ? 0 : length - 1;
+      for (; index >= 0 && index < length; index += dir) {
+        if (predicate(array[index], index, array)) return index;
+      }
+      return -1;
+    };
+  }
+
+  // Returns the first index on an array-like that passes a predicate test
+  _.findIndex = createPredicateIndexFinder(1);
+  _.findLastIndex = createPredicateIndexFinder(-1);
+
+  // Use a comparator function to figure out the smallest index at which
+  // an object should be inserted so as to maintain order. Uses binary search.
+  _.sortedIndex = function(array, obj, iteratee, context) {
+    iteratee = cb(iteratee, context, 1);
+    var value = iteratee(obj);
+    var low = 0, high = getLength(array);
+    while (low < high) {
+      var mid = Math.floor((low + high) / 2);
+      if (iteratee(array[mid]) < value) low = mid + 1; else high = mid;
+    }
+    return low;
+  };
+
+  // Generator function to create the indexOf and lastIndexOf functions
+  function createIndexFinder(dir, predicateFind, sortedIndex) {
+    return function(array, item, idx) {
+      var i = 0, length = getLength(array);
+      if (typeof idx == 'number') {
+        if (dir > 0) {
+            i = idx >= 0 ? idx : Math.max(idx + length, i);
+        } else {
+            length = idx >= 0 ? Math.min(idx + 1, length) : idx + length + 1;
+        }
+      } else if (sortedIndex && idx && length) {
+        idx = sortedIndex(array, item);
+        return array[idx] === item ? idx : -1;
+      }
+      if (item !== item) {
+        idx = predicateFind(slice.call(array, i, length), _.isNaN);
+        return idx >= 0 ? idx + i : -1;
+      }
+      for (idx = dir > 0 ? i : length - 1; idx >= 0 && idx < length; idx += dir) {
+        if (array[idx] === item) return idx;
+      }
+      return -1;
+    };
+  }
+
+  // Return the position of the first occurrence of an item in an array,
+  // or -1 if the item is not included in the array.
+  // If the array is large and already in sort order, pass `true`
+  // for **isSorted** to use binary search.
+  _.indexOf = createIndexFinder(1, _.findIndex, _.sortedIndex);
+  _.lastIndexOf = createIndexFinder(-1, _.findLastIndex);
+
+  // Generate an integer Array containing an arithmetic progression. A port of
+  // the native Python `range()` function. See
+  // [the Python documentation](http://docs.python.org/library/functions.html#range).
+  _.range = function(start, stop, step) {
+    if (stop == null) {
+      stop = start || 0;
+      start = 0;
+    }
+    step = step || 1;
+
+    var length = Math.max(Math.ceil((stop - start) / step), 0);
+    var range = Array(length);
+
+    for (var idx = 0; idx < length; idx++, start += step) {
+      range[idx] = start;
+    }
+
+    return range;
+  };
+
+  // Function (ahem) Functions
+  // ------------------
+
+  // Determines whether to execute a function as a constructor
+  // or a normal function with the provided arguments
+  var executeBound = function(sourceFunc, boundFunc, context, callingContext, args) {
+    if (!(callingContext instanceof boundFunc)) return sourceFunc.apply(context, args);
+    var self = baseCreate(sourceFunc.prototype);
+    var result = sourceFunc.apply(self, args);
+    if (_.isObject(result)) return result;
+    return self;
+  };
+
+  // Create a function bound to a given object (assigning `this`, and arguments,
+  // optionally). Delegates to **ECMAScript 5**'s native `Function.bind` if
+  // available.
+  _.bind = function(func, context) {
+    if (nativeBind && func.bind === nativeBind) return nativeBind.apply(func, slice.call(arguments, 1));
+    if (!_.isFunction(func)) throw new TypeError('Bind must be called on a function');
+    var args = slice.call(arguments, 2);
+    var bound = function() {
+      return executeBound(func, bound, context, this, args.concat(slice.call(arguments)));
+    };
+    return bound;
+  };
+
+  // Partially apply a function by creating a version that has had some of its
+  // arguments pre-filled, without changing its dynamic `this` context. _ acts
+  // as a placeholder, allowing any combination of arguments to be pre-filled.
+  _.partial = function(func) {
+    var boundArgs = slice.call(arguments, 1);
+    var bound = function() {
+      var position = 0, length = boundArgs.length;
+      var args = Array(length);
+      for (var i = 0; i < length; i++) {
+        args[i] = boundArgs[i] === _ ? arguments[position++] : boundArgs[i];
+      }
+      while (position < arguments.length) args.push(arguments[position++]);
+      return executeBound(func, bound, this, this, args);
+    };
+    return bound;
+  };
+
+  // Bind a number of an object's methods to that object. Remaining arguments
+  // are the method names to be bound. Useful for ensuring that all callbacks
+  // defined on an object belong to it.
+  _.bindAll = function(obj) {
+    var i, length = arguments.length, key;
+    if (length <= 1) throw new Error('bindAll must be passed function names');
+    for (i = 1; i < length; i++) {
+      key = arguments[i];
+      obj[key] = _.bind(obj[key], obj);
+    }
+    return obj;
+  };
+
+  // Memoize an expensive function by storing its results.
+  _.memoize = function(func, hasher) {
+    var memoize = function(key) {
+      var cache = memoize.cache;
+      var address = '' + (hasher ? hasher.apply(this, arguments) : key);
+      if (!_.has(cache, address)) cache[address] = func.apply(this, arguments);
+      return cache[address];
+    };
+    memoize.cache = {};
+    return memoize;
+  };
+
+  // Delays a function for the given number of milliseconds, and then calls
+  // it with the arguments supplied.
+  _.delay = function(func, wait) {
+    var args = slice.call(arguments, 2);
+    return setTimeout(function(){
+      return func.apply(null, args);
+    }, wait);
+  };
+
+  // Defers a function, scheduling it to run after the current call stack has
+  // cleared.
+  _.defer = _.partial(_.delay, _, 1);
+
+  // Returns a function, that, when invoked, will only be triggered at most once
+  // during a given window of time. Normally, the throttled function will run
+  // as much as it can, without ever going more than once per `wait` duration;
+  // but if you'd like to disable the execution on the leading edge, pass
+  // `{leading: false}`. To disable execution on the trailing edge, ditto.
+  _.throttle = function(func, wait, options) {
+    var context, args, result;
+    var timeout = null;
+    var previous = 0;
+    if (!options) options = {};
+    var later = function() {
+      previous = options.leading === false ? 0 : _.now();
+      timeout = null;
+      result = func.apply(context, args);
+      if (!timeout) context = args = null;
+    };
+    return function() {
+      var now = _.now();
+      if (!previous && options.leading === false) previous = now;
+      var remaining = wait - (now - previous);
+      context = this;
+      args = arguments;
+      if (remaining <= 0 || remaining > wait) {
+        if (timeout) {
+          clearTimeout(timeout);
+          timeout = null;
+        }
+        previous = now;
+        result = func.apply(context, args);
+        if (!timeout) context = args = null;
+      } else if (!timeout && options.trailing !== false) {
+        timeout = setTimeout(later, remaining);
+      }
+      return result;
+    };
+  };
+
+  // Returns a function, that, as long as it continues to be invoked, will not
+  // be triggered. The function will be called after it stops being called for
+  // N milliseconds. If `immediate` is passed, trigger the function on the
+  // leading edge, instead of the trailing.
+  _.debounce = function(func, wait, immediate) {
+    var timeout, args, context, timestamp, result;
+
+    var later = function() {
+      var last = _.now() - timestamp;
+
+      if (last < wait && last >= 0) {
+        timeout = setTimeout(later, wait - last);
+      } else {
+        timeout = null;
+        if (!immediate) {
+          result = func.apply(context, args);
+          if (!timeout) context = args = null;
+        }
+      }
+    };
+
+    return function() {
+      context = this;
+      args = arguments;
+      timestamp = _.now();
+      var callNow = immediate && !timeout;
+      if (!timeout) timeout = setTimeout(later, wait);
+      if (callNow) {
+        result = func.apply(context, args);
+        context = args = null;
+      }
+
+      return result;
+    };
+  };
+
+  // Returns the first function passed as an argument to the second,
+  // allowing you to adjust arguments, run code before and after, and
+  // conditionally execute the original function.
+  _.wrap = function(func, wrapper) {
+    return _.partial(wrapper, func);
+  };
+
+  // Returns a negated version of the passed-in predicate.
+  _.negate = function(predicate) {
+    return function() {
+      return !predicate.apply(this, arguments);
+    };
+  };
+
+  // Returns a function that is the composition of a list of functions, each
+  // consuming the return value of the function that follows.
+  _.compose = function() {
+    var args = arguments;
+    var start = args.length - 1;
+    return function() {
+      var i = start;
+      var result = args[start].apply(this, arguments);
+      while (i--) result = args[i].call(this, result);
+      return result;
+    };
+  };
+
+  // Returns a function that will only be executed on and after the Nth call.
+  _.after = function(times, func) {
+    return function() {
+      if (--times < 1) {
+        return func.apply(this, arguments);
+      }
+    };
+  };
+
+  // Returns a function that will only be executed up to (but not including) the Nth call.
+  _.before = function(times, func) {
+    var memo;
+    return function() {
+      if (--times > 0) {
+        memo = func.apply(this, arguments);
+      }
+      if (times <= 1) func = null;
+      return memo;
+    };
+  };
+
+  // Returns a function that will be executed at most one time, no matter how
+  // often you call it. Useful for lazy initialization.
+  _.once = _.partial(_.before, 2);
+
+  // Object Functions
+  // ----------------
+
+  // Keys in IE < 9 that won't be iterated by `for key in ...` and thus missed.
+  var hasEnumBug = !{toString: null}.propertyIsEnumerable('toString');
+  var nonEnumerableProps = ['valueOf', 'isPrototypeOf', 'toString',
+                      'propertyIsEnumerable', 'hasOwnProperty', 'toLocaleString'];
+
+  function collectNonEnumProps(obj, keys) {
+    var nonEnumIdx = nonEnumerableProps.length;
+    var constructor = obj.constructor;
+    var proto = (_.isFunction(constructor) && constructor.prototype) || ObjProto;
+
+    // Constructor is a special case.
+    var prop = 'constructor';
+    if (_.has(obj, prop) && !_.contains(keys, prop)) keys.push(prop);
+
+    while (nonEnumIdx--) {
+      prop = nonEnumerableProps[nonEnumIdx];
+      if (prop in obj && obj[prop] !== proto[prop] && !_.contains(keys, prop)) {
+        keys.push(prop);
+      }
+    }
+  }
+
+  // Retrieve the names of an object's own properties.
+  // Delegates to **ECMAScript 5**'s native `Object.keys`
+  _.keys = function(obj) {
+    if (!_.isObject(obj)) return [];
+    if (nativeKeys) return nativeKeys(obj);
+    var keys = [];
+    for (var key in obj) if (_.has(obj, key)) keys.push(key);
+    // Ahem, IE < 9.
+    if (hasEnumBug) collectNonEnumProps(obj, keys);
+    return keys;
+  };
+
+  // Retrieve all the property names of an object.
+  _.allKeys = function(obj) {
+    if (!_.isObject(obj)) return [];
+    var keys = [];
+    for (var key in obj) keys.push(key);
+    // Ahem, IE < 9.
+    if (hasEnumBug) collectNonEnumProps(obj, keys);
+    return keys;
+  };
+
+  // Retrieve the values of an object's properties.
+  _.values = function(obj) {
+    var keys = _.keys(obj);
+    var length = keys.length;
+    var values = Array(length);
+    for (var i = 0; i < length; i++) {
+      values[i] = obj[keys[i]];
+    }
+    return values;
+  };
+
+  // Returns the results of applying the iteratee to each element of the object
+  // In contrast to _.map it returns an object
+  _.mapObject = function(obj, iteratee, context) {
+    iteratee = cb(iteratee, context);
+    var keys =  _.keys(obj),
+          length = keys.length,
+          results = {},
+          currentKey;
+      for (var index = 0; index < length; index++) {
+        currentKey = keys[index];
+        results[currentKey] = iteratee(obj[currentKey], currentKey, obj);
+      }
+      return results;
+  };
+
+  // Convert an object into a list of `[key, value]` pairs.
+  _.pairs = function(obj) {
+    var keys = _.keys(obj);
+    var length = keys.length;
+    var pairs = Array(length);
+    for (var i = 0; i < length; i++) {
+      pairs[i] = [keys[i], obj[keys[i]]];
+    }
+    return pairs;
+  };
+
+  // Invert the keys and values of an object. The values must be serializable.
+  _.invert = function(obj) {
+    var result = {};
+    var keys = _.keys(obj);
+    for (var i = 0, length = keys.length; i < length; i++) {
+      result[obj[keys[i]]] = keys[i];
+    }
+    return result;
+  };
+
+  // Return a sorted list of the function names available on the object.
+  // Aliased as `methods`
+  _.functions = _.methods = function(obj) {
+    var names = [];
+    for (var key in obj) {
+      if (_.isFunction(obj[key])) names.push(key);
+    }
+    return names.sort();
+  };
+
+  // Extend a given object with all the properties in passed-in object(s).
+  _.extend = createAssigner(_.allKeys);
+
+  // Assigns a given object with all the own properties in the passed-in object(s)
+  // (https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object/assign)
+  _.extendOwn = _.assign = createAssigner(_.keys);
+
+  // Returns the first key on an object that passes a predicate test
+  _.findKey = function(obj, predicate, context) {
+    predicate = cb(predicate, context);
+    var keys = _.keys(obj), key;
+    for (var i = 0, length = keys.length; i < length; i++) {
+      key = keys[i];
+      if (predicate(obj[key], key, obj)) return key;
+    }
+  };
+
+  // Return a copy of the object only containing the whitelisted properties.
+  _.pick = function(object, oiteratee, context) {
+    var result = {}, obj = object, iteratee, keys;
+    if (obj == null) return result;
+    if (_.isFunction(oiteratee)) {
+      keys = _.allKeys(obj);
+      iteratee = optimizeCb(oiteratee, context);
+    } else {
+      keys = flatten(arguments, false, false, 1);
+      iteratee = function(value, key, obj) { return key in obj; };
+      obj = Object(obj);
+    }
+    for (var i = 0, length = keys.length; i < length; i++) {
+      var key = keys[i];
+      var value = obj[key];
+      if (iteratee(value, key, obj)) result[key] = value;
+    }
+    return result;
+  };
+
+   // Return a copy of the object without the blacklisted properties.
+  _.omit = function(obj, iteratee, context) {
+    if (_.isFunction(iteratee)) {
+      iteratee = _.negate(iteratee);
+    } else {
+      var keys = _.map(flatten(arguments, false, false, 1), String);
+      iteratee = function(value, key) {
+        return !_.contains(keys, key);
+      };
+    }
+    return _.pick(obj, iteratee, context);
+  };
+
+  // Fill in a given object with default properties.
+  _.defaults = createAssigner(_.allKeys, true);
+
+  // Creates an object that inherits from the given prototype object.
+  // If additional properties are provided then they will be added to the
+  // created object.
+  _.create = function(prototype, props) {
+    var result = baseCreate(prototype);
+    if (props) _.extendOwn(result, props);
+    return result;
+  };
+
+  // Create a (shallow-cloned) duplicate of an object.
+  _.clone = function(obj) {
+    if (!_.isObject(obj)) return obj;
+    return _.isArray(obj) ? obj.slice() : _.extend({}, obj);
+  };
+
+  // Invokes interceptor with the obj, and then returns obj.
+  // The primary purpose of this method is to "tap into" a method chain, in
+  // order to perform operations on intermediate results within the chain.
+  _.tap = function(obj, interceptor) {
+    interceptor(obj);
+    return obj;
+  };
+
+  // Returns whether an object has a given set of `key:value` pairs.
+  _.isMatch = function(object, attrs) {
+    var keys = _.keys(attrs), length = keys.length;
+    if (object == null) return !length;
+    var obj = Object(object);
+    for (var i = 0; i < length; i++) {
+      var key = keys[i];
+      if (attrs[key] !== obj[key] || !(key in obj)) return false;
+    }
+    return true;
+  };
+
+
+  // Internal recursive comparison function for `isEqual`.
+  var eq = function(a, b, aStack, bStack) {
+    // Identical objects are equal. `0 === -0`, but they aren't identical.
+    // See the [Harmony `egal` proposal](http://wiki.ecmascript.org/doku.php?id=harmony:egal).
+    if (a === b) return a !== 0 || 1 / a === 1 / b;
+    // A strict comparison is necessary because `null == undefined`.
+    if (a == null || b == null) return a === b;
+    // Unwrap any wrapped objects.
+    if (a instanceof _) a = a._wrapped;
+    if (b instanceof _) b = b._wrapped;
+    // Compare `[[Class]]` names.
+    var className = toString.call(a);
+    if (className !== toString.call(b)) return false;
+    switch (className) {
+      // Strings, numbers, regular expressions, dates, and booleans are compared by value.
+      case '[object RegExp]':
+      // RegExps are coerced to strings for comparison (Note: '' + /a/i === '/a/i')
+      case '[object String]':
+        // Primitives and their corresponding object wrappers are equivalent; thus, `"5"` is
+        // equivalent to `new String("5")`.
+        return '' + a === '' + b;
+      case '[object Number]':
+        // `NaN`s are equivalent, but non-reflexive.
+        // Object(NaN) is equivalent to NaN
+        if (+a !== +a) return +b !== +b;
+        // An `egal` comparison is performed for other numeric values.
+        return +a === 0 ? 1 / +a === 1 / b : +a === +b;
+      case '[object Date]':
+      case '[object Boolean]':
+        // Coerce dates and booleans to numeric primitive values. Dates are compared by their
+        // millisecond representations. Note that invalid dates with millisecond representations
+        // of `NaN` are not equivalent.
+        return +a === +b;
+    }
+
+    var areArrays = className === '[object Array]';
+    if (!areArrays) {
+      if (typeof a != 'object' || typeof b != 'object') return false;
+
+      // Objects with different constructors are not equivalent, but `Object`s or `Array`s
+      // from different frames are.
+      var aCtor = a.constructor, bCtor = b.constructor;
+      if (aCtor !== bCtor && !(_.isFunction(aCtor) && aCtor instanceof aCtor &&
+                               _.isFunction(bCtor) && bCtor instanceof bCtor)
+                          && ('constructor' in a && 'constructor' in b)) {
         return false;
       }
-
-      delegateId = _.isString(delegate) ? delegate : delegate.delegateId = delegate.delegateId || _.uniqueId('event');
-      delegateGroup = el.delegateGroup = el.delegateGroup || _.uniqueId('delegateGroup');
-
-      _.each(eventNames, function (eventName) {
-
-        // Ensure event obj existance
-        events[delegateGroup] = events[delegateGroup] || {};
-
-        // TODO: take out of loop
-        var callback = function callback(event) {
-          var target, i, len, eventList, callbacks, callback, falsy;
-          event = new $.Event(event || window.event); // Convert to mutable event
-          target = event.target || event.srcElement;
-          // Travel from target up to parent firing event on delegate when it exists
-          while (target) {
-
-            // Get all specified callbacks (element specific and selector specified)
-            callbacks = $._hasDelegate(this, target, event.type);
-
-            len = callbacks.length;
-            for (i = 0; i < len; i++) {
-              event.target = event.srcElement = target; // Attach this level's target
-              event.data = callbacks[i].data; // Attach our data to the event
-              event.result = callbacks[i].callback.call(el, event); // Call the callback
-              falsy = event.result === false ? true : falsy; // If any callback returns false, log it as falsy
-            }
-
-            // If any of the callbacks returned false, prevent default and stop propagation
-            if (falsy) {
-              event.preventDefault();
-              event.stopPropagation();
-              return false;
-            }
-
-            target = target.parentNode;
-          }
-        };
-
-        // If this is the first event of its type, add the event handler
-        // AddEventListener supports IE9+
-        if (!events[delegateGroup][eventName]) {
-          // Because we're only attaching one callback per event type, this is okay.
-          // This also allows jquery's trigger method to actually fire delegated events
-          // el['on' + eventName] = callback;
-          // If event is focus or blur, use capture to allow for event delegation.
-          el.addEventListener(eventName, callback, eventName === 'focus' || eventName === 'blur');
-        }
-
-        // Add our listener
-        events[delegateGroup][eventName] = events[delegateGroup][eventName] || {};
-        events[delegateGroup][eventName][delegateId] = events[delegateGroup][eventName][delegateId] || [];
-        events[delegateGroup][eventName][delegateId].push({ callback: handler, data: data });
-      }, this);
     }
-  },
+    // Assume equality for cyclic structures. The algorithm for detecting cyclic
+    // structures is adapted from ES 5.1 section 15.12.3, abstract operation `JO`.
 
-  flatten: function flatten(data) {
-    var result = {};
-    function recurse(cur, prop) {
-      if (Object(cur) !== cur) {
-        result[prop] = cur;
-      } else if (Array.isArray(cur)) {
-        for (var i = 0, l = cur.length; i < l; i++) recurse(cur[i], prop + "[" + i + "]");
-        if (l === 0) result[prop] = [];
-      } else {
-        var isEmpty = true;
-        for (var p in cur) {
-          isEmpty = false;
-          recurse(cur[p], prop ? prop + "." + p : p);
-        }
-        if (isEmpty && prop) result[prop] = {};
-      }
-    }
-    recurse(data, "");
-    return result;
-  },
-
-  unMarkLinks: function unMarkLinks() {
-    var len = this.length;
-    while (len--) {
-      var links = this[len].querySelectorAll('a');
-      for (var i = 0; i < links.length; i++) {
-        links.item(i).classList.remove('active');
-        links.item(i).active = false;
-      }
-    }
-    return this;
-  },
-  markLinks: function markLinks() {
-    var len = this.length;
-    while (len--) {
-      var links = this[len].querySelectorAll('a[href="/' + Backbone.history.fragment + '"]');
-      for (var i = 0; i < links.length; i++) {
-        links.item(i).classList.add('active');
-        links.item(i).active = true;
-      }
-    }
-    return this;
-  },
-
-  // http://krasimirtsonev.com/blog/article/Cross-browser-handling-of-Ajax-requests-in-absurdjs
-  ajax: function ajax(ops) {
-    if (typeof ops == 'string') ops = { url: ops };
-    ops.url = ops.url || '';
-    ops.json = ops.json || true;
-    ops.method = ops.method || 'get';
-    ops.data = ops.data || {};
-    var api = {
-      host: {},
-      process: function process(ops) {
-        var self = this;
-        this.xhr = null;
-        if (window.ActiveXObject) {
-          this.xhr = new ActiveXObject('Microsoft.XMLHTTP');
-        } else if (window.XMLHttpRequest) {
-          this.xhr = new XMLHttpRequest();
-        }
-        if (this.xhr) {
-          this.xhr.onreadystatechange = function () {
-            if (self.xhr.readyState == 4 && self.xhr.status == 200) {
-              var result = self.xhr.responseText;
-              if (ops.json === true && typeof JSON != 'undefined') {
-                result = JSON.parse(result);
-              }
-              self.doneCallback && self.doneCallback.apply(self.host, [result, self.xhr]);
-              ops.success && ops.success.apply(self.host, [result, self.xhr]);
-            } else if (self.xhr.readyState == 4) {
-              self.failCallback && self.failCallback.apply(self.host, [self.xhr]);
-              ops.error && ops.error.apply(self.host, [self.xhr]);
-            }
-            self.alwaysCallback && self.alwaysCallback.apply(self.host, [self.xhr]);
-            ops.complete && ops.complete.apply(self.host, [self.xhr]);
-          };
-        }
-        if (ops.method == 'get') {
-          this.xhr.open("GET", ops.url + $.qs.stringify(ops.data), true);
-          this.setHeaders({
-            'X-Requested-With': 'XMLHttpRequest'
-          });
-        } else {
-          this.xhr.open(ops.method, ops.url, true);
-          this.setHeaders({
-            'X-Requested-With': 'XMLHttpRequest',
-            'Content-type': 'application/x-www-form-urlencoded'
-          });
-        }
-        if (ops.headers && typeof ops.headers == 'object') {
-          this.setHeaders(ops.headers);
-        }
-        setTimeout(function () {
-          ops.method == 'get' ? self.xhr.send() : self.xhr.send($.qs.stringify(ops.data));
-        }, 20);
-        return this.xhr;
-      },
-      done: function done(callback) {
-        this.doneCallback = callback;
-        return this;
-      },
-      fail: function fail(callback) {
-        this.failCallback = callback;
-        return this;
-      },
-      always: function always(callback) {
-        this.alwaysCallback = callback;
-        return this;
-      },
-      setHeaders: function setHeaders(headers) {
-        for (var name in headers) {
-          this.xhr && this.xhr.setRequestHeader(name, headers[name]);
-        }
-      }
-    };
-    return api.process(ops);
-  }
-};
-
-_.extend($, utils.prototype);
-
-exports["default"] = $;
-module.exports = exports["default"];
-},{"qs":38}],8:[function(require,module,exports){
-// Rebound Collection
-// ----------------
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-var _reboundDataModel = require("rebound-data/model");
-
-var _reboundDataModel2 = _interopRequireDefault(_reboundDataModel);
-
-var _reboundComponentUtils = require("rebound-component/utils");
-
-var _reboundComponentUtils2 = _interopRequireDefault(_reboundComponentUtils);
-
-function pathGenerator(collection) {
-  return function () {
-    return collection.__path() + '[' + collection.indexOf(collection._byId[this.cid]) + ']';
-  };
-}
-
-var Collection = Backbone.Collection.extend({
-
-  isCollection: true,
-  isData: true,
-
-  model: _reboundDataModel2["default"],
-
-  __path: function __path() {
-    return '';
-  },
-
-  constructor: function constructor(models, options) {
-    models || (models = []);
-    options || (options = {});
-    this._byValue = {};
-    this.__observers = {};
-    this.helpers = {};
-    this.cid = _.uniqueId('collection');
-
-    // Set lineage
-    this.setParent(options.parent || this);
-    this.setRoot(options.root || this);
-    this.__path = options.path || this.__path;
-
-    Backbone.Collection.apply(this, arguments);
-
-    // When a model is removed from its original collection, destroy it
-    // TODO: Fix this. Computed properties now somehow allow collection to share a model. They may be removed from one but not the other. That is bad.
-    // The clone = false options is the culprit. Find a better way to copy all of the collections custom attributes over to the clone.
-    this.on('remove', function (model, collection, options) {
-      // model.deinitialize();
-    });
-  },
-
-  get: function get(key, options) {
-    var _this = this;
-
-    // Split the path at all '.', '[' and ']' and find the value referanced.
-    var parts = _.isString(key) ? _reboundComponentUtils2["default"].splitPath(key) : [],
-        result = this,
-        l = parts.length,
-        i = 0;
-    options || (options = {});
-
-    // If the key is a number or object, or just a single string that is not a path,
-    // get by id and return the first occurance
-    if (typeof key == 'number' || typeof key == 'object' || parts.length == 1 && !options.isPath) {
-      if (key === null) return void 0;
-      var id = this.modelId(this._isModel(key) ? key.attributes : key);
-      var responses = [].concat(this._byValue[key], this._byId[key] || this._byId[id] || this._byId[key.cid]);
-      var res = responses[0],
-          idx = Infinity;
-
-      responses.forEach(function (value) {
-        if (!value) return;
-        var i = _.indexOf(_this.models, value);
-        if (i > -1 && i < idx) {
-          idx = i;res = value;
-        }
-      });
-
-      return res;
+    // Initializing stack of traversed objects.
+    // It's done here since we only need them for objects and arrays comparison.
+    aStack = aStack || [];
+    bStack = bStack || [];
+    var length = aStack.length;
+    while (length--) {
+      // Linear search. Performance is inversely proportional to the number of
+      // unique nested structures.
+      if (aStack[length] === a) return bStack[length] === b;
     }
 
-    // If key is not a string, return undefined
-    if (!_.isString(key)) return void 0;
+    // Add the first object to the stack of traversed objects.
+    aStack.push(a);
+    bStack.push(b);
 
-    if (_.isUndefined(key) || _.isNull(key)) return key;
-    if (key === '' || parts.length === 0) return result;
-
-    if (parts.length > 0) {
-      for (i = 0; i < l; i++) {
-        // If returning raw, always return the first computed property found. If undefined, you're done.
-        if (result && result.isComputedProperty && options.raw) return result;
-        if (result && result.isComputedProperty) result = result.value();
-        if (_.isUndefined(result) || _.isNull(result)) return result;
-        if (parts[i] === '@parent') result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result.hasOwnProperty(parts[i])) result = result[parts[i]];
+    // Recursively compare objects and arrays.
+    if (areArrays) {
+      // Compare array lengths to determine if a deep comparison is necessary.
+      length = a.length;
+      if (length !== b.length) return false;
+      // Deep compare the contents, ignoring non-numeric properties.
+      while (length--) {
+        if (!eq(a[length], b[length], aStack, bStack)) return false;
       }
-    }
-
-    if (result && result.isComputedProperty && !options.raw) result = result.value();
-
-    return result;
-  },
-
-  set: function set(models, options) {
-    var newModels = [],
-        parts = _.isString(models) ? _reboundComponentUtils2["default"].splitPath(models) : [],
-        res,
-        lineage = {
-      parent: this,
-      root: this.__root__,
-      path: pathGenerator(this),
-      silent: true
-    };
-    options = options || {},
-
-    // If no models passed, implies an empty array
-    models || (models = []);
-
-    // If models is a string, and it has parts, call set at that path
-    if (_.isString(models) && parts.length > 1 && !isNaN(Number(parts[0]))) {
-      var index = Number(parts[0]);
-      return this.at(index).set(parts.splice(1, parts.length).join('.'), options);
-    }
-
-    // If another collection, treat like an array
-    models = models.isCollection ? models.models : models;
-    // Ensure models is an array
-    models = !_.isArray(models) ? [models] : models;
-
-    // If the model already exists in this collection, or we are told not to clone it, let Backbone handle the merge
-    // Otherwise, create our copy of this model, give them the same cid so our helpers treat them as the same object
-    // Use the more unique of the two constructors. If our Model has a custom constructor, use that. Otherwise, use
-    // Collection default Model constructor.
-    _.each(models, function (data, index) {
-      if (data.isModel && options.clone === false || this._byId[data.cid]) return newModels[index] = data;
-      var constructor = data.constructor !== Object && data.constructor !== Rebound.Model ? data.constructor : this.model;
-      newModels[index] = new constructor(data, _.defaults(lineage, options));
-      data.isModel && (newModels[index].cid = data.cid);
-    }, this);
-
-    // Ensure that this element now knows that it has children now. Without this cyclic dependancies cause issues
-    this._hasAncestry || (this._hasAncestry = newModels.length > 0);
-
-    // Call original set function with model duplicates
-    return Backbone.Collection.prototype.set.call(this, newModels, options);
-  }
-
-});
-
-exports["default"] = Collection;
-module.exports = exports["default"];
-},{"rebound-component/utils":7,"rebound-data/model":10}],9:[function(require,module,exports){
-// Rebound Computed Property
-// ----------------
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-var _propertyCompilerPropertyCompiler = require("property-compiler/property-compiler");
-
-var _propertyCompilerPropertyCompiler2 = _interopRequireDefault(_propertyCompilerPropertyCompiler);
-
-var _reboundComponentUtils = require("rebound-component/utils");
-
-var _reboundComponentUtils2 = _interopRequireDefault(_reboundComponentUtils);
-
-// Returns true if str starts with test
-function startsWith(str, test) {
-  if (str === test) return true;
-  return str.substring(0, test.length + 1) === test + '.';
-}
-
-// Called after callstack is exausted to call all of this computed property's
-// dependants that need to be recomputed
-function recomputeCallback() {
-  var i = 0,
-      len = this._toCall.length;
-  delete this._recomputeTimeout;
-  for (i = 0; i < len; i++) {
-    this._toCall.shift().call();
-  }
-  this._toCall.added = {};
-}
-
-var ComputedProperty = function ComputedProperty(getter, setter, options) {
-
-  if (!_.isFunction(getter) && !_.isFunction(setter)) return console.error('ComputedProperty constructor must be passed a functions!', prop, 'Found instead.');
-  options = options || {};
-  this.cid = _.uniqueId('computedPropety');
-  this.name = options.name;
-  this.returnType = null;
-  this.__observers = {};
-  this.helpers = {};
-  this.waiting = {};
-  this.isChanging = false;
-  this.isDirty = true;
-  _.bindAll(this, 'onModify', 'markDirty');
-
-  if (getter) this.getter = getter;
-  if (setter) this.setter = setter;
-  this.deps = _propertyCompilerPropertyCompiler2["default"].compile(this.getter, this.name);
-
-  // Create lineage to pass to our cache objects
-  var lineage = {
-    parent: this.setParent(options.parent || this),
-    root: this.setRoot(options.root || options.parent || this),
-    path: this.__path = options.path || this.__path
-  };
-
-  // Results Cache Objects
-  // These models will never be re-created for the lifetime of the Computed Proeprty
-  // On Recompute they are updated with new values.
-  // On Change their new values are pushed to the object it is tracking
-  this.cache = {
-    model: new Rebound.Model({}, lineage),
-    collection: new Rebound.Collection([], lineage),
-    value: undefined
-  };
-
-  this.wire();
-};
-
-_.extend(ComputedProperty.prototype, Backbone.Events, {
-
-  isComputedProperty: true,
-  isData: true,
-  __path: function __path() {
-    return '';
-  },
-
-  getter: function getter() {
-    return undefined;
-  },
-  setter: function setter() {
-    return undefined;
-  },
-
-  markDirty: function markDirty() {
-    if (this.isDirty) return;
-    this.isDirty = true;
-    this.trigger('dirty', this);
-  },
-
-  // Attached to listen to all events where this Computed Property's dependancies
-  // are stored. See wire(). Will re-evaluate any computed properties that
-  // depend on the changed data value which triggered this callback.
-  onRecompute: function onRecompute(type, model, collection, options) {
-    var shortcircuit = { change: 1, sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1, dirty: 1 };
-    if (shortcircuit[type] || !model.isData) return;
-    model || (model = {});
-    collection || (collection = {});
-    options || (options = {});
-    this._toCall || (this._toCall = []);
-    this._toCall.added || (this._toCall.added = {});
-    !collection.isData && (options = collection) && (collection = model);
-    var push = function push(arr) {
-      var i,
-          len = arr.length;
-      this.added || (this.added = {});
-      for (i = 0; i < len; i++) {
-        if (this.added[arr[i].cid]) continue;
-        this.added[arr[i].cid] = 1;
-        this.push(arr[i]);
-      }
-    },
-        path,
-        vector;
-    vector = path = collection.__path().replace(/\.?\[.*\]/ig, '.@each');
-
-    // If a reset event on a Model, check for computed properties that depend
-    // on each changed attribute's full path.
-    if (type === 'reset' && options.previousAttributes) {
-      _.each(options.previousAttributes, function (value, key) {
-        vector = path + (path && '.') + key;
-        _.each(this.__computedDeps, function (dependants, dependancy) {
-          startsWith(vector, dependancy) && push.call(this._toCall, dependants);
-        }, this);
-      }, this);
-    }
-
-    // If a reset event on a Collction, check for computed properties that depend
-    // on anything inside that collection.
-    else if (type === 'reset' && options.previousModels) {
-        _.each(this.__computedDeps, function (dependants, dependancy) {
-          startsWith(dependancy, vector) && push.call(this._toCall, dependants);
-        }, this);
-      }
-
-      // If an add or remove event, check for computed properties that depend on
-      // anything inside that collection or that contains that collection.
-      else if (type === 'add' || type === 'remove') {
-          _.each(this.__computedDeps, function (dependants, dependancy) {
-            if (startsWith(dependancy, vector) || startsWith(vector, dependancy)) push.call(this._toCall, dependants);
-          }, this);
-        }
-
-        // If a change event, trigger anything that depends on that changed path.
-        else if (type.indexOf('change:') === 0) {
-            vector = type.replace('change:', '').replace(/\.?\[.*\]/ig, '.@each');
-            _.each(this.__computedDeps, function (dependants, dependancy) {
-              startsWith(vector, dependancy) && push.call(this._toCall, dependants);
-            }, this);
-          }
-
-    var i,
-        len = this._toCall.length;
-    for (i = 0; i < len; i++) {
-      this._toCall[i].markDirty();
-    }
-
-    // Notifies all computed properties in the dependants array to recompute.
-    // Marks everyone as dirty and then calls them.
-    if (!this._recomputeTimeout) this._recomputeTimeout = setTimeout(_.bind(recomputeCallback, this), 0);
-    return;
-  },
-
-  // Called when a Computed Property's active cache object changes.
-  // Pushes any changes to Computed Property that returns a data object back to
-  // the original object.
-  onModify: function onModify(type, model, collection, options) {
-    var shortcircuit = { sort: 1, request: 1, destroy: 1, sync: 1, error: 1, invalid: 1, route: 1 };
-    if (!this.tracking || shortcircuit[type] || ~type.indexOf('change:')) return;
-    model || (model = {});
-    collection || (collection = {});
-    options || (options = {});
-    !collection.isData && _.isObject(collection) && (options = collection) && (collection = model);
-    var src = this;
-    var path = collection.__path().replace(src.__path(), '').replace(/^\./, '');
-    // Need to pass isPath: true here because when syncing across computed properties
-    // that return collections we may just be passing the model index for the path.
-    var dest = this.tracking.get(path, { raw: true, isPath: true });
-    if (_.isUndefined(dest)) return;
-    if (type === 'change') dest.set && dest.set(model.changedAttributes());else if (type === 'reset') dest.reset && dest.reset(model);else if (type === 'add') dest.add && dest.add(model);else if (type === 'remove') dest.remove && dest.remove(model);
-    // TODO: Add sort
-  },
-
-  // Adds a litener to the root object and tells it what properties this
-  // Computed Property depend on.
-  // The listener will re-compute this Computed Property when any are changed.
-  wire: function wire() {
-    var root = this.__root__;
-    var context = this.__parent__;
-    root.__computedDeps || (root.__computedDeps = {});
-
-    _.each(this.deps, function (path) {
-      var dep = root.get(path, { raw: true, isPath: true });
-      if (!dep || !dep.isComputedProperty) return;
-      dep.on('dirty', this.markDirty);
-    }, this);
-
-    _.each(this.deps, function (path) {
-      // Find actual path from relative paths
-      var split = _reboundComponentUtils2["default"].splitPath(path);
-      while (split[0] === '@parent') {
-        context = context.__parent__;
-        split.shift();
-      }
-
-      path = context.__path().replace(/\.?\[.*\]/ig, '.@each');
-      path = path + (path && '.') + split.join('.');
-
-      // Add ourselves as dependants
-      root.__computedDeps[path] || (root.__computedDeps[path] = []);
-      root.__computedDeps[path].push(this);
-    }, this);
-
-    // Ensure we only have one listener per Model at a time.
-    context.off('all', this.onRecompute).on('all', this.onRecompute);
-  },
-
-  unwire: function unwire() {
-    var root = this.__root__;
-    var context = this.__parent__;
-
-    _.each(this.deps, function (path) {
-      var dep = root.get(path, { raw: true, isPath: true });
-      if (!dep || !dep.isComputedProperty) return;
-      dep.off('dirty', this.markDirty);
-    }, this);
-
-    context.off('all', this.onRecompute);
-  },
-
-  // Call this computed property like you would with Function.call()
-  call: function call() {
-    var args = Array.prototype.slice.call(arguments),
-        context = args.shift();
-    return this.apply(context, args);
-  },
-
-  // Call this computed property like you would with Function.apply()
-  // Only properties that are marked as dirty and are not already computing
-  // themselves are evaluated to prevent cyclic callbacks. If any dependants
-  // aren't finished computeding, we add ourselved to their waiting list.
-  // Vanilla objects returned from the function are promoted to Rebound Objects.
-  // Then, set the proper return type for future fetches from the cache and set
-  // the new computed value. Track changes to the cache to push it back up to
-  // the original object and return the value.
-  apply: function apply(context, params) {
-
-    context || (context = this.__parent__);
-
-    if (!this.isDirty || this.isChanging || !context) return;
-    this.isChanging = true;
-
-    var value = this.cache[this.returnType],
-        result;
-
-    // Check all of our dependancies to see if they are evaluating.
-    // If we have a dependancy that is dirty and this isnt its first run,
-    // Let this dependancy know that we are waiting for it.
-    // It will re-run this Computed Property after it finishes.
-    _.each(this.deps, function (dep) {
-      var dependancy = context.get(dep, { raw: true, isPath: true });
-      if (!dependancy || !dependancy.isComputedProperty) return;
-      if (dependancy.isDirty && dependancy.returnType !== null) {
-        dependancy.waiting[this.cid] = this;
-        dependancy.apply(); // Try to re-evaluate this dependancy if it is dirty
-        if (dependancy.isDirty) return this.isChanging = false;
-      }
-      delete dependancy.waiting[this.cid];
-      // TODO: There can be a check here looking for cyclic dependancies.
-    }, this);
-
-    if (!this.isChanging) return;
-
-    if (this.returnType !== 'value') this.stopListening(value, 'all', this.onModify);
-
-    result = this.getter.apply(context, params);
-
-    // Promote vanilla objects to Rebound Data keeping the same original objects
-    if (_.isArray(result)) result = new Rebound.Collection(result, { clone: false });else if (_.isObject(result) && !result.isData) result = new Rebound.Model(result, { clone: false });
-
-    // If result is undefined, reset our cache item
-    if (_.isUndefined(result) || _.isNull(result)) {
-      this.returnType = 'value';
-      this.isCollection = this.isModel = false;
-      this.set(undefined);
-    }
-    // Set result and return types, bind events
-    else if (result.isCollection) {
-        this.returnType = 'collection';
-        this.isCollection = true;
-        this.isModel = false;
-        this.set(result);
-        this.track(result);
-      } else if (result.isModel) {
-        this.returnType = 'model';
-        this.isCollection = false;
-        this.isModel = true;
-        this.reset(result);
-        this.track(result);
-      } else {
-        this.returnType = 'value';
-        this.isCollection = this.isModel = false;
-        this.reset(result);
-      }
-
-    return this.value();
-  },
-
-  // When we receive a new model to set in our cache, unbind the tracker from
-  // the previous cache object, sync the objects' cids so helpers think they
-  // are the same object, save a referance to the object we are tracking,
-  // and re-bind our onModify hook.
-  track: function track(object) {
-    var target = this.value();
-    if (!object || !target || !target.isData || !object.isData) return;
-    target._cid || (target._cid = target.cid);
-    object._cid || (object._cid = object.cid);
-    target.cid = object.cid;
-    this.tracking = object;
-    this.listenTo(target, 'all', this.onModify);
-  },
-
-  // Get from the Computed Property's cache
-  get: function get(key, options) {
-    var value = this.value();
-    options || (options = {});
-    if (this.returnType === 'value') return console.error('Called get on the `' + this.name + '` computed property which returns a primitive value.');
-    return value.get(key, options);
-  },
-
-  // Set the Computed Property's cache to a new value and trigger appropreate events.
-  // Changes will propagate back to the original object if a Rebound Data Object and re-compute.
-  // If Computed Property returns a value, all downstream dependancies will re-compute.
-  set: function set(key, val, options) {
-
-    if (this.returnType === null) return undefined;
-    options || (options = {});
-    var attrs = key;
-    var value = this.value();
-
-    // Noralize the data passed in
-    if (this.returnType === 'model') {
-      if (typeof key === 'object') {
-        attrs = key.isModel ? key.attributes : key;
-        options = val;
-      } else {
-        (attrs = {})[key] = val;
-      }
-    }
-    if (this.returnType !== 'model') options = val || {};
-    attrs = attrs && attrs.isComputedProperty ? attrs.value() : attrs;
-
-    // If a new value, set it and trigger events
-    this.setter && this.setter.call(this.__root__, attrs);
-    if (this.returnType === 'value' && this.cache.value !== attrs) {
-      this.cache.value = attrs;
-      if (!options.quiet) {
-        // If set was called not through computedProperty.call(), this is a fresh new event burst.
-        if (!this.isDirty && !this.isChanging) this.__parent__.changed = {};
-        this.__parent__.changed[this.name] = attrs;
-        this.trigger('change', this.__parent__);
-        this.trigger('change:' + this.name, this.__parent__, attrs);
-        delete this.__parent__.changed[this.name];
-      }
-    } else if (this.returnType !== 'value' && options.reset) key = value.reset(attrs, options);else if (this.returnType !== 'value') key = value.set(attrs, options);
-    this.isDirty = this.isChanging = false;
-
-    // Call all reamining computed properties waiting for this value to resolve.
-    _.each(this.waiting, function (prop) {
-      prop && prop.call();
-    });
-
-    return key;
-  },
-
-  // Return the current value from the cache, running if dirty.
-  value: function value() {
-    if (this.isDirty) this.apply();
-    return this.cache[this.returnType];
-  },
-
-  // Reset the current value in the cache, running if first run.
-  reset: function reset(obj, options) {
-    if (_.isNull(this.returnType)) return; // First run
-    options || (options = {});
-    options.reset = true;
-    return this.set(obj, options);
-  },
-
-  // Cyclic dependancy safe toJSON method.
-  toJSON: function toJSON() {
-    if (this._isSerializing) return this.cid;
-    var val = this.value();
-    this._isSerializing = true;
-    var json = val && _.isFunction(val.toJSON) ? val.toJSON() : val;
-    this._isSerializing = false;
-    return json;
-  }
-
-});
-
-exports["default"] = ComputedProperty;
-module.exports = exports["default"];
-},{"property-compiler/property-compiler":1,"rebound-component/utils":7}],10:[function(require,module,exports){
-// Rebound Model
-// ----------------
-
-// Rebound **Models** are the basic data object in the framework - frequently
-// representing a row in a table in a database on your server. The inherit from
-// Backbone Models and have all of the same useful methods you are used to for
-// performing computations and transformations on that data. Rebound augments
-// Backbone Models by enabling deep data nesting. You can now have **Rebound Collections**
-// and **Rebound Computed Properties** as properties of the Model.
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-var _reboundDataComputedProperty = require("rebound-data/computed-property");
-
-var _reboundDataComputedProperty2 = _interopRequireDefault(_reboundDataComputedProperty);
-
-var _reboundComponentUtils = require("rebound-component/utils");
-
-var _reboundComponentUtils2 = _interopRequireDefault(_reboundComponentUtils);
-
-// Returns a function that, when called, generates a path constructed from its
-// parent's path and the key it is assigned to. Keeps us from re-naming children
-// when parents change.
-function pathGenerator(parent, key) {
-  return function () {
-    var path = parent.__path();
-    return path + (path === '' ? '' : '.') + key;
-  };
-}
-
-var Model = Backbone.Model.extend({
-  // Set this object's data types
-  isModel: true,
-  isData: true,
-
-  // A method that returns a root path by default. Meant to be overridden on
-  // instantiation.
-  __path: function __path() {
-    return '';
-  },
-
-  // Create a new Model with the specified attributes. The Model's lineage is set
-  // up here to keep track of it's place in the data tree.
-  constructor: function constructor(attributes, options) {
-    var self = this;
-    if (attributes === null || attributes === undefined) attributes = {};
-    attributes.isModel && (attributes = attributes.attributes);
-    options || (options = {});
-    this.helpers = {};
-    this.defaults = this.defaults || {};
-    this.setParent(options.parent || this);
-    this.setRoot(options.root || this);
-    this.__path = options.path || this.__path;
-
-    // Convert getters and setters to computed properties
-    _reboundComponentUtils2["default"].extractComputedProps(attributes);
-
-    Backbone.Model.call(this, attributes, options);
-  },
-
-  // New convenience function to toggle boolean values in the Model.
-  toggle: function toggle(attr, options) {
-    options = options ? _.clone(options) : {};
-    var val = this.get(attr);
-    if (!_.isBoolean(val)) console.error('Tried to toggle non-boolean value ' + attr + '!', this);
-    return this.set(attr, !val, options);
-  },
-
-  destroy: function destroy(options) {
-    options = options ? _.clone(options) : {};
-    var model = this;
-    var success = options.success;
-    var wait = options.wait;
-
-    var destroy = function destroy() {
-      model.trigger('destroy', model, model.collection, options);
-    };
-
-    options.success = function (resp) {
-      if (wait) destroy();
-      if (success) success.call(options.context, model, resp, options);
-      if (!model.isNew()) model.trigger('sync', model, resp, options);
-    };
-
-    var xhr = false;
-    if (this.isNew()) {
-      _.defer(options.success);
     } else {
-      wrapError(this, options);
-      xhr = this.sync('delete', this, options);
-    }
-    if (!wait) destroy();
-    return xhr;
-  },
-
-  // Model Reset does a deep reset on the data tree starting at this Model.
-  // A `previousAttributes` property is set on the `options` property with the Model's
-  // old values.
-  reset: function reset(obj, options) {
-    var changed = {},
-        key,
-        value;
-    options || (options = {});
-    options.reset = true;
-    obj = obj && obj.isModel && obj.attributes || obj || {};
-    options.previousAttributes = _.clone(this.attributes);
-
-    // Iterate over the Model's attributes:
-    // - If the property is the `idAttribute`, skip.
-    // - If the property is a `Model`, `Collection`, or `ComputedProperty`, reset it.
-    // - If the passed object has the property, set it to the new value.
-    // - If the Model has a default value for this property, set it back to default.
-    // - Otherwise, unset the attribute.
-    for (key in this.attributes) {
-      value = this.attributes[key];
-      if (value === obj[key]) continue;else if (_.isUndefined(value)) obj[key] && (changed[key] = obj[key]);else if (value.isComponent) continue;else if (value.isCollection || value.isModel || value.isComputedProperty) {
-        value.reset(obj[key] || [], { silent: true });
-        if (value.isCollection) changed[key] = value.previousModels;else if (value.isModel && value.isComputedProperty) changed[key] = value.cache.model.changedAttributes();else if (value.isModel) changed[key] = value.changedAttributes();
-      } else if (obj.hasOwnProperty(key)) {
-        changed[key] = obj[key];
-      } else if (this.defaults.hasOwnProperty(key) && !_.isFunction(this.defaults[key])) {
-        changed[key] = obj[key] = this.defaults[key];
-      } else {
-        changed[key] = undefined;
-        this.unset(key, { silent: true });
+      // Deep compare objects.
+      var keys = _.keys(a), key;
+      length = keys.length;
+      // Ensure that both objects contain the same number of properties before comparing deep equality.
+      if (_.keys(b).length !== length) return false;
+      while (length--) {
+        // Deep compare each member
+        key = keys[length];
+        if (!(_.has(b, key) && eq(a[key], b[key], aStack, bStack))) return false;
       }
     }
+    // Remove the first object from the stack of traversed objects.
+    aStack.pop();
+    bStack.pop();
+    return true;
+  };
 
-    // Any unset changed values will be set to obj[key]
-    _.each(obj, function (value, key, obj) {
-      changed[key] = changed[key] || obj[key];
+  // Perform a deep comparison to check if two objects are equal.
+  _.isEqual = function(a, b) {
+    return eq(a, b);
+  };
+
+  // Is a given array, string, or object empty?
+  // An "empty" object has no enumerable own-properties.
+  _.isEmpty = function(obj) {
+    if (obj == null) return true;
+    if (isArrayLike(obj) && (_.isArray(obj) || _.isString(obj) || _.isArguments(obj))) return obj.length === 0;
+    return _.keys(obj).length === 0;
+  };
+
+  // Is a given value a DOM element?
+  _.isElement = function(obj) {
+    return !!(obj && obj.nodeType === 1);
+  };
+
+  // Is a given value an array?
+  // Delegates to ECMA5's native Array.isArray
+  _.isArray = nativeIsArray || function(obj) {
+    return toString.call(obj) === '[object Array]';
+  };
+
+  // Is a given variable an object?
+  _.isObject = function(obj) {
+    var type = typeof obj;
+    return type === 'function' || type === 'object' && !!obj;
+  };
+
+  // Add some isType methods: isArguments, isFunction, isString, isNumber, isDate, isRegExp, isError.
+  _.each(['Arguments', 'Function', 'String', 'Number', 'Date', 'RegExp', 'Error'], function(name) {
+    _['is' + name] = function(obj) {
+      return toString.call(obj) === '[object ' + name + ']';
+    };
+  });
+
+  // Define a fallback version of the method in browsers (ahem, IE < 9), where
+  // there isn't any inspectable "Arguments" type.
+  if (!_.isArguments(arguments)) {
+    _.isArguments = function(obj) {
+      return _.has(obj, 'callee');
+    };
+  }
+
+  // Optimize `isFunction` if appropriate. Work around some typeof bugs in old v8,
+  // IE 11 (#1621), and in Safari 8 (#1929).
+  if (typeof /./ != 'function' && typeof Int8Array != 'object') {
+    _.isFunction = function(obj) {
+      return typeof obj == 'function' || false;
+    };
+  }
+
+  // Is a given object a finite number?
+  _.isFinite = function(obj) {
+    return isFinite(obj) && !isNaN(parseFloat(obj));
+  };
+
+  // Is the given value `NaN`? (NaN is the only number which does not equal itself).
+  _.isNaN = function(obj) {
+    return _.isNumber(obj) && obj !== +obj;
+  };
+
+  // Is a given value a boolean?
+  _.isBoolean = function(obj) {
+    return obj === true || obj === false || toString.call(obj) === '[object Boolean]';
+  };
+
+  // Is a given value equal to null?
+  _.isNull = function(obj) {
+    return obj === null;
+  };
+
+  // Is a given variable undefined?
+  _.isUndefined = function(obj) {
+    return obj === void 0;
+  };
+
+  // Shortcut function for checking if an object has a given property directly
+  // on itself (in other words, not on a prototype).
+  _.has = function(obj, key) {
+    return obj != null && hasOwnProperty.call(obj, key);
+  };
+
+  // Utility Functions
+  // -----------------
+
+  // Run Underscore.js in *noConflict* mode, returning the `_` variable to its
+  // previous owner. Returns a reference to the Underscore object.
+  _.noConflict = function() {
+    root._ = previousUnderscore;
+    return this;
+  };
+
+  // Keep the identity function around for default iteratees.
+  _.identity = function(value) {
+    return value;
+  };
+
+  // Predicate-generating functions. Often useful outside of Underscore.
+  _.constant = function(value) {
+    return function() {
+      return value;
+    };
+  };
+
+  _.noop = function(){};
+
+  _.property = property;
+
+  // Generates a function for a given object that returns a given property.
+  _.propertyOf = function(obj) {
+    return obj == null ? function(){} : function(key) {
+      return obj[key];
+    };
+  };
+
+  // Returns a predicate for checking whether an object has a given set of
+  // `key:value` pairs.
+  _.matcher = _.matches = function(attrs) {
+    attrs = _.extendOwn({}, attrs);
+    return function(obj) {
+      return _.isMatch(obj, attrs);
+    };
+  };
+
+  // Run a function **n** times.
+  _.times = function(n, iteratee, context) {
+    var accum = Array(Math.max(0, n));
+    iteratee = optimizeCb(iteratee, context, 1);
+    for (var i = 0; i < n; i++) accum[i] = iteratee(i);
+    return accum;
+  };
+
+  // Return a random integer between min and max (inclusive).
+  _.random = function(min, max) {
+    if (max == null) {
+      max = min;
+      min = 0;
+    }
+    return min + Math.floor(Math.random() * (max - min + 1));
+  };
+
+  // A (possibly faster) way to get the current timestamp as an integer.
+  _.now = Date.now || function() {
+    return new Date().getTime();
+  };
+
+   // List of HTML entities for escaping.
+  var escapeMap = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#x27;',
+    '`': '&#x60;'
+  };
+  var unescapeMap = _.invert(escapeMap);
+
+  // Functions for escaping and unescaping strings to/from HTML interpolation.
+  var createEscaper = function(map) {
+    var escaper = function(match) {
+      return map[match];
+    };
+    // Regexes for identifying a key that needs to be escaped
+    var source = '(?:' + _.keys(map).join('|') + ')';
+    var testRegexp = RegExp(source);
+    var replaceRegexp = RegExp(source, 'g');
+    return function(string) {
+      string = string == null ? '' : '' + string;
+      return testRegexp.test(string) ? string.replace(replaceRegexp, escaper) : string;
+    };
+  };
+  _.escape = createEscaper(escapeMap);
+  _.unescape = createEscaper(unescapeMap);
+
+  // If the value of the named `property` is a function then invoke it with the
+  // `object` as context; otherwise, return it.
+  _.result = function(object, property, fallback) {
+    var value = object == null ? void 0 : object[property];
+    if (value === void 0) {
+      value = fallback;
+    }
+    return _.isFunction(value) ? value.call(object) : value;
+  };
+
+  // Generate a unique integer id (unique within the entire client session).
+  // Useful for temporary DOM ids.
+  var idCounter = 0;
+  _.uniqueId = function(prefix) {
+    var id = ++idCounter + '';
+    return prefix ? prefix + id : id;
+  };
+
+  // By default, Underscore uses ERB-style template delimiters, change the
+  // following template settings to use alternative delimiters.
+  _.templateSettings = {
+    evaluate    : /<%([\s\S]+?)%>/g,
+    interpolate : /<%=([\s\S]+?)%>/g,
+    escape      : /<%-([\s\S]+?)%>/g
+  };
+
+  // When customizing `templateSettings`, if you don't want to define an
+  // interpolation, evaluation or escaping regex, we need one that is
+  // guaranteed not to match.
+  var noMatch = /(.)^/;
+
+  // Certain characters need to be escaped so that they can be put into a
+  // string literal.
+  var escapes = {
+    "'":      "'",
+    '\\':     '\\',
+    '\r':     'r',
+    '\n':     'n',
+    '\u2028': 'u2028',
+    '\u2029': 'u2029'
+  };
+
+  var escaper = /\\|'|\r|\n|\u2028|\u2029/g;
+
+  var escapeChar = function(match) {
+    return '\\' + escapes[match];
+  };
+
+  // JavaScript micro-templating, similar to John Resig's implementation.
+  // Underscore templating handles arbitrary delimiters, preserves whitespace,
+  // and correctly escapes quotes within interpolated code.
+  // NB: `oldSettings` only exists for backwards compatibility.
+  _.template = function(text, settings, oldSettings) {
+    if (!settings && oldSettings) settings = oldSettings;
+    settings = _.defaults({}, settings, _.templateSettings);
+
+    // Combine delimiters into one regular expression via alternation.
+    var matcher = RegExp([
+      (settings.escape || noMatch).source,
+      (settings.interpolate || noMatch).source,
+      (settings.evaluate || noMatch).source
+    ].join('|') + '|$', 'g');
+
+    // Compile the template source, escaping string literals appropriately.
+    var index = 0;
+    var source = "__p+='";
+    text.replace(matcher, function(match, escape, interpolate, evaluate, offset) {
+      source += text.slice(index, offset).replace(escaper, escapeChar);
+      index = offset + match.length;
+
+      if (escape) {
+        source += "'+\n((__t=(" + escape + "))==null?'':_.escape(__t))+\n'";
+      } else if (interpolate) {
+        source += "'+\n((__t=(" + interpolate + "))==null?'':__t)+\n'";
+      } else if (evaluate) {
+        source += "';\n" + evaluate + "\n__p+='";
+      }
+
+      // Adobe VMs need the match returned to produce the correct offest.
+      return match;
     });
+    source += "';\n";
 
-    // Reset our model
-    obj = this.set(obj, _.extend({}, options, { silent: true, reset: false }));
+    // If a variable is not specified, place data values in local scope.
+    if (!settings.variable) source = 'with(obj||{}){\n' + source + '}\n';
 
-    // Trigger custom reset event
-    this.changed = changed;
-    if (!options.silent) this.trigger('reset', this, options);
+    source = "var __t,__p='',__j=Array.prototype.join," +
+      "print=function(){__p+=__j.call(arguments,'');};\n" +
+      source + 'return __p;\n';
 
-    // Return new values
-    return obj;
-  },
-
-  // **Model.Get** is overridden to provide support for getting from a deep data tree.
-  // `key` may now be any valid json-like identifier. Ex: `obj.coll[3].value`.
-  // It needs to traverse `Models`, `Collections` and `Computed Properties` to
-  // find the correct value.
-  // - If key is undefined, return `undefined`.
-  // - If key is empty string, return `this`.
-  //
-  // For each part:
-  // - If a `Computed Property` and `options.raw` is true, return it.
-  // - If a `Computed Property` traverse to its value.
-  // - If not set, return its falsy value.
-  // - If a `Model` or `Collection`, traverse to it.
-  get: function get(key, options) {
-    options || (options = {});
-    var parts = _reboundComponentUtils2["default"].splitPath(key),
-        result = this,
-        i,
-        l = parts.length;
-
-    if (_.isUndefined(key) || _.isNull(key)) return undefined;
-    if (key === '' || parts.length === 0) return result;
-
-    for (i = 0; i < l; i++) {
-      if (result && result.isComputedProperty && options.raw) return result;
-      if (result && result.isComputedProperty) result = result.value();
-      if (_.isUndefined(result) || _.isNull(result)) return result;
-      if (parts[i] === '@parent') result = result.__parent__;else if (result.isCollection) result = result.models[parts[i]];else if (result.isModel) result = result.attributes[parts[i]];else if (result && result.hasOwnProperty(parts[i])) result = result[parts[i]];
+    try {
+      var render = new Function(settings.variable || 'obj', '_', source);
+    } catch (e) {
+      e.source = source;
+      throw e;
     }
 
-    if (result && result.isComputedProperty && !options.raw) result = result.value();
-    return result;
-  },
-
-  // **Model.Set** is overridden to provide support for getting from a deep data tree.
-  // `key` may now be any valid json-like identifier. Ex: `obj.coll[3].value`.
-  // It needs to traverse `Models`, `Collections` and `Computed Properties` to
-  // find the correct value to call the original `Backbone.Set` on.
-  set: function set(key, value, options) {
-    var _this = this;
-
-    var attrs,
-        newKey,
-        destination,
-        props = [];
-
-    if (typeof key === 'object') {
-      attrs = key.isModel ? key.attributes : key;
-      options = value;
-    } else (attrs = {})[key] = value;
-    options || (options = {});
-
-    // Convert getters and setters to computed properties
-    _reboundComponentUtils2["default"].extractComputedProps(attrs);
-
-    // If reset option passed, do a reset. If nothing passed, return.
-    if (options.reset === true) return this.reset(attrs, options);
-    if (options.defaults === true) this.defaults = attrs;
-    if (_.isEmpty(attrs)) return;
-
-    // For each attribute passed:
-    var _loop = function () {
-      var val = attrs[key],
-          paths = _reboundComponentUtils2["default"].splitPath(key),
-          attr = paths.pop() || '',
-          // The key          ex: foo[0].bar --> bar
-      target = _this.get(paths.join('.')),
-          // The element    ex: foo.bar.baz --> foo.bar
-      lineage = undefined;
-
-      // If target currently doesnt exist, construct its tree
-      if (_.isUndefined(target)) {
-        target = _this;
-        _.each(paths, function (part) {
-          var tmp = target.get(part);
-          if (_.isUndefined(tmp)) tmp = target.set(part, {}).get(part);
-          target = tmp;
-        }, _this);
-      }
-
-      // The old value of `attr` in `target`
-      destination = target.get(attr, { raw: true }) || {};
-
-      // Create this new object's lineage.
-      lineage = {
-        name: key,
-        parent: target,
-        root: _this.__root__,
-        path: pathGenerator(target, key),
-        silent: true,
-        defaults: options.defaults
-      };
-      // - If val is `null` or `undefined`, set to default value.
-      // - If val is a `Computed Property`, get its current cache object.
-      // - If val (default value or evaluated computed property) is `null`, set to default value or (fallback `undefined`).
-      // - Else If val is a primitive object instance, convert to primitive value.
-      // - Else If `{raw: true}` option is passed, set the exact object that was passed. No promotion to a Rebound Data object.
-      // - Else If this function is the same as the current computed property, continue.
-      // - Else If this value is a `Function`, turn it into a `Computed Property`.
-      // - Else If this is going to be a cyclical dependancy, use the original object, don't make a copy.
-      // - Else If updating an existing object with its respective data type, let Backbone handle the merge.
-      // - Else If this value is a `Model` or `Collection`, create a new copy of it using its constructor, preserving its defaults while ensuring no shared memory between objects.
-      // - Else If this value is an `Array`, turn it into a `Collection`.
-      // - Else If this value is a `Object`, turn it into a `Model`.
-      // - Else val is a primitive value, set it accordingly.
-
-      if (_.isNull(val) || _.isUndefined(val)) val = _this.defaults[key];
-      if (val && val.isComputedProperty) val = val.value();
-      if (_.isNull(val) || _.isUndefined(val)) val = undefined;else if (val instanceof String) val = String(val);else if (val instanceof Number) val = Number(val);else if (val instanceof Boolean) val = Boolean(val.valueOf());else if (options.raw === true) val = val;else if (destination.isComputedProperty && destination.func === val) return "continue";else if (val.isComputedProto) val = new _reboundDataComputedProperty2["default"](val.get, val.set, lineage);else if (val.isData && target.hasParent(val)) val = val;else if (destination.isComputedProperty || destination.isCollection && (_.isArray(val) || val.isCollection) || destination.isModel && (_.isObject(val) || val.isModel)) {
-        destination.set(val, options);
-        return "continue";
-      } else if (val.isData && options.clone !== false) val = new val.constructor(val.attributes || val.models, lineage);else if (_.isArray(val)) val = new Rebound.Collection(val, lineage); // TODO: Remove global referance
-      else if (_.isObject(val)) val = new Model(val, lineage);
-
-      // If val is a data object, let this object know it is now a parent
-      _this._hasAncestry = val && val.isData || false;
-
-      // Set the value
-      Backbone.Model.prototype.set.call(target, attr, val, options); // TODO: Event cleanup when replacing a model or collection with another value
+    var template = function(data) {
+      return render.call(this, data, _);
     };
 
-    for (key in attrs) {
-      var _ret = _loop();
+    // Provide the compiled source as a convenience for precompilation.
+    var argument = settings.variable || 'obj';
+    template.source = 'function(' + argument + '){\n' + source + '}';
 
-      if (_ret === "continue") continue;
-    }
+    return template;
+  };
 
-    return this;
-  },
+  // Add a "chain" function. Start chaining a wrapped Underscore object.
+  _.chain = function(obj) {
+    var instance = _(obj);
+    instance._chain = true;
+    return instance;
+  };
 
-  // Recursive `toJSON` function traverses the data tree returning a JSON object.
-  // If there are any cyclic dependancies the object's `cid` is used instead of looping infinitely.
-  toJSON: function toJSON() {
-    if (this._isSerializing) return this.id || this.cid;
-    this._isSerializing = true;
-    var json = _.clone(this.attributes);
-    _.each(json, function (value, name) {
-      if (_.isNull(value) || _.isUndefined(value)) {
-        return;
-      }
-      _.isFunction(value.toJSON) && (json[name] = value.toJSON());
+  // OOP
+  // ---------------
+  // If Underscore is called as a function, it returns a wrapped object that
+  // can be used OO-style. This wrapper holds altered versions of all the
+  // underscore functions. Wrapped objects may be chained.
+
+  // Helper function to continue chaining intermediate results.
+  var result = function(instance, obj) {
+    return instance._chain ? _(obj).chain() : obj;
+  };
+
+  // Add your own custom functions to the Underscore object.
+  _.mixin = function(obj) {
+    _.each(_.functions(obj), function(name) {
+      var func = _[name] = obj[name];
+      _.prototype[name] = function() {
+        var args = [this._wrapped];
+        push.apply(args, arguments);
+        return result(this, func.apply(_, args));
+      };
     });
-    this._isSerializing = false;
-    return json;
+  };
+
+  // Add all of the Underscore functions to the wrapper object.
+  _.mixin(_);
+
+  // Add all mutator Array functions to the wrapper.
+  _.each(['pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift'], function(name) {
+    var method = ArrayProto[name];
+    _.prototype[name] = function() {
+      var obj = this._wrapped;
+      method.apply(obj, arguments);
+      if ((name === 'shift' || name === 'splice') && obj.length === 0) delete obj[0];
+      return result(this, obj);
+    };
+  });
+
+  // Add all accessor Array functions to the wrapper.
+  _.each(['concat', 'join', 'slice'], function(name) {
+    var method = ArrayProto[name];
+    _.prototype[name] = function() {
+      return result(this, method.apply(this._wrapped, arguments));
+    };
+  });
+
+  // Extracts the result from a wrapped and chained object.
+  _.prototype.value = function() {
+    return this._wrapped;
+  };
+
+  // Provide unwrapping proxy for some methods used in engine operations
+  // such as arithmetic and JSON stringification.
+  _.prototype.valueOf = _.prototype.toJSON = _.prototype.value;
+
+  _.prototype.toString = function() {
+    return '' + this._wrapped;
+  };
+
+  // AMD registration happens at the end for compatibility with AMD loaders
+  // that may not enforce next-turn semantics on modules. Even though general
+  // practice for AMD registration is to be anonymous, underscore registers
+  // as a named module because, like jQuery, it is a base library that is
+  // popular enough to be bundled in a third party lib, but not be part of
+  // an AMD load request. Those cases could generate an error when an
+  // anonymous define() is called outside of a loader request.
+  if (typeof define === 'function' && define.amd) {
+    define('underscore', [], function() {
+      return _;
+    });
   }
+}.call(this));
 
-});
+},{}],43:[function(require,module,exports){
 
-// If default properties are passed into extend, process the computed properties
-Model.extend = function (protoProps, staticProps) {
-  _reboundComponentUtils2["default"].extractComputedProps(protoProps.defaults);
-  return Backbone.Model.extend.call(this, protoProps, staticProps);
-};
-
-exports["default"] = Model;
-module.exports = exports["default"];
-},{"rebound-component/utils":7,"rebound-data/computed-property":9}],11:[function(require,module,exports){
-// Rebound Data
-// ----------------
-// These are methods inherited by all Rebound data types: **Models**,
-// **Collections** and **Computed Properties**. Controls tree ancestry
-// tracking, deep event propagation and tree destruction.
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
+},{}],44:[function(require,module,exports){
+exports.__esModule = true;
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
 
-var _reboundDataModel = require("rebound-data/model");
+/*globals module, URL*/
 
-var _reboundDataModel2 = _interopRequireDefault(_reboundDataModel);
+var _htmlbarsRuntimeMorph = require("./htmlbars-runtime/morph");
 
-var _reboundDataCollection = require("rebound-data/collection");
+var _htmlbarsRuntimeMorph2 = _interopRequireDefault(_htmlbarsRuntimeMorph);
 
-var _reboundDataCollection2 = _interopRequireDefault(_reboundDataCollection);
+var _morphAttr = require("./morph-attr");
 
-var _reboundDataComputedProperty = require("rebound-data/computed-property");
+var _morphAttr2 = _interopRequireDefault(_morphAttr);
 
-var _reboundDataComputedProperty2 = _interopRequireDefault(_reboundDataComputedProperty);
+var _domHelperBuildHtmlDom = require("./dom-helper/build-html-dom");
 
-var _reboundComponentUtils = require("rebound-component/utils");
+var _domHelperClasses = require("./dom-helper/classes");
 
-var _reboundComponentUtils2 = _interopRequireDefault(_reboundComponentUtils);
+var _domHelperProp = require("./dom-helper/prop");
 
-var sharedMethods = {
-  // When a change event propagates up the tree it modifies the path part of
-  // `change:<path>` to reflect the fully qualified path relative to that object.
-  // Ex: Would trigger `change:val`, `change:[0].val`, `change:arr[0].val` and `obj.arr[0].val`
-  // on each parent as it is propagated up the tree.
-  propagateEvent: function propagateEvent(type, model) {
-    if (this.__parent__ === this || type === 'dirty') return;
-    if (type.indexOf('change:') === 0 && model.isModel) {
-      if (this.isCollection && ~type.indexOf('change:[')) return;
-      var key,
-          path = model.__path().replace(this.__parent__.__path(), '').replace(/^\./, ''),
-          changed = model.changedAttributes();
-
-      for (key in changed) {
-        // TODO: Modifying arguments array is bad. change this
-        arguments[0] = 'change:' + path + (path && '.') + key; // jshint ignore:line
-        this.__parent__.trigger.apply(this.__parent__, arguments);
-      }
-      return;
-    }
-    return this.__parent__.trigger.apply(this.__parent__, arguments);
-  },
-
-  // Set this data object's parent to `parent` and, as long as a data object is
-  // not its own parent, propagate every event triggered on `this` up the tree.
-  setParent: function setParent(parent) {
-    if (this.__parent__) this.off('all', this.propagateEvent);
-    this.__parent__ = parent;
-    this._hasAncestry = true;
-    if (parent !== this) this.on('all', this.__parent__.propagateEvent);
-    return parent;
-  },
-
-  // Recursively set a data tree's root element starting with `this` to the deepest child.
-  // TODO: I dont like this recursively setting elements root when one element's root changes. Fix this.
-  setRoot: function setRoot(root) {
-    var obj = this;
-    obj.__root__ = root;
-    var val = obj.models || obj.attributes || obj.cache;
-    _.each(val, function (value, key) {
-      if (value && value.isData) {
-        value.setRoot(root);
-      }
-    });
-    return root;
-  },
-
-  // Tests to see if `this` has a parent `obj`.
-  hasParent: function hasParent(obj) {
-    var tmp = this;
-    while (tmp !== obj) {
-      tmp = tmp.__parent__;
-      if (_.isUndefined(tmp)) return false;
-      if (tmp === obj) return true;
-      if (tmp.__parent__ === tmp) return false;
-    }
-    return true;
-  },
-
-  // De-initializes a data tree starting with `this` and recursively calling `deinitialize()` on each child.
-  deinitialize: function deinitialize() {
-    var _this = this;
-
-    // Undelegate Backbone Events from this data object
-    if (this.undelegateEvents) this.undelegateEvents();
-    if (this.stopListening) this.stopListening();
-    if (this.off) this.off();
-    if (this.unwire) this.unwire();
-
-    // Destroy this data object's lineage
-    delete this.__parent__;
-    delete this.__root__;
-    delete this.__path;
-
-    // If there is a dom element associated with this data object, destroy all listeners associated with it.
-    // Remove all event listeners from this dom element, recursively remove element lazyvalues,
-    // and then remove the element referance itself.
-    if (this.el) {
-      _.each(this.el.__listeners, function (handler, eventType) {
-        if (this.el.removeEventListener) this.el.removeEventListener(eventType, handler, false);
-        if (this.el.detachEvent) this.el.detachEvent('on' + eventType, handler);
-      }, this);
-      (0, _reboundComponentUtils2["default"])(this.el).walkTheDOM(function (el) {
-        if (el.__lazyValue && el.__lazyValue.destroy()) n.__lazyValue.destroy();
-      });
-      delete this.el.__listeners;
-      delete this.el.__events;
-      delete this.$el;
-      delete this.el;
-    }
-
-    // Clean up Hook callback references
-    delete this.__observers;
-
-    // Mark as deinitialized so we don't loop on cyclic dependancies.
-    this.deinitialized = true;
-
-    // Destroy all children of this data object.
-    // If a Collection, de-init all of its Models, if a Model, de-init all of its
-    // Attributes that aren't services, if a Computed Property, de-init its Cache objects.
-    _.each(this.models, function (val) {
-      val && val.deinitialize && val.deinitialize();
-    });
-    this.models && (this.models.length = 0);
-    _.each(this.attributes, function (val, key) {
-      delete _this.attributes[key];
-      val && !val.isComponent && val.deinitialize && val.deinitialize();
-    });
-    if (this.cache) {
-      this.cache.collection.deinitialize();
-      this.cache.model.deinitialize();
-    }
-  }
-};
-
-// Extend all of the **Rebound Data** prototypes with these shared methods
-_.extend(_reboundDataModel2["default"].prototype, sharedMethods);
-_.extend(_reboundDataCollection2["default"].prototype, sharedMethods);
-_.extend(_reboundDataComputedProperty2["default"].prototype, sharedMethods);
-
-exports["default"] = { Model: _reboundDataModel2["default"], Collection: _reboundDataCollection2["default"], ComputedProperty: _reboundDataComputedProperty2["default"] };
-module.exports = exports["default"];
-},{"rebound-component/utils":7,"rebound-data/collection":8,"rebound-data/computed-property":9,"rebound-data/model":10}],12:[function(require,module,exports){
-// Services keep track of their consumers. LazyComponent are placeholders
-// for services that haven't loaded yet. A LazyComponent mimics the api of a
-// real service/component (they are the same), and when the service finally
-// loads, its ```hydrate``` method is called. All consumers of the service will
-// have the now fully loaded service set, the LazyService will transfer all of
-// its consumers over to the fully loaded service, and then commit seppiku,
-// destroying itself.
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-function LazyComponent() {
-  var loadCallbacks = [];
-  this.isService = true;
-  this.isComponent = true;
-  this.isModel = true;
-  this.isLazyComponent = true;
-  this.attributes = {};
-  this.consumers = [];
-  this.set = this.on = this.off = function () {
-    return 1;
-  };
-  this.get = function (path) {
-    return path ? undefined : this;
-  };
-  this.hydrate = function (service) {
-    this._component = service;
-    _.each(this.consumers, function (consumer) {
-      var component = consumer.component,
-          key = consumer.key;
-      if (component.attributes && component.set) component.set(key, service);
-      if (component.services) component.services[key] = service;
-      if (component.defaults) component.defaults[key] = service;
-    });
-    service.consumers = this.consumers;
-
-    // Call all of our callbacks
-    _.each(loadCallbacks, function (cb) {
-      cb(service);
-    });
-    delete this.loadCallbacks;
-  };
-  this.onLoad = function (cb) {
-    loadCallbacks.push(cb);
-  };
-}
-
-exports["default"] = LazyComponent;
-module.exports = exports["default"];
-},{}],13:[function(require,module,exports){
-// Rebound Router
-// ----------------
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-var _reboundComponentUtils = require("rebound-component/utils");
-
-var _reboundComponentUtils2 = _interopRequireDefault(_reboundComponentUtils);
-
-var _reboundRouterLazyComponent = require("rebound-router/lazy-component");
-
-var _reboundRouterLazyComponent2 = _interopRequireDefault(_reboundRouterLazyComponent);
-
-var DEFAULT_404_PAGE = "<div style=\"display: block;text-align: center;font-size: 22px;\">\n  <h1 style=\"margin-top: 60px;\">\n    Oops! We couldn't find this page.\n  </h1>\n  <a href=\"#\" onclick=\"window.history.back();return false;\" style=\"display: block;text-decoration: none;margin-top: 30px;\">\n    Take me back\n  </a>\n</div>";
-
-var ERROR_ROUTE_NAME = 'error';
-var SUCCESS = 'success';
-var ERROR = 'error';
-var LOADING = 'loading';
-
-// Regexp to validate remote URLs
-var IS_REMOTE_URL = /^([a-z]+:)|^(\/\/)|^([^\/]+\.)/;
-
-// Overload Backbone's loadUrl so it returns the value of the routed callback
-// Only ever compare the current path (excludes the query params) to the route regexp
-Backbone.history.loadUrl = function (fragment) {
-  var key,
-      resp = false;
-  this.fragment = this.getFragment(fragment).split('?')[0];
-  for (key in this.handlers) {
-    if (this.handlers[key].route.test(this.fragment)) {
-      return this.handlers[key].callback(this.fragment);
-    }
-  }
-};
-
-// Remove the hash up to a `?` character. In IE9, which does not support the
-// History API, we need to allow query params to be set both on the URL itself
-// and in the hash, giving precedence to the query params in the URL.
-Backbone.history.getSearch = function () {
-  var match = this.location.href.replace(/#[^\?]*/, '').match(/\?.+/);
-  return match ? match[0] : '';
-};
-
-// ReboundRouter Constructor
-var ReboundRouter = Backbone.Router.extend({
-
-  status: SUCCESS, // loading, success or error
-  _currentRoute: '', // The route path that triggered the current page
-  _previousRoute: '',
-
-  // By default there is one route. The wildcard route fetches the required
-  // page assets based on user-defined naming convention.
-  routes: {
-    '*route': 'wildcardRoute'
-  },
-
-  // Called when no matching routes are found. Extracts root route and fetches it's resources
-  wildcardRoute: function wildcardRoute(route) {
-
-    // Save the previous route value
-    this._previousRoute = this._currentRoute;
-
-    // Fetch Resources
-    document.body.classList.add("loading");
-    return this._fetchResource(route, this.config.container).then(function (res) {
-      document.body.classList.remove('loading');
-      return res;
-    });
-  },
-
-  // Modify navigate to default to `trigger=true` and to return the value of
-  // `Backbone.history.navigate` inside of a promise.
-  navigate: function navigate(fragment) {
-    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
-
-    options.trigger === undefined && (options.trigger = true);
-
-    // Stringify any data passed in the options hash
-    console.log(fragment, ~fragment.indexOf('?') ? '?' : '&');
-    var query = options.data ? (~fragment.indexOf('?') ? '&' : '?') + _reboundComponentUtils2["default"].qs.stringify(options.data) : '';
-
-    // Un-Mark any `active` links in the page container
-    var $container = (0, _reboundComponentUtils2["default"])(this.config.containers).unMarkLinks();
-
-    // Navigate to the specified path. Return value is the value from the router
-    // callback specified on the component
-    var resp = Backbone.history.navigate(fragment + query, options);
-
-    // Always return a promise. If the response of `Backbone.histroy.navigate`
-    // was a promise, wait for it to resolve before resolving. Once resolved,
-    // mark relevent links on the page as `active`.
-    return new Promise(function (resolve, reject) {
-      if (resp && resp.constructor === Promise) resp.then(resolve, resolve);
-      resolve(resp);
-    }).then(function (resp) {
-      $container.markLinks();
-      return resp;
-    });
-  },
-
-  // Modify `router.execute` to return the value of our route callback
-  execute: function execute(callback, args, name) {
-    if (callback) return callback.apply(this, args);
-  },
-
-  // Override routeToRegExp so:
-  //  - If key is a stringified regexp literal, convert to a regexp object
-  //  - Else If route is a string, proxy right through
-  _routeToRegExp: function _routeToRegExp(route) {
-    var res;
-
-    if (route[0] === '/' && route[route.length - 1] === '/') {
-      res = new RegExp(route.slice(1, route.length - 1), '');
-      res._isRegexp = true;
-    } else if (typeof route == 'string') {
-      res = Backbone.Router.prototype._routeToRegExp.call(this, route);
-      res._isString = true;
-    }
-
-    return res;
-  },
-
-  // Override route so if callback returns false, the route event is not triggered
-  // Every route also looks for query params, parses with QS, and passes the extra
-  // variable as a POJO to callbacks
-  route: function route(_route, name, callback) {
-    var _this = this;
-
-    if (_.isFunction(name)) {
-      callback = name;
-      name = '';
-    }
-
-    if (!_.isRegExp(_route)) {
-      _route = this._routeToRegExp(_route);
-    }
-
-    if (!callback) callback = this[name];
-    Backbone.history.route(_route, function (fragment) {
-
-      // If this route was defined as a regular expression, we don't capture
-      // query params. Only parse the actual path.
-      fragment = fragment.split('?')[0];
-
-      // Extract the arguments we care about from the fragment
-      var args = _this._extractParameters(_route, fragment);
-
-      // Get the query params string
-      var search = (Backbone.history.getSearch() || '').slice(1);
-
-      // If this route was created from a string (not a regexp), remove the auto-captured
-      // search params.
-      if (_route._isString) args.pop();
-
-      // If the route is not user prodided, if the history object has search params
-      // then our args have the params as its last agrument as of Backbone 1.2.0
-      // If the route is a user provided regex, add in parsed search params from
-      // the history object before passing to the callback.
-      args.push(search ? _reboundComponentUtils2["default"].qs.parse(search) : {});
-
-      var resp = _this.execute(callback, args, name);
-      if (resp !== false) {
-        _this.trigger.apply(_this, ['route:' + name].concat(args));
-        _this.trigger('route', name, args);
-        Backbone.history.trigger('route', _this, name, args);
-      }
-      return resp;
-    });
-    return this;
-  },
-
-  // On startup, save our config object and start the router
-  initialize: function initialize() {
-    var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
-    var callback = arguments.length <= 1 || arguments[1] === undefined ? function () {} : arguments[1];
-
-    // Let all of our components always have referance to our router
-    Rebound.Component.prototype.router = this;
-
-    // Save our config referance
-    this.config = options;
-    this.config.handlers = [];
-    this.config.containers = [];
-
-    // Get a unique instance id for this router
-    this.uid = _.uniqueId('router');
-
-    // Allow user to override error route
-    this.config.errorRoute && (ERROR_ROUTE_NAME = this.config.errorRoute);
-
-    // Convert our routeMappings to regexps and push to our handlers
-    _.each(this.config.routeMapping, function (value, route) {
-      var regex = this._routeToRegExp(route);
-      this.config.handlers.unshift({ route: route, regex: regex, app: value });
-    }, this);
-
-    // Use the user provided container, or default to the closest `<main>` tag
-    this.config.container = (0, _reboundComponentUtils2["default"])(this.config.container || 'main')[0];
-    this.config.containers.push(this.config.container);
-    Rebound.services.page = new _reboundRouterLazyComponent2["default"]();
-
-    // Install our global components
-    _.each(this.config.services, function (selector, route) {
-      var container = (0, _reboundComponentUtils2["default"])(selector)[0] || document.createElement('span');
-      this.config.containers.push(container);
-      Rebound.services[route] = new _reboundRouterLazyComponent2["default"]();
-      this._fetchResource(route, container)["catch"](function () {});
-    }, this);
-
-    // Watch click events on links in all out containers
-    this._watchLinks(this.config.containers);
-
-    // Start the history and call the provided callback
-    Backbone.history.start({
-      pushState: this.config.pushState === undefined ? true : this.config.pushState,
-      root: this.config.root
-    }).then(callback);
-
-    return this;
-  },
-
-  stop: function stop() {
-    (0, _reboundComponentUtils2["default"])(this.config.container).off('click');
-    Backbone.history.stop();
-    this._uninstallResource();
-    Backbone.history.handlers = [];
-  },
-
-  // Given a dom element, watch for all click events on anchor tags.
-  // If the clicked anchor has a relative url, attempt to route to that path.
-  // Give all links on the page that match this path the class `active`.
-  _watchLinks: function _watchLinks(container) {
-    var _this2 = this;
-
-    // Navigate to route for any link with a relative href
-    (0, _reboundComponentUtils2["default"])(container).on('click', 'a', function (e) {
-      var path = e.target.getAttribute('href');
-
-      // If the path is a remote URL, allow the browser to navigate normally.
-      // Otherwise, prevent default so we can handle the route event.
-      if (IS_REMOTE_URL.test(path) || path === '#') return;
-      e.preventDefault();
-
-      // If this is not our current route, navigate to the new route
-      if (path !== '/' + Backbone.history.fragment) {
-        _this2.navigate(path, { trigger: true });
-      }
-    });
-  },
-
-  // De-initializes the previous app before rendering a new app
-  // This way we can ensure that every new page starts with a clean slate
-  // This is crucial for scalability of a single page app.
-  _uninstallResource: function _uninstallResource() {
-    var _this3 = this;
-
-    var routes = this.current ? this.current.data.routes || {} : {};
-    routes[this._previousRoute] = '';
-
-    // Unset Previous Application's Routes. For each route in the page app, remove
-    // the handler from our route object and delete our referance to the route's callback
-    _.each(routes, function (value, key) {
-      var regExp = _this3._routeToRegExp(key).toString();
-      Backbone.history.handlers = _.filter(Backbone.history.handlers, function (obj) {
-        return obj.route.toString() !== regExp;
-      });
-    });
-
-    if (!this.current) return;
-
-    var oldPageName = this.current.__name;
-
-    // Un-hook Event Bindings, Delete Objects
-    this.current.data.deinitialize();
-
-    // Now we no longer have a page installed.
-    this.current = undefined;
-
-    // Disable old css if it exists
-    setTimeout(function () {
-      if (_this3.status === ERROR) return;
-      document.getElementById(oldPageName + '-css').setAttribute('disabled', true);
-    }, 500);
-  },
-
-  // Give our new page component, load routes and render a new instance of the
-  // page component in the top level outlet.
-  _installResource: function _installResource(PageApp, appName, container) {
-    var _this4 = this;
-
-    var oldPageName,
-        pageInstance,
-        routes = [];
-    var isService = container !== this.config.container;
-
-    if (!container) throw 'No container found on the page! Please specify a container that exists in your Rebound config.';
-
-    container.classList.remove('error', 'loading');
-
-    if (!isService && this.current) this._uninstallResource();
-
-    // Load New PageApp, give it it's name so we know what css to remove when it deinitializes
-    pageInstance = new PageApp();
-    pageInstance.__name = this.uid + '-' + appName;
-
-    // Add to our page
-    container.innerHTML = '';
-    container.appendChild(pageInstance);
-
-    // Make sure we're back at the top of the page
-    document.body.scrollTop = 0;
-
-    // Augment ApplicationRouter with new routes from PageApp added in reverse order to preserve order higherarchy
-    if (!isService) this.route(this._currentRoute, 'default', function () {
-      return 'DEFAULT';
-    });
-    _.each(pageInstance.data.routes, function (value, key) {
-      // Add the new callback referance on to our router and add the route handler
-      _this4.route(key, value, function () {
-        return pageInstance.data[value].apply(pageInstance.data, arguments);
-      });
-    });
-
-    var name = isService ? appName : 'page';
-    if (!isService) this.current = pageInstance;
-
-    // If the target is a dummy service, hydrate it with the proper service object
-    // Otherwise, install the page instance here
-    if (window.Rebound.services[name].isService) window.Rebound.services[name].hydrate(pageInstance.data);
-    window.Rebound.services[name] = pageInstance.data;
-
-    // Always return a promise
-    return new Promise(function (resolve, reject) {
-
-      // Re-trigger route so the newly added route may execute if there's a route match.
-      // If no routes are matched, app will hit wildCard route which will then trigger 404
-      if (!isService) {
-        var res = Backbone.history.loadUrl(Backbone.history.fragment);
-        if (res && typeof res.then === 'function') return res.then(resolve);
-        return resolve(res);
-      }
-      // Return our newly installed app
-      return resolve(pageInstance);
-    });
-  },
-
-  _fetchJavascript: function _fetchJavascript(routeName, appName) {
-    var jsID = this.uid + '-' + appName + '-js',
-        jsUrl = this.config.jsPath.replace(/:route/g, routeName).replace(/:app/g, appName),
-        jsElement = document.getElementById(appName + '-js');
-
-    // AMD will manage dependancies for us. Load the JavaScript.
-    return new Promise(function (resolve, reject) {
-      window.require([jsUrl], function (PageClass) {
-        jsElement = (0, _reboundComponentUtils2["default"])('script[src="' + jsUrl + '"]')[0];
-        jsElement.setAttribute('id', jsID);
-        resolve(PageClass);
-      }, function (err) {
-        console.error(err);
-        reject(err);
-      });
-    });
-  },
-
-  _fetchCSS: function _fetchCSS(routeName, appName) {
-
-    var cssID = this.uid + '-' + appName + '-css',
-        cssUrl = this.config.cssPath.replace(/:route/g, routeName).replace(/:app/g, appName),
-        cssElement = document.getElementById(cssID);
-
-    // If this css element is not on the page already, it hasn't been loaded before -
-    // create the element and load the css resource.
-    // Else if the css resource has been loaded before, enable it
-    return new Promise(function (resolve, reject) {
-      var count = 0,
-          ti;
-      if (cssElement === null) {
-        // Construct our `<link>` element.
-        cssElement = document.createElement('link');
-        cssElement.setAttribute('type', 'text/css');
-        cssElement.setAttribute('rel', 'stylesheet');
-        cssElement.setAttribute('href', cssUrl);
-        cssElement.setAttribute('id', cssID);
-
-        // On successful load, clearInterval and resolve.
-        // On failed load, clearInterval and reject.
-        var successCallback = function successCallback() {
-          clearInterval(ti);
-          resolve(cssElement);
-        };
-        var errorCallback = function errorCallback(err) {
-          clearInterval(ti);
-          cssElement.dataset.error = '';
-          reject(err);
-        };
-
-        // Older browsers and phantomJS < 2.0 don't support the onLoad event for
-        // `<link>` tags. Pool stylesheets array as a fallback. Timeout at 5s.
-        ti = setInterval(function () {
-          for (var i = 0; i < document.styleSheets.length; i++) {
-            count = count + 50;
-            if (document.styleSheets[i].href.indexOf(cssUrl) > -1) successCallback();else if (count >= 5000) errorCallback('CSS Timeout');
-          }
-        }, 50);
-
-        // Modern browsers support loading events on `<link>` elements, bind these
-        // events. These will be callsed before our interval is called and they will
-        // clearInterval so the resolve/reject handlers aren't called twice.
-        (0, _reboundComponentUtils2["default"])(cssElement).on('load', successCallback);
-        (0, _reboundComponentUtils2["default"])(cssElement).on('error', errorCallback);
-        (0, _reboundComponentUtils2["default"])(cssElement).on('readystatechange', function () {
-          clearInterval(ti);
-        });
-
-        // Add our `<link>` element to the page.
-        document.head.appendChild(cssElement);
-      } else {
-        if (cssElement.hasAttribute('data-error')) return reject();
-        resolve(cssElement);
-      }
-    });
-  },
-
-  // Fetches HTML and CSS
-  _fetchResource: function _fetchResource(route, container) {
-    var _this5 = this;
-
-    var appName,
-        routeName,
-        isService = container !== this.config.container,
-        isError = route === ERROR_ROUTE_NAME;
-
-    // Normalize Route
-    route || (route = '');
-
-    // Get the app name from this route
-    appName = routeName = route.split('/')[0] || 'index';
-
-    // If this isn't the error route, Find Any Custom Route Mappings
-    if (!isService && !isError) {
-      this._currentRoute = route.split('/')[0];
-      _.any(this.config.handlers, function (handler) {
-        if (handler.regex.test(route)) {
-          appName = handler.app;
-          _this5._currentRoute = handler.route;
-          return true;
-        }
-      });
-    }
-
-    // Wrap these async resource fetches in a promise and return it.
-    // This promise resolves when both css and js resources are loaded
-    // It rejects if either of the css or js resources fails to load.
-    return new Promise(function (resolve, reject) {
-
-      var throwError = function throwError(err) {
-        // If we are already in an error state, this means we were unable to load
-        // a custom error page. Uninstall anything we have and insert our default 404 page.
-        if (_this5.status === ERROR) {
-          if (isService) return resolve(err);
-          _this5._uninstallResource();
-          container.innerHTML = DEFAULT_404_PAGE;
-          return resolve(err);
-        }
-
-        // Set our status to error and attempt to load a custom error page.
-        console.error('Could not ' + (isService ? 'load the ' + appName + ' service:' : 'find the ' + (appName || 'index') + ' app.'), 'at', '/' + route);
-        _this5.status = ERROR;
-        _this5._currentRoute = route;
-        resolve(_this5._fetchResource(ERROR_ROUTE_NAME, container));
-      };
-
-      // If the values we got from installing our resources are unexpected, 404
-      // Otherwise, set status, activate the css, and install the page component
-      var install = function install(response) {
-        var cssElement = response[0],
-            PageClass = response[1];
-        if (!(cssElement instanceof Element) || typeof PageClass !== 'function') return throwError();
-        !isService && !isError && (_this5.status = SUCCESS);
-        cssElement && cssElement.removeAttribute('disabled');
-
-        _this5._installResource(PageClass, appName, container).then(resolve, resolve);
-      };
-
-      // If loading a page, set status to loading
-      !isService && !isError && (_this5.status = LOADING);
-
-      // If Page Is Already Loaded Then The Route Does Not Exist. 404 and Exit.
-      if (_this5.current && _this5.current.__name === _this5.uid + '-' + appName) return throwError();
-      // Fetch our css and js in paralell, install or throw when both complete
-      Promise.all([_this5._fetchCSS(routeName, appName), _this5._fetchJavascript(routeName, appName)]).then(install, throwError);
-    });
-  }
-});
-
-exports["default"] = ReboundRouter;
-module.exports = exports["default"];
-},{"rebound-component/utils":7,"rebound-router/lazy-component":12}],14:[function(require,module,exports){
-//     Rebound.js 0.0.92
-
-//     (c) 2015 Adam Miller
-//     Rebound may be freely distributed under the MIT license.
-//     For all details and documentation:
-//     http://reboundjs.com
-
-// Rebound Runtime
-// ----------------
-
-// If Backbone isn't preset on the page yet, or if `window.Rebound` is already
-// in use, throw an error
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-// Load our **Utils**, helper environment, **Rebound Data**,
-// **Rebound Components** and the **Rebound Router**
-
-var _reboundComponentUtils = require("rebound-component/utils");
-
-var _reboundComponentUtils2 = _interopRequireDefault(_reboundComponentUtils);
-
-var _reboundComponentHelpers = require("rebound-component/helpers");
-
-var _reboundComponentHelpers2 = _interopRequireDefault(_reboundComponentHelpers);
-
-var _reboundDataReboundData = require("rebound-data/rebound-data");
-
-var _reboundComponentComponent = require("rebound-component/component");
-
-var _reboundComponentComponent2 = _interopRequireDefault(_reboundComponentComponent);
-
-var _reboundRouterReboundRouter = require("rebound-router/rebound-router");
-
-var _reboundRouterReboundRouter2 = _interopRequireDefault(_reboundRouterReboundRouter);
-
-// If Backbone doesn't have an ajax method from an external DOM library, use ours
-if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || _reboundComponentUtils2["default"].ajax;
-
-// Create Global Rebound Object
-var Rebound = window.Rebound = {
-  services: {},
-  registerHelper: _reboundComponentHelpers2["default"].registerHelper,
-  registerPartial: _reboundComponentHelpers2["default"].registerPartial,
-  registerComponent: _reboundComponentComponent2["default"].registerComponent,
-  Model: _reboundDataReboundData.Model,
-  Collection: _reboundDataReboundData.Collection,
-  ComputedProperty: _reboundDataReboundData.ComputedProperty,
-  Component: _reboundComponentComponent2["default"],
-  start: function start(options) {
-    var _this = this;
-
-    return new Promise(function (resolve, reject) {
-      var run = function run() {
-        if (!document.body) return setTimeout(run.bind(_this), 1);
-        delete _this.router;
-        _this.router = new _reboundRouterReboundRouter2["default"](options, resolve);
-      };
-      run();
-    });
-  },
-  stop: function stop() {
-    if (!this.router) return console.error('No running Rebound router found!');
-    this.router.stop();
-  }
-};
-
-// Fetch Rebound's Config Object from Rebound's `script` tag
-var Config = document.getElementById('Rebound');
-Config = Config ? Config.innerHTML : false;
-
-// Set our require config
-requirejs.config({
-  baseUrl: "/"
-});
-
-// Start the router if a config object is preset
-if (Config) Rebound.start(JSON.parse(Config));
-
-exports["default"] = Rebound;
-module.exports = exports["default"];
-},{"rebound-component/component":3,"rebound-component/helpers":4,"rebound-component/utils":7,"rebound-data/rebound-data":11,"rebound-router/rebound-router":13}],15:[function(require,module,exports){
-'use strict';
-
-var Morph = require('./htmlbars-runtime/morph');
-var AttrMorph = require('./morph-attr');
-var build_html_dom = require('./dom-helper/build-html-dom');
-var classes = require('./dom-helper/classes');
-var prop = require('./dom-helper/prop');
-
-var doc = typeof document === "undefined" ? false : document;
+var doc = typeof document === 'undefined' ? false : document;
 
 var deletesBlankTextNodes = doc && (function (document) {
-  var element = document.createElement("div");
-  element.appendChild(document.createTextNode(""));
+  var element = document.createElement('div');
+  element.appendChild(document.createTextNode(''));
   var clonedElement = element.cloneNode(true);
   return clonedElement.childNodes.length === 0;
 })(doc);
 
 var ignoresCheckedAttribute = doc && (function (document) {
-  var element = document.createElement("input");
-  element.setAttribute("checked", "checked");
+  var element = document.createElement('input');
+  element.setAttribute('checked', 'checked');
   var clonedElement = element.cloneNode(false);
   return !clonedElement.checked;
 })(doc);
 
 var canRemoveSvgViewBoxAttribute = doc && (doc.createElementNS ? (function (document) {
-  var element = document.createElementNS(build_html_dom.svgNamespace, "svg");
-  element.setAttribute("viewBox", "0 0 100 100");
-  element.removeAttribute("viewBox");
-  return !element.getAttribute("viewBox");
+  var element = document.createElementNS(_domHelperBuildHtmlDom.svgNamespace, 'svg');
+  element.setAttribute('viewBox', '0 0 100 100');
+  element.removeAttribute('viewBox');
+  return !element.getAttribute('viewBox');
 })(doc) : true);
 
 var canClone = doc && (function (document) {
-  var element = document.createElement("div");
-  element.appendChild(document.createTextNode(" "));
-  element.appendChild(document.createTextNode(" "));
+  var element = document.createElement('div');
+  element.appendChild(document.createTextNode(' '));
+  element.appendChild(document.createTextNode(' '));
   var clonedElement = element.cloneNode(true);
-  return clonedElement.childNodes[0].nodeValue === " ";
+  return clonedElement.childNodes[0].nodeValue === ' ';
 })(doc);
 
 // This is not the namespace of the element, but of
 // the elements inside that elements.
 function interiorNamespace(element) {
-  if (element && element.namespaceURI === build_html_dom.svgNamespace && !build_html_dom.svgHTMLIntegrationPoints[element.tagName]) {
-    return build_html_dom.svgNamespace;
+  if (element && element.namespaceURI === _domHelperBuildHtmlDom.svgNamespace && !_domHelperBuildHtmlDom.svgHTMLIntegrationPoints[element.tagName]) {
+    return _domHelperBuildHtmlDom.svgNamespace;
   } else {
     return null;
   }
@@ -9823,20 +13018,20 @@ function interiorNamespace(element) {
 var omittedStartTagChildTest = /<([\w:]+)/;
 function detectOmittedStartTag(string, contextualElement) {
   // Omitted start tags are only inside table tags.
-  if (contextualElement.tagName === "TABLE") {
+  if (contextualElement.tagName === 'TABLE') {
     var omittedStartTagChildMatch = omittedStartTagChildTest.exec(string);
     if (omittedStartTagChildMatch) {
       var omittedStartTagChild = omittedStartTagChildMatch[1];
       // It is already asserted that the contextual element is a table
       // and not the proper start tag. Just see if a tag was omitted.
-      return omittedStartTagChild === "tr" || omittedStartTagChild === "col";
+      return omittedStartTagChild === 'tr' || omittedStartTagChild === 'col';
     }
   }
 }
 
 function buildSVGDOM(html, dom) {
-  var div = dom.document.createElement("div");
-  div.innerHTML = "<svg>" + html + "</svg>";
+  var div = dom.document.createElement('div');
+  div.innerHTML = '<svg>' + html + '</svg>';
   return div.firstChild.childNodes;
 }
 
@@ -9848,9 +13043,23 @@ function ElementMorph(element, dom, namespace) {
   this.namespace = namespace;
   this.guid = "element" + guid++;
 
-  this.state = {};
+  this._state = undefined;
   this.isDirty = true;
 }
+
+ElementMorph.prototype.getState = function () {
+  if (!this._state) {
+    this._state = {};
+  }
+
+  return this._state;
+};
+
+ElementMorph.prototype.setState = function (newState) {
+  /*jshint -W093 */
+
+  return this._state = newState;
+};
 
 // renderAndCleanup calls `clear` on all items in the morph map
 // just before calling `destroy` on the morph.
@@ -9888,6 +13097,8 @@ function DOMHelper(_document) {
   }
   this.canClone = canClone;
   this.namespace = null;
+
+  installEnvironmentSpecificMethods(this);
 }
 
 var prototype = DOMHelper.prototype;
@@ -9906,11 +13117,33 @@ prototype.appendChild = function (element, childElement) {
   return element.appendChild(childElement);
 };
 
+var itemAt;
+
+// It appears that sometimes, in yet to be itentified scenarios PhantomJS 2.0
+// crashes on childNodes.item(index), but works as expected with childNodes[index];
+//
+// Although it would be nice to move to childNodes[index] in all scenarios,
+// this would require SimpleDOM to maintain the childNodes array. This would be
+// quite costly, in both dev time and runtime.
+//
+// So instead, we choose the best possible method and call it a day.
+//
+/*global navigator */
+if (typeof navigator !== 'undefined' && navigator.userAgent.indexOf('PhantomJS')) {
+  itemAt = function (nodes, index) {
+    return nodes[index];
+  };
+} else {
+  itemAt = function (nodes, index) {
+    return nodes.item(index);
+  };
+}
+
 prototype.childAt = function (element, indices) {
   var child = element;
 
   for (var i = 0; i < indices.length; i++) {
-    child = child.childNodes.item(indices[i]);
+    child = itemAt(child.childNodes, indices[i]);
   }
 
   return child;
@@ -9991,7 +13224,7 @@ if (canRemoveSvgViewBoxAttribute) {
   };
 } else {
   prototype.removeAttribute = function (element, name) {
-    if (element.tagName === "svg" && name === "viewBox") {
+    if (element.tagName === 'svg' && name === 'viewBox') {
       element.setAttribute(name, null);
     } else {
       element.removeAttribute(name);
@@ -10004,8 +13237,8 @@ prototype.setPropertyStrict = function (element, name, value) {
     value = null;
   }
 
-  if (value === null && (name === "value" || name === "type" || name === "src")) {
-    value = "";
+  if (value === null && (name === 'value' || name === 'type' || name === 'src')) {
+    value = '';
   }
 
   element[name] = value;
@@ -10016,9 +13249,8 @@ prototype.getPropertyStrict = function (element, name) {
 };
 
 prototype.setProperty = function (element, name, value, namespace) {
-  var lowercaseName = name.toLowerCase();
-  if (element.namespaceURI === build_html_dom.svgNamespace || lowercaseName === "style") {
-    if (prop.isAttrRemovalValue(value)) {
+  if (element.namespaceURI === _domHelperBuildHtmlDom.svgNamespace) {
+    if (_domHelperProp.isAttrRemovalValue(value)) {
       element.removeAttribute(name);
     } else {
       if (namespace) {
@@ -10028,11 +13260,15 @@ prototype.setProperty = function (element, name, value, namespace) {
       }
     }
   } else {
-    var normalized = prop.normalizeProperty(element, name);
-    if (normalized) {
+    var _normalizeProperty = _domHelperProp.normalizeProperty(element, name);
+
+    var normalized = _normalizeProperty.normalized;
+    var type = _normalizeProperty.type;
+
+    if (type === 'prop') {
       element[normalized] = value;
     } else {
-      if (prop.isAttrRemovalValue(value)) {
+      if (_domHelperProp.isAttrRemovalValue(value)) {
         element.removeAttribute(name);
       } else {
         if (namespace && element.setAttributeNS) {
@@ -10051,8 +13287,8 @@ if (doc && doc.createElementNS) {
   prototype.createElement = function (tagName, contextualElement) {
     var namespace = this.namespace;
     if (contextualElement) {
-      if (tagName === "svg") {
-        namespace = build_html_dom.svgNamespace;
+      if (tagName === 'svg') {
+        namespace = _domHelperBuildHtmlDom.svgNamespace;
       } else {
         namespace = interiorNamespace(contextualElement);
       }
@@ -10075,8 +13311,8 @@ if (doc && doc.createElementNS) {
   };
 }
 
-prototype.addClasses = classes.addClasses;
-prototype.removeClasses = classes.removeClasses;
+prototype.addClasses = _domHelperClasses.addClasses;
+prototype.removeClasses = _domHelperClasses.removeClasses;
 
 prototype.setNamespace = function (ns) {
   this.namespace = ns;
@@ -10101,7 +13337,7 @@ prototype.createComment = function (text) {
 prototype.repairClonedNode = function (element, blankChildTextNodes, isChecked) {
   if (deletesBlankTextNodes && blankChildTextNodes.length > 0) {
     for (var i = 0, len = blankChildTextNodes.length; i < len; i++) {
-      var textNode = this.document.createTextNode(""),
+      var textNode = this.document.createTextNode(''),
           offset = blankChildTextNodes[i],
           before = this.childAtIndex(element, offset);
       if (before) {
@@ -10112,7 +13348,7 @@ prototype.repairClonedNode = function (element, blankChildTextNodes, isChecked) 
     }
   }
   if (ignoresCheckedAttribute && isChecked) {
-    element.setAttribute("checked", "checked");
+    element.setAttribute('checked', 'checked');
   }
 };
 
@@ -10121,10 +13357,10 @@ prototype.cloneNode = function (element, deep) {
   return clone;
 };
 
-prototype.AttrMorphClass = AttrMorph['default'];
+prototype.AttrMorphClass = _morphAttr2.default;
 
 prototype.createAttrMorph = function (element, attrName, namespace) {
-  return new this.AttrMorphClass(element, attrName, this, namespace);
+  return this.AttrMorphClass.create(element, attrName, this, namespace);
 };
 
 prototype.ElementMorphClass = ElementMorph;
@@ -10139,7 +13375,7 @@ prototype.createUnsafeAttrMorph = function (element, attrName, namespace) {
   return morph;
 };
 
-prototype.MorphClass = Morph['default'];
+prototype.MorphClass = _htmlbarsRuntimeMorph2.default;
 
 prototype.createMorph = function (parent, start, end, contextualElement) {
   if (contextualElement && contextualElement.nodeType === 11) {
@@ -10161,18 +13397,18 @@ prototype.createFragmentMorph = function (contextualElement) {
   }
 
   var fragment = this.createDocumentFragment();
-  return Morph['default'].create(this, contextualElement, fragment);
+  return _htmlbarsRuntimeMorph2.default.create(this, contextualElement, fragment);
 };
 
 prototype.replaceContentWithMorph = function (element) {
   var firstChild = element.firstChild;
 
   if (!firstChild) {
-    var comment = this.createComment("");
+    var comment = this.createComment('');
     this.appendChild(element, comment);
-    return Morph['default'].create(this, element, comment);
+    return _htmlbarsRuntimeMorph2.default.create(this, element, comment);
   } else {
-    var morph = Morph['default'].attach(this, element, firstChild, element.lastChild);
+    var morph = _htmlbarsRuntimeMorph2.default.attach(this, element, firstChild, element.lastChild);
     morph.clear();
     return morph;
   }
@@ -10200,13 +13436,13 @@ prototype.createUnsafeMorphAt = function (parent, startIndex, endIndex, contextu
 };
 
 prototype.insertMorphBefore = function (element, referenceChild, contextualElement) {
-  var insertion = this.document.createComment("");
+  var insertion = this.document.createComment('');
   element.insertBefore(insertion, referenceChild);
   return this.createMorph(element, insertion, insertion, contextualElement);
 };
 
 prototype.appendMorph = function (element, contextualElement) {
-  var insertion = this.document.createComment("");
+  var insertion = this.document.createComment('');
   element.appendChild(insertion);
   return this.createMorph(element, insertion, insertion, contextualElement);
 };
@@ -10214,16 +13450,20 @@ prototype.appendMorph = function (element, contextualElement) {
 prototype.insertBoundary = function (fragment, index) {
   // this will always be null or firstChild
   var child = index === null ? null : this.childAtIndex(fragment, index);
-  this.insertBefore(fragment, this.createTextNode(""), child);
+  this.insertBefore(fragment, this.createTextNode(''), child);
+};
+
+prototype.setMorphHTML = function (morph, html) {
+  morph.setHTML(html);
 };
 
 prototype.parseHTML = function (html, contextualElement) {
   var childNodes;
 
-  if (interiorNamespace(contextualElement) === build_html_dom.svgNamespace) {
+  if (interiorNamespace(contextualElement) === _domHelperBuildHtmlDom.svgNamespace) {
     childNodes = buildSVGDOM(html, this);
   } else {
-    var nodes = build_html_dom.buildHTMLDOM(html, contextualElement, this);
+    var nodes = _domHelperBuildHtmlDom.buildHTMLDOM(html, contextualElement, this);
     if (detectOmittedStartTag(html, contextualElement)) {
       var node = nodes[0];
       while (node && node.nodeType !== 1) {
@@ -10243,7 +13483,7 @@ prototype.parseHTML = function (html, contextualElement) {
 
     // We prepend an <option> to <select> boxes to absorb any browser bugs
     // related to auto-select behavior. Skip past it.
-    if (contextualElement.tagName === "SELECT") {
+    if (contextualElement.tagName === 'SELECT') {
       currentNode = currentNode.nextSibling;
     }
 
@@ -10258,26 +13498,69 @@ prototype.parseHTML = function (html, contextualElement) {
   return fragment;
 };
 
+var nodeURL;
 var parsingNode;
 
-// Used to determine whether a URL needs to be sanitized.
-prototype.protocolForURL = function (url) {
+function installEnvironmentSpecificMethods(domHelper) {
+  var protocol = browserProtocolForURL.call(domHelper, 'foobar:baz');
+
+  // Test to see if our DOM implementation parses
+  // and normalizes URLs.
+  if (protocol === 'foobar:') {
+    // Swap in the method that doesn't do this test now that
+    // we know it works.
+    domHelper.protocolForURL = browserProtocolForURL;
+  } else if (typeof URL === 'object') {
+    // URL globally provided, likely from FastBoot's sandbox
+    nodeURL = URL;
+    domHelper.protocolForURL = nodeProtocolForURL;
+  } else if (typeof module === 'object' && typeof module.require === 'function') {
+    // Otherwise, we need to fall back to our own URL parsing.
+    // Global `require` is shadowed by Ember's loader so we have to use the fully
+    // qualified `module.require`.
+    nodeURL = module.require('url');
+    domHelper.protocolForURL = nodeProtocolForURL;
+  } else {
+    throw new Error("DOM Helper could not find valid URL parsing mechanism");
+  }
+
+  // A SimpleDOM-specific extension that allows us to place HTML directly
+  // into the DOM tree, for when the output target is always serialized HTML.
+  if (domHelper.document.createRawHTMLSection) {
+    domHelper.setMorphHTML = nodeSetMorphHTML;
+  }
+}
+
+function nodeSetMorphHTML(morph, html) {
+  var section = this.document.createRawHTMLSection(html);
+  morph.setNode(section);
+}
+
+function browserProtocolForURL(url) {
   if (!parsingNode) {
-    parsingNode = this.document.createElement("a");
+    parsingNode = this.document.createElement('a');
   }
 
   parsingNode.href = url;
   return parsingNode.protocol;
-};
+}
 
-exports['default'] = DOMHelper;
-},{"./dom-helper/build-html-dom":16,"./dom-helper/classes":17,"./dom-helper/prop":18,"./htmlbars-runtime/morph":21,"./morph-attr":33}],16:[function(require,module,exports){
-'use strict';
+function nodeProtocolForURL(url) {
+  var protocol = nodeURL.parse(url).protocol;
+  return protocol === null ? ':' : protocol;
+}
 
+exports.default = DOMHelper;
+module.exports = exports.default;
+
+},{"./dom-helper/build-html-dom":45,"./dom-helper/classes":46,"./dom-helper/prop":47,"./htmlbars-runtime/morph":50,"./morph-attr":63}],45:[function(require,module,exports){
+exports.__esModule = true;
 /* global XMLSerializer:false */
 var svgHTMLIntegrationPoints = { foreignObject: 1, desc: 1, title: 1 };
+exports.svgHTMLIntegrationPoints = svgHTMLIntegrationPoints;
 var svgNamespace = 'http://www.w3.org/2000/svg';
 
+exports.svgNamespace = svgNamespace;
 var doc = typeof document === 'undefined' ? false : document;
 
 // Safari does not like using innerHTML on SVG HTML integration
@@ -10288,7 +13571,7 @@ var needsIntegrationPointFix = doc && (function (document) {
   }
   // In FF title will not accept innerHTML.
   var testEl = document.createElementNS(svgNamespace, 'title');
-  testEl.innerHTML = '<div></div>';
+  testEl.innerHTML = "<div></div>";
   return testEl.childNodes.length === 0 || testEl.childNodes[0].nodeType !== 1;
 })(doc);
 
@@ -10297,8 +13580,8 @@ var needsIntegrationPointFix = doc && (function (document) {
 // the first node an invisible text node. We, like Modernizr, use &shy;
 var needsShy = doc && (function (document) {
   var testEl = document.createElement('div');
-  testEl.innerHTML = '<div></div>';
-  testEl.firstChild.innerHTML = '<script></script>';
+  testEl.innerHTML = "<div></div>";
+  testEl.firstChild.innerHTML = "<script><\/script>";
   return testEl.firstChild.innerHTML === '';
 })(doc);
 
@@ -10307,7 +13590,7 @@ var needsShy = doc && (function (document) {
 // accidentally remove whitespace when updating a morph.
 var movesWhitespace = doc && (function (document) {
   var testEl = document.createElement('div');
-  testEl.innerHTML = 'Test: <script type=\'text/x-placeholder\'></script>Value';
+  testEl.innerHTML = "Test: <script type='text/x-placeholder'><\/script>Value";
   return testEl.childNodes[0].nodeValue === 'Test:' && testEl.childNodes[2].nodeValue === ' Value';
 })(doc);
 
@@ -10363,7 +13646,7 @@ function scriptSafeInnerHTML(element, html) {
     shyElement = shyElement.firstChild;
   }
   // At this point it's the actual unicode character.
-  if (shyElement.nodeType === 3 && shyElement.nodeValue.charAt(0) === '­') {
+  if (shyElement.nodeType === 3 && shyElement.nodeValue.charAt(0) === "\u00AD") {
     var newValue = shyElement.nodeValue.slice(1);
     if (newValue.length) {
       shyElement.nodeValue = shyElement.nodeValue.slice(1);
@@ -10381,14 +13664,14 @@ function buildDOMWithFix(html, contextualElement) {
   // Firefox versions < 11 do not have support for element.outerHTML.
   var outerHTML = contextualElement.outerHTML || new XMLSerializer().serializeToString(contextualElement);
   if (!outerHTML) {
-    throw 'Can\'t set innerHTML on ' + tagName + ' in this browser';
+    throw "Can't set innerHTML on " + tagName + " in this browser";
   }
 
   html = fixSelect(html, contextualElement);
 
   var wrappingTags = tagNamesRequiringInnerHTMLFix[tagName.toLowerCase()];
 
-  var startTag = outerHTML.match(new RegExp('<' + tagName + '([^>]*)>', 'i'))[0];
+  var startTag = outerHTML.match(new RegExp("<" + tagName + "([^>]*)>", 'i'))[0];
   var endTag = '</' + tagName + '>';
 
   var wrappedHTML = [startTag, html, endTag];
@@ -10436,7 +13719,7 @@ if (needsShy) {
 
 function fixSelect(html, contextualElement) {
   if (contextualElement.tagName === 'SELECT') {
-    html = '<option></option>' + html;
+    html = "<option></option>" + html;
   }
 
   return html;
@@ -10514,7 +13797,7 @@ if (tagNamesRequiringInnerHTMLFix || movesWhitespace) {
 
 var buildHTMLDOM;
 if (needsIntegrationPointFix) {
-  buildHTMLDOM = function buildHTMLDOM(html, contextualElement, dom) {
+  exports.buildHTMLDOM = buildHTMLDOM = function buildHTMLDOM(html, contextualElement, dom) {
     if (svgHTMLIntegrationPoints[contextualElement.tagName]) {
       return buildIESafeDOM(html, document.createElement('div'), dom);
     } else {
@@ -10522,15 +13805,13 @@ if (needsIntegrationPointFix) {
     }
   };
 } else {
-  buildHTMLDOM = buildIESafeDOM;
+  exports.buildHTMLDOM = buildHTMLDOM = buildIESafeDOM;
 }
 
-exports.svgHTMLIntegrationPoints = svgHTMLIntegrationPoints;
-exports.svgNamespace = svgNamespace;
 exports.buildHTMLDOM = buildHTMLDOM;
-},{}],17:[function(require,module,exports){
-'use strict';
 
+},{}],46:[function(require,module,exports){
+exports.__esModule = true;
 var doc = typeof document === 'undefined' ? false : document;
 
 // PhantomJS has a broken classList. See https://github.com/ariya/phantomjs/issues/12782
@@ -10611,7 +13892,7 @@ function removeClassesViaAttribute(element, classNames) {
 
 var addClasses, removeClasses;
 if (canClassList) {
-  addClasses = function addClasses(element, classNames) {
+  exports.addClasses = addClasses = function addClasses(element, classNames) {
     if (element.classList) {
       if (classNames.length === 1) {
         element.classList.add(classNames[0]);
@@ -10624,7 +13905,7 @@ if (canClassList) {
       addClassesViaAttribute(element, classNames);
     }
   };
-  removeClasses = function removeClasses(element, classNames) {
+  exports.removeClasses = removeClasses = function removeClasses(element, classNames) {
     if (element.classList) {
       if (classNames.length === 1) {
         element.classList.remove(classNames[0]);
@@ -10638,15 +13919,15 @@ if (canClassList) {
     }
   };
 } else {
-  addClasses = addClassesViaAttribute;
-  removeClasses = removeClassesViaAttribute;
+  exports.addClasses = addClasses = addClassesViaAttribute;
+  exports.removeClasses = removeClasses = removeClassesViaAttribute;
 }
 
 exports.addClasses = addClasses;
 exports.removeClasses = removeClasses;
-},{}],18:[function(require,module,exports){
-'use strict';
 
+},{}],47:[function(require,module,exports){
+exports.__esModule = true;
 exports.isAttrRemovalValue = isAttrRemovalValue;
 exports.normalizeProperty = normalizeProperty;
 
@@ -10654,322 +13935,174 @@ function isAttrRemovalValue(value) {
   return value === null || value === undefined;
 }
 
-function UNDEFINED() {}
+/*
+ *
+ * @method normalizeProperty
+ * @param element {HTMLElement}
+ * @param slotName {String}
+ * @returns {Object} { name, type }
+ */
 
-// TODO should this be an o_create kind of thing?
-var propertyCaches = {};function normalizeProperty(element, attrName) {
-  var tagName = element.tagName;
-  var key, cachedAttrName;
-  var cache = propertyCaches[tagName];
-  if (!cache) {
-    // TODO should this be an o_create kind of thing?
-    cache = {};
-    for (cachedAttrName in element) {
-      key = cachedAttrName.toLowerCase();
-      if (isSettable(element, cachedAttrName)) {
-        cache[key] = cachedAttrName;
-      } else {
-        cache[key] = UNDEFINED;
-      }
+function normalizeProperty(element, slotName) {
+  var type, normalized;
+
+  if (slotName in element) {
+    normalized = slotName;
+    type = 'prop';
+  } else {
+    var lower = slotName.toLowerCase();
+    if (lower in element) {
+      type = 'prop';
+      normalized = lower;
+    } else {
+      type = 'attr';
+      normalized = slotName;
     }
-    propertyCaches[tagName] = cache;
   }
 
-  // presumes that the attrName has been lowercased.
-  var value = cache[attrName];
-  return value === UNDEFINED ? undefined : value;
+  if (type === 'prop' && (normalized.toLowerCase() === 'style' || preferAttr(element.tagName, normalized))) {
+    type = 'attr';
+  }
+
+  return { normalized: normalized, type: type };
 }
 
-// elements with a property that does not conform to the spec in certain
-// browsers. In these cases, we'll end up using setAttribute instead
-var badPairs = [{
+// properties that MUST be set as attributes, due to:
+// * browser bug
+// * strange spec outlier
+var ATTR_OVERRIDES = {
+
   // phantomjs < 2.0 lets you set it as a prop but won't reflect it
   // back to the attribute. button.getAttribute('type') === null
-  tagName: 'BUTTON',
-  propName: 'type'
-}, {
-  // Some version of IE (like IE9) actually throw an exception
-  // if you set input.type = 'something-unknown'
-  tagName: 'INPUT',
-  propName: 'type'
-}, {
-  // Some versions of IE (IE8) throw an exception when setting
-  // `input.list = 'somestring'`:
-  // https://github.com/emberjs/ember.js/issues/10908
-  // https://github.com/emberjs/ember.js/issues/11364
-  tagName: 'INPUT',
-  propName: 'list'
-}];
+  BUTTON: { type: true, form: true },
 
-function isSettable(element, attrName) {
-  for (var i = 0, l = badPairs.length; i < l; i++) {
-    var pair = badPairs[i];
-    if (pair.tagName === element.tagName && pair.propName === attrName) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-exports.propertyCaches = propertyCaches;
-},{}],19:[function(require,module,exports){
-'use strict';
-
-var object_utils = require('../htmlbars-util/object-utils');
-var morph_utils = require('../htmlbars-util/morph-utils');
-
-var base = {
-  acceptExpression: function (node, env, scope) {
-    var ret = { value: null };
-
-    // Primitive literals are unambiguously non-array representations of
-    // themselves.
-    if (typeof node !== "object" || node === null) {
-      ret.value = node;
-      return ret;
-    }
-
-    switch (node[0]) {
-      // can be used by manualElement
-      case "value":
-        ret.value = node[1];break;
-      case "get":
-        ret.value = this.get(node, env, scope);break;
-      case "subexpr":
-        ret.value = this.subexpr(node, env, scope);break;
-      case "concat":
-        ret.value = this.concat(node, env, scope);break;
-    }
-
-    return ret;
+  INPUT: {
+    // TODO: remove when IE8 is droped
+    // Some versions of IE (IE8) throw an exception when setting
+    // `input.list = 'somestring'`:
+    // https://github.com/emberjs/ember.js/issues/10908
+    // https://github.com/emberjs/ember.js/issues/11364
+    list: true,
+    // Some version of IE (like IE9) actually throw an exception
+    // if you set input.type = 'something-unknown'
+    type: true,
+    form: true,
+    // Chrome 46.0.2464.0: 'autocorrect' in document.createElement('input') === false
+    // Safari 8.0.7: 'autocorrect' in document.createElement('input') === false
+    // Mobile Safari (iOS 8.4 simulator): 'autocorrect' in document.createElement('input') === true
+    autocorrect: true
   },
 
-  acceptParams: function (nodes, env, scope) {
-    var arr = new Array(nodes.length);
-
-    for (var i = 0, l = nodes.length; i < l; i++) {
-      arr[i] = this.acceptExpression(nodes[i], env, scope).value;
-    }
-
-    return arr;
-  },
-
-  acceptHash: function (pairs, env, scope) {
-    var object = {};
-
-    for (var i = 0, l = pairs.length; i < l; i += 2) {
-      object[pairs[i]] = this.acceptExpression(pairs[i + 1], env, scope).value;
-    }
-
-    return object;
-  },
-
-  // [ 'get', path ]
-  get: function (node, env, scope) {
-    return env.hooks.get(env, scope, node[1]);
-  },
-
-  // [ 'subexpr', path, params, hash ]
-  subexpr: function (node, env, scope) {
-    var path = node[1],
-        params = node[2],
-        hash = node[3];
-    return env.hooks.subexpr(env, scope, path, this.acceptParams(params, env, scope), this.acceptHash(hash, env, scope));
-  },
-
-  // [ 'concat', parts ]
-  concat: function (node, env, scope) {
-    return env.hooks.concat(env, this.acceptParams(node[1], env, scope));
-  },
-
-  linkParamsAndHash: function (env, scope, morph, path, params, hash) {
-    if (morph.linkedParams) {
-      params = morph.linkedParams.params;
-      hash = morph.linkedParams.hash;
-    } else {
-      params = params && this.acceptParams(params, env, scope);
-      hash = hash && this.acceptHash(hash, env, scope);
-    }
-
-    morph_utils.linkParams(env, scope, morph, path, params, hash);
-    return [params, hash];
-  }
+  // element.form is actually a legitimate readOnly property, that is to be
+  // mutated, but must be mutated by setAttribute...
+  SELECT: { form: true },
+  OPTION: { form: true },
+  TEXTAREA: { form: true },
+  LABEL: { form: true },
+  FIELDSET: { form: true },
+  LEGEND: { form: true },
+  OBJECT: { form: true }
 };
 
-var AlwaysDirtyVisitor = object_utils.merge(object_utils.createObject(base), {
-  // [ 'block', path, params, hash, templateId, inverseId ]
-  block: function (node, morph, env, scope, template, visitor) {
-    var path = node[1],
-        params = node[2],
-        hash = node[3],
-        templateId = node[4],
-        inverseId = node[5];
-    var paramsAndHash = this.linkParamsAndHash(env, scope, morph, path, params, hash);
+function preferAttr(tagName, propName) {
+  var tag = ATTR_OVERRIDES[tagName.toUpperCase()];
+  return tag && tag[propName.toLowerCase()] || false;
+}
 
-    morph.isDirty = morph.isSubtreeDirty = false;
-    env.hooks.block(morph, env, scope, path, paramsAndHash[0], paramsAndHash[1], templateId === null ? null : template.templates[templateId], inverseId === null ? null : template.templates[inverseId], visitor);
-  },
+},{}],48:[function(require,module,exports){
+exports.__esModule = true;
+exports.acceptParams = acceptParams;
+exports.acceptHash = acceptHash;
+/**
+  # Expression Nodes:
 
-  // [ 'inline', path, params, hash ]
-  inline: function (node, morph, env, scope, visitor) {
-    var path = node[1],
-        params = node[2],
-        hash = node[3];
-    var paramsAndHash = this.linkParamsAndHash(env, scope, morph, path, params, hash);
+  These nodes are not directly responsible for any part of the DOM, but are
+  eventually passed to a Statement Node.
 
-    morph.isDirty = morph.isSubtreeDirty = false;
-    env.hooks.inline(morph, env, scope, path, paramsAndHash[0], paramsAndHash[1], visitor);
-  },
+  * get
+  * subexpr
+  * concat
+*/
 
-  // [ 'content', path ]
-  content: function (node, morph, env, scope, visitor) {
-    var path = node[1];
+function acceptParams(nodes, env, scope) {
+  var array = [];
 
-    morph.isDirty = morph.isSubtreeDirty = false;
-
-    if (isHelper(env, scope, path)) {
-      env.hooks.inline(morph, env, scope, path, [], {}, visitor);
-      if (morph.linkedResult) {
-        morph_utils.linkParams(env, scope, morph, "@content-helper", [morph.linkedResult], null);
-      }
-      return;
-    }
-
-    var params;
-    if (morph.linkedParams) {
-      params = morph.linkedParams.params;
-    } else {
-      params = [env.hooks.get(env, scope, path)];
-    }
-
-    morph_utils.linkParams(env, scope, morph, "@range", params, null);
-    env.hooks.range(morph, env, scope, path, params[0], visitor);
-  },
-
-  // [ 'element', path, params, hash ]
-  element: function (node, morph, env, scope, visitor) {
-    var path = node[1],
-        params = node[2],
-        hash = node[3];
-    var paramsAndHash = this.linkParamsAndHash(env, scope, morph, path, params, hash);
-
-    morph.isDirty = morph.isSubtreeDirty = false;
-    env.hooks.element(morph, env, scope, path, paramsAndHash[0], paramsAndHash[1], visitor);
-  },
-
-  // [ 'attribute', name, value ]
-  attribute: function (node, morph, env, scope) {
-    var name = node[1],
-        value = node[2];
-    var paramsAndHash = this.linkParamsAndHash(env, scope, morph, "@attribute", [value], null);
-
-    morph.isDirty = morph.isSubtreeDirty = false;
-    env.hooks.attribute(morph, env, scope, name, paramsAndHash[0][0]);
-  },
-
-  // [ 'component', path, attrs, templateId, inverseId ]
-  component: function (node, morph, env, scope, template, visitor) {
-    var path = node[1],
-        attrs = node[2],
-        templateId = node[3],
-        inverseId = node[4];
-    var paramsAndHash = this.linkParamsAndHash(env, scope, morph, path, [], attrs);
-    var templates = {
-      default: template.templates[templateId],
-      inverse: template.templates[inverseId]
-    };
-
-    morph.isDirty = morph.isSubtreeDirty = false;
-    env.hooks.component(morph, env, scope, path, paramsAndHash[0], paramsAndHash[1], templates, visitor);
-  },
-
-  // [ 'attributes', template ]
-  attributes: function (node, morph, env, scope, parentMorph, visitor) {
-    var template = node[1];
-    env.hooks.attributes(morph, env, scope, template, parentMorph, visitor);
-  }
-});
-
-exports['default'] = object_utils.merge(object_utils.createObject(base), {
-  // [ 'block', path, params, hash, templateId, inverseId ]
-  block: function (node, morph, env, scope, template, visitor) {
-    dirtyCheck(env, morph, visitor, function (visitor) {
-      AlwaysDirtyVisitor.block(node, morph, env, scope, template, visitor);
-    });
-  },
-
-  // [ 'inline', path, params, hash ]
-  inline: function (node, morph, env, scope, visitor) {
-    dirtyCheck(env, morph, visitor, function (visitor) {
-      AlwaysDirtyVisitor.inline(node, morph, env, scope, visitor);
-    });
-  },
-
-  // [ 'content', path ]
-  content: function (node, morph, env, scope, visitor) {
-    dirtyCheck(env, morph, visitor, function (visitor) {
-      AlwaysDirtyVisitor.content(node, morph, env, scope, visitor);
-    });
-  },
-
-  // [ 'element', path, params, hash ]
-  element: function (node, morph, env, scope, template, visitor) {
-    dirtyCheck(env, morph, visitor, function (visitor) {
-      AlwaysDirtyVisitor.element(node, morph, env, scope, template, visitor);
-    });
-  },
-
-  // [ 'attribute', name, value ]
-  attribute: function (node, morph, env, scope, template) {
-    dirtyCheck(env, morph, null, function () {
-      AlwaysDirtyVisitor.attribute(node, morph, env, scope, template);
-    });
-  },
-
-  // [ 'component', path, attrs, templateId ]
-  component: function (node, morph, env, scope, template, visitor) {
-    dirtyCheck(env, morph, visitor, function (visitor) {
-      AlwaysDirtyVisitor.component(node, morph, env, scope, template, visitor);
-    });
-  },
-
-  // [ 'attributes', template ]
-  attributes: function (node, morph, env, scope, parentMorph, visitor) {
-    AlwaysDirtyVisitor.attributes(node, morph, env, scope, parentMorph, visitor);
-  }
-});
-
-function dirtyCheck(_env, morph, visitor, callback) {
-  var isDirty = morph.isDirty;
-  var isSubtreeDirty = morph.isSubtreeDirty;
-  var env = _env;
-
-  if (isSubtreeDirty) {
-    visitor = AlwaysDirtyVisitor;
+  for (var i = 0, l = nodes.length; i < l; i++) {
+    array.push(acceptExpression(nodes[i], env, scope).value);
   }
 
-  if (isDirty || isSubtreeDirty) {
-    callback(visitor);
+  return array;
+}
+
+function acceptHash(pairs, env, scope) {
+  var object = {};
+
+  for (var i = 0, l = pairs.length; i < l; i += 2) {
+    var key = pairs[i];
+    var value = pairs[i + 1];
+    object[key] = acceptExpression(value, env, scope).value;
+  }
+
+  return object;
+}
+
+function acceptExpression(node, env, scope) {
+  var ret = { value: null };
+
+  // Primitive literals are unambiguously non-array representations of
+  // themselves.
+  if (typeof node !== 'object' || node === null) {
+    ret.value = node;
   } else {
-    if (morph.buildChildEnv) {
-      env = morph.buildChildEnv(morph.state, env);
-    }
-    morph_utils.validateChildMorphs(env, morph, visitor);
+    ret.value = evaluateNode(node, env, scope);
+  }
+
+  return ret;
+}
+
+function evaluateNode(node, env, scope) {
+  switch (node[0]) {
+    // can be used by manualElement
+    case 'value':
+      return node[1];
+    case 'get':
+      return evaluateGet(node, env, scope);
+    case 'subexpr':
+      return evaluateSubexpr(node, env, scope);
+    case 'concat':
+      return evaluateConcat(node, env, scope);
   }
 }
 
-function isHelper(env, scope, path) {
-  return env.hooks.keywords[path] !== undefined || env.hooks.hasHelper(env, scope, path);
+function evaluateGet(node, env, scope) {
+  var path = node[1];
+
+  return env.hooks.get(env, scope, path);
 }
 
-exports.AlwaysDirtyVisitor = AlwaysDirtyVisitor;
-},{"../htmlbars-util/morph-utils":27,"../htmlbars-util/object-utils":29}],20:[function(require,module,exports){
-'use strict';
+function evaluateSubexpr(node, env, scope) {
+  var path = node[1];
+  var rawParams = node[2];
+  var rawHash = node[3];
 
+  var params = acceptParams(rawParams, env, scope);
+  var hash = acceptHash(rawHash, env, scope);
+
+  return env.hooks.subexpr(env, scope, path, params, hash);
+}
+
+function evaluateConcat(node, env, scope) {
+  var rawParts = node[1];
+
+  var parts = acceptParams(rawParts, env, scope);
+
+  return env.hooks.concat(env, parts);
+}
+
+},{}],49:[function(require,module,exports){
+exports.__esModule = true;
 exports.wrap = wrap;
 exports.wrapForHelper = wrapForHelper;
-exports.hostYieldWithShadowTemplate = hostYieldWithShadowTemplate;
 exports.createScope = createScope;
 exports.createFreshScope = createFreshScope;
 exports.bindShadowScope = bindShadowScope;
@@ -10996,6 +14129,7 @@ exports.attribute = attribute;
 exports.subexpr = subexpr;
 exports.get = get;
 exports.getRoot = getRoot;
+exports.getBlock = getBlock;
 exports.getChild = getChild;
 exports.getValue = getValue;
 exports.getCellOrValue = getCellOrValue;
@@ -11006,13 +14140,93 @@ exports.lookupHelper = lookupHelper;
 exports.bindScope = bindScope;
 exports.updateScope = updateScope;
 
-var render = require('./render');
-var MorphList = require('../morph-range/morph-list');
-var object_utils = require('../htmlbars-util/object-utils');
-var morph_utils = require('../htmlbars-util/morph-utils');
-var template_utils = require('../htmlbars-util/template-utils');
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
 
+var _render = require("./render");
 
+var _render2 = _interopRequireDefault(_render);
+
+var _morphRangeMorphList = require("../morph-range/morph-list");
+
+var _morphRangeMorphList2 = _interopRequireDefault(_morphRangeMorphList);
+
+var _htmlbarsUtilObjectUtils = require("../htmlbars-util/object-utils");
+
+var _htmlbarsUtilMorphUtils = require("../htmlbars-util/morph-utils");
+
+var _htmlbarsUtilTemplateUtils = require("../htmlbars-util/template-utils");
+
+/**
+  HTMLBars delegates the runtime behavior of a template to
+  hooks provided by the host environment. These hooks explain
+  the lexical environment of a Handlebars template, the internal
+  representation of references, and the interaction between an
+  HTMLBars template and the DOM it is managing.
+
+  While HTMLBars host hooks have access to all of this internal
+  machinery, templates and helpers have access to the abstraction
+  provided by the host hooks.
+
+  ## The Lexical Environment
+
+  The default lexical environment of an HTMLBars template includes:
+
+  * Any local variables, provided by *block arguments*
+  * The current value of `self`
+
+  ## Simple Nesting
+
+  Let's look at a simple template with a nested block:
+
+  ```hbs
+  <h1>{{title}}</h1>
+
+  {{#if author}}
+    <p class="byline">{{author}}</p>
+  {{/if}}
+  ```
+
+  In this case, the lexical environment at the top-level of the
+  template does not change inside of the `if` block. This is
+  achieved via an implementation of `if` that looks like this:
+
+  ```js
+  registerHelper('if', function(params) {
+    if (!!params[0]) {
+      return this.yield();
+    }
+  });
+  ```
+
+  A call to `this.yield` invokes the child template using the
+  current lexical environment.
+
+  ## Block Arguments
+
+  It is possible for nested blocks to introduce new local
+  variables:
+
+  ```hbs
+  {{#count-calls as |i|}}
+  <h1>{{title}}</h1>
+  <p>Called {{i}} times</p>
+  {{/count}}
+  ```
+
+  In this example, the child block inherits its surrounding
+  lexical environment, but augments it with a single new
+  variable binding.
+
+  The implementation of `count-calls` supplies the value of
+  `i`, but does not otherwise alter the environment:
+
+  ```js
+  var count = 0;
+  registerHelper('count-calls', function() {
+    return this.yield([ ++count ]);
+  });
+  ```
+*/
 
 function wrap(template) {
   if (template === null) {
@@ -11026,20 +14240,17 @@ function wrap(template) {
     render: function (self, env, options, blockArguments) {
       var scope = env.hooks.createFreshScope();
 
-      options = options || {};
-      options.self = self;
-      options.blockArguments = blockArguments;
+      var contextualElement = options && options.contextualElement;
+      var renderOptions = new _render.RenderOptions(null, self, blockArguments, contextualElement);
 
-      return render['default'](template, env, scope, options);
+      return _render2.default(template, env, scope, renderOptions);
     }
   };
 }
 
 function wrapForHelper(template, env, scope, morph, renderState, visitor) {
   if (!template) {
-    return {
-      yieldIn: yieldInShadowTemplate(null, env, scope, morph, renderState, visitor)
-    };
+    return {};
   }
 
   var yieldArgs = yieldTemplate(template, env, scope, morph, renderState, visitor);
@@ -11047,9 +14258,8 @@ function wrapForHelper(template, env, scope, morph, renderState, visitor) {
   return {
     meta: template.meta,
     arity: template.arity,
-    yield: yieldArgs,
+    'yield': yieldArgs, // quoted since it's a reserved word, see issue #420
     yieldItem: yieldItem(template, env, scope, morph, renderState, visitor),
-    yieldIn: yieldInShadowTemplate(template, env, scope, morph, renderState, visitor),
     raw: template,
 
     render: function (self, blockArguments) {
@@ -11077,7 +14287,7 @@ function yieldTemplate(template, env, parentScope, morph, renderState, visitor) 
     // are yielding a single template. In that case, we mark the morph list for
     // cleanup so it is removed from the DOM.
     if (morph.morphList) {
-      template_utils.clearMorphList(morph.morphList, morph, env);
+      _htmlbarsUtilTemplateUtils.clearMorphList(morph.morphList, morph, env);
       renderState.morphListToClear = null;
     }
 
@@ -11098,7 +14308,8 @@ function yieldTemplate(template, env, parentScope, morph, renderState, visitor) 
     morph.lastYielded = { self: self, template: template, shadowTemplate: null };
 
     // Render the template that was selected by the helper
-    render['default'](template, env, scope, { renderNode: morph, self: self, blockArguments: blockArguments });
+    var renderOptions = new _render.RenderOptions(morph, self, blockArguments);
+    _render2.default(template, env, scope, renderOptions);
   };
 }
 
@@ -11137,9 +14348,9 @@ function yieldItem(template, env, parentScope, morph, renderState, visitor) {
     return seek;
   }
 
-  return function (key, blockArguments, self) {
-    if (typeof key !== "string") {
-      throw new Error("You must provide a string key when calling `yieldItem`; you provided " + key);
+  return function (_key, blockArguments, self) {
+    if (typeof _key !== 'string') {
+      throw new Error("You must provide a string key when calling `yieldItem`; you provided " + _key);
     }
 
     // At least one item has been yielded, so we do not wholesale
@@ -11150,7 +14361,7 @@ function yieldItem(template, env, parentScope, morph, renderState, visitor) {
     var morphList, morphMap;
 
     if (!morph.morphList) {
-      morph.morphList = new MorphList['default']();
+      morph.morphList = new _morphRangeMorphList2.default();
       morph.morphMap = {};
       morph.setMorphList(morph.morphList);
     }
@@ -11163,6 +14374,25 @@ function yieldItem(template, env, parentScope, morph, renderState, visitor) {
     // this list will be pruned from the MorphList during the cleanup
     // process.
     var handledMorphs = renderState.handledMorphs;
+    var key = undefined;
+
+    if (_key in handledMorphs) {
+      // In this branch we are dealing with a duplicate key. The strategy
+      // is to take the original key and append a counter to it that is
+      // incremented every time the key is reused. In order to greatly
+      // reduce the chance of colliding with another valid key we also add
+      // an extra string "--z8mS2hvDW0A--" to the new key.
+      var collisions = renderState.collisions;
+      if (collisions === undefined) {
+        collisions = renderState.collisions = {};
+      }
+      var count = collisions[_key] | 0;
+      collisions[_key] = ++count;
+
+      key = _key + '--z8mS2hvDW0A--' + count;
+    } else {
+      key = _key;
+    }
 
     if (currentMorph && currentMorph.key === key) {
       yieldTemplate(template, env, parentScope, currentMorph, renderState, visitor)(blockArguments, self);
@@ -11182,7 +14412,7 @@ function yieldItem(template, env, parentScope, morph, renderState, visitor) {
       handledMorphs[foundMorph.key] = foundMorph;
       yieldTemplate(template, env, parentScope, foundMorph, renderState, visitor)(blockArguments, self);
     } else {
-      var childMorph = render.createChildMorph(env.dom, morph);
+      var childMorph = _render.createChildMorph(env.dom, morph);
       childMorph.key = key;
       morphMap[key] = handledMorphs[key] = childMorph;
       morphList.insertBeforeMorph(childMorph, currentMorph);
@@ -11197,59 +14427,11 @@ function yieldItem(template, env, parentScope, morph, renderState, visitor) {
 function isStableTemplate(template, lastYielded) {
   return !lastYielded.shadowTemplate && template === lastYielded.template;
 }
-
-function yieldInShadowTemplate(template, env, parentScope, morph, renderState, visitor) {
-  var hostYield = hostYieldWithShadowTemplate(template, env, parentScope, morph, renderState, visitor);
-
-  return function (shadowTemplate, self) {
-    hostYield(shadowTemplate, env, self, []);
-  };
-}
-function hostYieldWithShadowTemplate(template, env, parentScope, morph, renderState, visitor) {
-  return function (shadowTemplate, env, self, blockArguments) {
-    renderState.morphToClear = null;
-
-    if (morph.lastYielded && isStableShadowRoot(template, shadowTemplate, morph.lastYielded)) {
-      return morph.lastResult.revalidateWith(env, undefined, self, blockArguments, visitor);
-    }
-
-    var shadowScope = env.hooks.createFreshScope();
-    env.hooks.bindShadowScope(env, parentScope, shadowScope, renderState.shadowOptions);
-    blockToYield.arity = template.arity;
-    env.hooks.bindBlock(env, shadowScope, blockToYield);
-
-    morph.lastYielded = { self: self, template: template, shadowTemplate: shadowTemplate };
-
-    // Render the shadow template with the block available
-    render['default'](shadowTemplate.raw, env, shadowScope, { renderNode: morph, self: self, blockArguments: blockArguments });
-  };
-
-  function blockToYield(env, blockArguments, self, renderNode, shadowParent, visitor) {
-    if (renderNode.lastResult) {
-      renderNode.lastResult.revalidateWith(env, undefined, undefined, blockArguments, visitor);
-    } else {
-      var scope = parentScope;
-
-      // Since a yielded template shares a `self` with its original context,
-      // we only need to create a new scope if the template has block parameters
-      if (template.arity) {
-        scope = env.hooks.createChildScope(parentScope);
-      }
-
-      render['default'](template, env, scope, { renderNode: renderNode, self: self, blockArguments: blockArguments });
-    }
-  }
-}
-
-function isStableShadowRoot(template, shadowTemplate, lastYielded) {
-  return template === lastYielded.template && shadowTemplate === lastYielded.shadowTemplate;
-}
-
 function optionsFor(template, inverse, env, scope, morph, visitor) {
   // If there was a template yielded last time, set morphToClear so it will be cleared
   // if no template is yielded on this render.
   var morphToClear = morph.lastResult ? morph : null;
-  var renderState = new template_utils.RenderState(morphToClear, morph.morphList || null);
+  var renderState = new _htmlbarsUtilTemplateUtils.RenderState(morphToClear, morph.morphList || null);
 
   return {
     templates: {
@@ -11263,7 +14445,7 @@ function optionsFor(template, inverse, env, scope, morph, visitor) {
 function thisFor(options) {
   return {
     arity: options.template.arity,
-    yield: options.template.yield,
+    'yield': options.template.yield, // quoted since it's a reserved word, see issue #420
     yieldItem: options.template.yieldItem,
     yieldIn: options.template.yieldIn
   };
@@ -11292,6 +14474,7 @@ function thisFor(options) {
   hook uses the scope to retrieve a value for a given
   scope and variable name.
 */
+
 function createScope(env, parentScope) {
   if (parentScope) {
     return env.hooks.createChildScope(parentScope);
@@ -11362,13 +14545,16 @@ function createFreshScope() {
   provided template and renders it, making the original block
   available to `{{yield}}` in that template.
 */
+
 function bindShadowScope(env /*, parentScope, shadowScope */) {
   return env.hooks.createFreshScope();
 }
 
 function createChildScope(parent) {
-  var scope = object_utils.createObject(parent);
-  scope.locals = object_utils.createObject(parent.locals);
+  var scope = Object.create(parent);
+  scope.locals = Object.create(parent.locals);
+  scope.localPresent = Object.create(parent.localPresent);
+  scope.blocks = Object.create(parent.blocks);
   return scope;
 }
 
@@ -11385,6 +14571,7 @@ function createChildScope(parent) {
   The host must ensure that child scopes reflect the change to the `self` in
   future calls to the `get` hook.
 */
+
 function bindSelf(env, scope, self) {
   scope.self = self;
 }
@@ -11408,6 +14595,7 @@ function updateSelf(env, scope, self) {
   The host must ensure that child scopes reflect the change in future calls
   to the `get` hook.
 */
+
 function bindLocal(env, scope, name, value) {
   scope.localPresent[name] = true;
   scope.locals[name] = value;
@@ -11432,8 +14620,9 @@ function updateLocal(env, scope, name, value) {
   `{{yield}}` is used. Optionally provide a non-default block name
   that can be targeted by `{{yield to=blockName}}`.
 */
+
 function bindBlock(env, scope, block) {
-  var name = arguments[3] === undefined ? "default" : arguments[3];
+  var name = arguments.length <= 3 || arguments[3] === undefined ? 'default' : arguments[3];
 
   scope.blocks[name] = block;
 }
@@ -11486,6 +14675,7 @@ function bindBlock(env, scope, block) {
   where appropriate, and properly invokes the helper with the
   appropriate arguments.
 */
+
 function block(morph, env, scope, path, params, hash, template, inverse, visitor) {
   if (handleRedirect(morph, env, scope, path, params, hash, template, inverse, visitor)) {
     return;
@@ -11503,7 +14693,7 @@ function continueBlock(morph, env, scope, path, params, hash, template, inverse,
 
 function hostBlock(morph, env, scope, template, inverse, shadowOptions, visitor, callback) {
   var options = optionsFor(template, inverse, env, scope, morph, visitor);
-  template_utils.renderAndCleanup(morph, env, options, shadowOptions, callback);
+  _htmlbarsUtilTemplateUtils.renderAndCleanup(morph, env, options, shadowOptions, callback);
 }
 
 function handleRedirect(morph, env, scope, path, params, hash, template, inverse, visitor) {
@@ -11514,11 +14704,11 @@ function handleRedirect(morph, env, scope, path, params, hash, template, inverse
   var redirect = env.hooks.classify(env, scope, path);
   if (redirect) {
     switch (redirect) {
-      case "component":
+      case 'component':
         env.hooks.component(morph, env, scope, path, params, hash, { default: template, inverse: inverse }, visitor);break;
-      case "inline":
+      case 'inline':
         env.hooks.inline(morph, env, scope, path, params, hash, visitor);break;
-      case "block":
+      case 'block':
         env.hooks.block(morph, env, scope, path, params, hash, template, inverse, visitor);break;
       default:
         throw new Error("Internal HTMLBars redirection to " + redirect + " not supported");
@@ -11539,7 +14729,7 @@ function handleKeyword(path, morph, env, scope, params, hash, template, inverse,
     return false;
   }
 
-  if (typeof keyword === "function") {
+  if (typeof keyword === 'function') {
     return keyword(morph, env, scope, params, hash, template, inverse, visitor);
   }
 
@@ -11549,13 +14739,13 @@ function handleKeyword(path, morph, env, scope, params, hash, template, inverse,
 
   var lastState, newState;
   if (keyword.setupState) {
-    lastState = object_utils.shallowCopy(morph.state);
-    newState = morph.state = keyword.setupState(lastState, env, scope, params, hash);
+    lastState = _htmlbarsUtilObjectUtils.shallowCopy(morph.getState());
+    newState = morph.setState(keyword.setupState(lastState, env, scope, params, hash));
   }
 
   if (keyword.childEnv) {
     // Build the child environment...
-    env = keyword.childEnv(morph.state, env);
+    env = keyword.childEnv(morph.getState(), env);
 
     // ..then save off the child env builder on the render node. If the render
     // node tree is re-rendered and this node is not dirty, the child env
@@ -11567,11 +14757,11 @@ function handleKeyword(path, morph, env, scope, params, hash, template, inverse,
   var firstTime = !morph.rendered;
 
   if (keyword.isEmpty) {
-    var isEmpty = keyword.isEmpty(morph.state, env, scope, params, hash);
+    var isEmpty = keyword.isEmpty(morph.getState(), env, scope, params, hash);
 
     if (isEmpty) {
       if (!firstTime) {
-        template_utils.clearMorph(morph, env, false);
+        _htmlbarsUtilTemplateUtils.clearMorph(morph, env, false);
       }
       return true;
     }
@@ -11597,10 +14787,10 @@ function handleKeyword(path, morph, env, scope, params, hash, template, inverse,
       var newEnv = keyword.rerender(morph, env, scope, params, hash, template, inverse, visitor);
       env = newEnv || env;
     }
-    morph_utils.validateChildMorphs(env, morph, visitor);
+    _htmlbarsUtilMorphUtils.validateChildMorphs(env, morph, visitor);
     return true;
   } else {
-    template_utils.clearMorph(morph, env, false);
+    _htmlbarsUtilTemplateUtils.clearMorph(morph, env, false);
   }
 
   // If the node is unstable, re-render from scratch
@@ -11612,7 +14802,7 @@ function handleKeyword(path, morph, env, scope, params, hash, template, inverse,
 }
 
 function stableState(oldState, newState) {
-  if (object_utils.keyLength(oldState) !== object_utils.keyLength(newState)) {
+  if (_htmlbarsUtilObjectUtils.keyLength(oldState) !== _htmlbarsUtilObjectUtils.keyLength(newState)) {
     return false;
   }
 
@@ -11624,7 +14814,8 @@ function stableState(oldState, newState) {
 
   return true;
 }
-function linkRenderNode() {
+
+function linkRenderNode() /* morph, env, scope, params, hash */{
   return;
 }
 
@@ -11666,6 +14857,7 @@ function linkRenderNode() {
   a keyword. Instead of invoking a helper named `partial`,
   it invokes the `partial` host hook.
 */
+
 function inline(morph, env, scope, path, params, hash, visitor) {
   if (handleRedirect(morph, env, scope, path, params, hash, null, null, visitor)) {
     return;
@@ -11684,10 +14876,10 @@ function inline(morph, env, scope, path, params, hash, visitor) {
 
     if (result && result.link) {
       morph.linkedResult = result.value;
-      morph_utils.linkParams(env, scope, morph, "@content-helper", [morph.linkedResult], null);
+      _htmlbarsUtilMorphUtils.linkParams(env, scope, morph, '@content-helper', [morph.linkedResult], null);
     }
 
-    if (result && "value" in result) {
+    if (result && 'value' in result) {
       value = env.hooks.getValue(result.value);
       hasValue = true;
     }
@@ -11730,7 +14922,8 @@ function normalizeObject(env, object) {
 
   return out;
 }
-function classify() {
+
+function classify() /* env, scope, path */{
   return null;
 }
 
@@ -11741,28 +14934,60 @@ var keywords = {
     return true;
   },
 
-  yield: function (morph, env, scope, params, hash, template, inverse, visitor) {
+  // quoted since it's a reserved word, see issue #420
+  'yield': function (morph, env, scope, params, hash, template, inverse, visitor) {
     // the current scope is provided purely for the creation of shadow
     // scopes; it should not be provided to user code.
 
-    var to = env.hooks.getValue(hash.to) || "default";
-    if (scope.blocks[to]) {
-      scope.blocks[to](env, params, hash.self, morph, scope, visitor);
+    var to = env.hooks.getValue(hash.to) || 'default';
+    var block = env.hooks.getBlock(scope, to);
+
+    if (block) {
+      block.invoke(env, params, hash.self, morph, scope, visitor);
     }
     return true;
   },
 
   hasBlock: function (morph, env, scope, params) {
-    var name = env.hooks.getValue(params[0]) || "default";
-    return !!scope.blocks[name];
+    var name = env.hooks.getValue(params[0]) || 'default';
+    return !!env.hooks.getBlock(scope, name);
   },
 
   hasBlockParams: function (morph, env, scope, params) {
-    var name = env.hooks.getValue(params[0]) || "default";
-    return !!(scope.blocks[name] && scope.blocks[name].arity);
+    var name = env.hooks.getValue(params[0]) || 'default';
+    var block = env.hooks.getBlock(scope, name);
+    return !!(block && block.arity);
   }
 
 };
+
+exports.keywords = keywords;
+/**
+  Host Hook: partial
+
+  @param {RenderNode} renderNode
+  @param {Environment} env
+  @param {Scope} scope
+  @param {String} path
+
+  Corresponds to:
+
+  ```hbs
+  {{partial "location"}}
+  ```
+
+  This host hook is invoked by the default implementation of
+  the `inline` hook. This makes `partial` a keyword in an
+  HTMLBars environment using the default `inline` host hook.
+
+  It is implemented as a host hook so that it can retrieve
+  the named partial out of the `Environment`. Helpers, in
+  contrast, only have access to the values passed in to them,
+  and not to the ambient lexical environment.
+
+  The host hook should invoke the referenced partial with
+  the ambient `self`.
+*/
 
 function partial(renderNode, env, scope, path) {
   var template = env.partials[path];
@@ -11787,8 +15012,9 @@ function partial(renderNode, env, scope, path) {
   This hook is responsible for updating a render node
   that represents a range of content with a value.
 */
+
 function range(morph, env, scope, path, value, visitor) {
-  if (handleRedirect(morph, env, scope, path, [value], {}, null, null, visitor)) {
+  if (handleRedirect(morph, env, scope, path, [], {}, null, null, visitor)) {
     return;
   }
 
@@ -11828,6 +15054,7 @@ function range(morph, env, scope, path, value, visitor) {
   to be superseded by component syntax and the
   `attribute` hook.
 */
+
 function element(morph, env, scope, path, params, hash, visitor) {
   if (handleRedirect(morph, env, scope, path, params, hash, null, null, visitor)) {
     return;
@@ -11860,6 +15087,7 @@ function element(morph, env, scope, path, params, hash, visitor) {
   already-resolved value, and should update the render
   node with the value if appropriate.
 */
+
 function attribute(morph, env, scope, name, value) {
   value = env.hooks.getValue(value);
 
@@ -11873,7 +15101,7 @@ function attribute(morph, env, scope, name, value) {
 function subexpr(env, scope, helperName, params, hash) {
   var helper = env.hooks.lookupHelper(env, scope, helperName);
   var result = env.hooks.invokeHelper(null, env, scope, null, params, hash, helper, {});
-  if (result && "value" in result) {
+  if (result && 'value' in result) {
     return env.hooks.getValue(result.value);
   }
 }
@@ -11898,12 +15126,13 @@ function subexpr(env, scope, helperName, params, hash) {
   This hook is the "leaf" hook of the system. It is used to
   resolve a path relative to the current scope.
 */
+
 function get(env, scope, path) {
-  if (path === "") {
+  if (path === '') {
     return scope.self;
   }
 
-  var keys = path.split(".");
+  var keys = path.split('.');
   var value = env.hooks.getRoot(scope, keys[0])[0];
 
   for (var i = 1; i < keys.length; i++) {
@@ -11925,6 +15154,10 @@ function getRoot(scope, key) {
   } else {
     return [undefined];
   }
+}
+
+function getBlock(scope, key) {
+  return scope.blocks[key];
 }
 
 function getChild(value, key) {
@@ -11960,10 +15193,11 @@ function componentFallback(morph, env, scope, tagName, attrs, template) {
   for (var name in attrs) {
     element.setAttribute(name, env.hooks.getValue(attrs[name]));
   }
-  var fragment = render['default'](template, env, scope, {}).fragment;
+  var fragment = _render2.default(template, env, scope, {}).fragment;
   element.appendChild(fragment);
   morph.setNode(element);
 }
+
 function hasHelper(env, scope, helperName) {
   return env.helpers[helperName] !== undefined;
 }
@@ -11972,13 +15206,16 @@ function lookupHelper(env, scope, helperName) {
   return env.helpers[helperName];
 }
 
-function bindScope() {}
+function bindScope() /* env, scope */{
+  // this function is used to handle host-specified extensions to scope
+  // other than `self`, `locals` and `block`.
+}
 
 function updateScope(env, scope) {
   env.hooks.bindScope(env, scope);
 }
 
-exports['default'] = {
+exports.default = {
   // fundamental hooks that you will likely want to override
   bindLocal: bindLocal,
   bindSelf: bindSelf,
@@ -11989,6 +15226,7 @@ exports['default'] = {
   createFreshScope: createFreshScope,
   getChild: getChild,
   getRoot: getRoot,
+  getBlock: getBlock,
   getValue: getValue,
   getCellOrValue: getCellOrValue,
   keywords: keywords,
@@ -12023,23 +15261,22 @@ exports['default'] = {
   range: range,
   keyword: keyword
 };
-/* morph, env, scope, params, hash */ /* env, scope, path */ /* env, scope */
-// this function is used to handle host-specified extensions to scope
-// other than `self`, `locals` and `block`.
 
-exports.keywords = keywords;
-},{"../htmlbars-util/morph-utils":27,"../htmlbars-util/object-utils":29,"../htmlbars-util/template-utils":31,"../morph-range/morph-list":36,"./render":22}],21:[function(require,module,exports){
-'use strict';
+},{"../htmlbars-util/morph-utils":57,"../htmlbars-util/object-utils":59,"../htmlbars-util/template-utils":61,"../morph-range/morph-list":66,"./render":52}],50:[function(require,module,exports){
+exports.__esModule = true;
 
-var MorphBase = require('../morph-range');
-var object_utils = require('../htmlbars-util/object-utils');
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
+var _morphRange = require("../morph-range");
+
+var _morphRange2 = _interopRequireDefault(_morphRange);
 
 var guid = 1;
 
 function HTMLBarsMorph(domHelper, contextualElement) {
   this.super$constructor(domHelper, contextualElement);
 
-  this.state = {};
+  this._state = undefined;
   this.ownerNode = null;
   this.isDirty = false;
   this.isSubtreeDirty = false;
@@ -12055,6 +15292,7 @@ function HTMLBarsMorph(domHelper, contextualElement) {
   this.childNodes = null;
   this.rendered = false;
   this.guid = "range" + guid++;
+  this.seen = false;
 }
 
 HTMLBarsMorph.empty = function (domHelper, contextualElement) {
@@ -12075,31 +15313,257 @@ HTMLBarsMorph.attach = function (domHelper, contextualElement, firstNode, lastNo
   return morph;
 };
 
-var prototype = HTMLBarsMorph.prototype = object_utils.createObject(MorphBase['default'].prototype);
+var prototype = HTMLBarsMorph.prototype = Object.create(_morphRange2.default.prototype);
 prototype.constructor = HTMLBarsMorph;
-prototype.super$constructor = MorphBase['default'];
+prototype.super$constructor = _morphRange2.default;
 
-exports['default'] = HTMLBarsMorph;
-},{"../htmlbars-util/object-utils":29,"../morph-range":35}],22:[function(require,module,exports){
-'use strict';
+prototype.getState = function () {
+  if (!this._state) {
+    this._state = {};
+  }
 
+  return this._state;
+};
+
+prototype.setState = function (newState) {
+  /*jshint -W093 */
+
+  return this._state = newState;
+};
+
+exports.default = HTMLBarsMorph;
+module.exports = exports.default;
+
+},{"../morph-range":65}],51:[function(require,module,exports){
+exports.__esModule = true;
+
+var _htmlbarsUtilMorphUtils = require("../htmlbars-util/morph-utils");
+
+var _expressionVisitor = require("./expression-visitor");
+
+/**
+  Node classification:
+
+  # Primary Statement Nodes:
+
+  These nodes are responsible for a render node that represents a morph-range.
+
+  * block
+  * inline
+  * content
+  * element
+  * component
+
+  # Leaf Statement Nodes:
+
+  This node is responsible for a render node that represents a morph-attr.
+
+  * attribute
+*/
+
+function linkParamsAndHash(env, scope, morph, path, params, hash) {
+  if (morph.linkedParams) {
+    params = morph.linkedParams.params;
+    hash = morph.linkedParams.hash;
+  } else {
+    params = params && _expressionVisitor.acceptParams(params, env, scope);
+    hash = hash && _expressionVisitor.acceptHash(hash, env, scope);
+  }
+
+  _htmlbarsUtilMorphUtils.linkParams(env, scope, morph, path, params, hash);
+  return [params, hash];
+}
+
+var AlwaysDirtyVisitor = {
+
+  block: function (node, morph, env, scope, template, visitor) {
+    var path = node[1];
+    var params = node[2];
+    var hash = node[3];
+    var templateId = node[4];
+    var inverseId = node[5];
+
+    var paramsAndHash = linkParamsAndHash(env, scope, morph, path, params, hash);
+
+    morph.isDirty = morph.isSubtreeDirty = false;
+    env.hooks.block(morph, env, scope, path, paramsAndHash[0], paramsAndHash[1], templateId === null ? null : template.templates[templateId], inverseId === null ? null : template.templates[inverseId], visitor);
+  },
+
+  inline: function (node, morph, env, scope, visitor) {
+    var path = node[1];
+    var params = node[2];
+    var hash = node[3];
+
+    var paramsAndHash = linkParamsAndHash(env, scope, morph, path, params, hash);
+
+    morph.isDirty = morph.isSubtreeDirty = false;
+    env.hooks.inline(morph, env, scope, path, paramsAndHash[0], paramsAndHash[1], visitor);
+  },
+
+  content: function (node, morph, env, scope, visitor) {
+    var path = node[1];
+
+    morph.isDirty = morph.isSubtreeDirty = false;
+
+    if (isHelper(env, scope, path)) {
+      env.hooks.inline(morph, env, scope, path, [], {}, visitor);
+      if (morph.linkedResult) {
+        _htmlbarsUtilMorphUtils.linkParams(env, scope, morph, '@content-helper', [morph.linkedResult], null);
+      }
+      return;
+    }
+
+    var params = undefined;
+    if (morph.linkedParams) {
+      params = morph.linkedParams.params;
+    } else {
+      params = [env.hooks.get(env, scope, path)];
+    }
+
+    _htmlbarsUtilMorphUtils.linkParams(env, scope, morph, '@range', params, null);
+    env.hooks.range(morph, env, scope, path, params[0], visitor);
+  },
+
+  element: function (node, morph, env, scope, visitor) {
+    var path = node[1];
+    var params = node[2];
+    var hash = node[3];
+
+    var paramsAndHash = linkParamsAndHash(env, scope, morph, path, params, hash);
+
+    morph.isDirty = morph.isSubtreeDirty = false;
+    env.hooks.element(morph, env, scope, path, paramsAndHash[0], paramsAndHash[1], visitor);
+  },
+
+  attribute: function (node, morph, env, scope) {
+    var name = node[1];
+    var value = node[2];
+
+    var paramsAndHash = linkParamsAndHash(env, scope, morph, '@attribute', [value], null);
+
+    morph.isDirty = morph.isSubtreeDirty = false;
+    env.hooks.attribute(morph, env, scope, name, paramsAndHash[0][0]);
+  },
+
+  component: function (node, morph, env, scope, template, visitor) {
+    var path = node[1];
+    var attrs = node[2];
+    var templateId = node[3];
+    var inverseId = node[4];
+
+    var paramsAndHash = linkParamsAndHash(env, scope, morph, path, [], attrs);
+    var templates = {
+      default: template.templates[templateId],
+      inverse: template.templates[inverseId]
+    };
+
+    morph.isDirty = morph.isSubtreeDirty = false;
+    env.hooks.component(morph, env, scope, path, paramsAndHash[0], paramsAndHash[1], templates, visitor);
+  },
+
+  attributes: function (node, morph, env, scope, parentMorph, visitor) {
+    var template = node[1];
+
+    env.hooks.attributes(morph, env, scope, template, parentMorph, visitor);
+  }
+
+};
+
+exports.AlwaysDirtyVisitor = AlwaysDirtyVisitor;
+exports.default = {
+  block: function (node, morph, env, scope, template, visitor) {
+    dirtyCheck(env, morph, visitor, function (visitor) {
+      AlwaysDirtyVisitor.block(node, morph, env, scope, template, visitor);
+    });
+  },
+
+  inline: function (node, morph, env, scope, visitor) {
+    dirtyCheck(env, morph, visitor, function (visitor) {
+      AlwaysDirtyVisitor.inline(node, morph, env, scope, visitor);
+    });
+  },
+
+  content: function (node, morph, env, scope, visitor) {
+    dirtyCheck(env, morph, visitor, function (visitor) {
+      AlwaysDirtyVisitor.content(node, morph, env, scope, visitor);
+    });
+  },
+
+  element: function (node, morph, env, scope, template, visitor) {
+    dirtyCheck(env, morph, visitor, function (visitor) {
+      AlwaysDirtyVisitor.element(node, morph, env, scope, template, visitor);
+    });
+  },
+
+  attribute: function (node, morph, env, scope, template) {
+    dirtyCheck(env, morph, null, function () {
+      AlwaysDirtyVisitor.attribute(node, morph, env, scope, template);
+    });
+  },
+
+  component: function (node, morph, env, scope, template, visitor) {
+    dirtyCheck(env, morph, visitor, function (visitor) {
+      AlwaysDirtyVisitor.component(node, morph, env, scope, template, visitor);
+    });
+  },
+
+  attributes: function (node, morph, env, scope, parentMorph, visitor) {
+    AlwaysDirtyVisitor.attributes(node, morph, env, scope, parentMorph, visitor);
+  }
+};
+
+function dirtyCheck(_env, morph, visitor, callback) {
+  var isDirty = morph.isDirty;
+  var isSubtreeDirty = morph.isSubtreeDirty;
+  var env = _env;
+
+  if (isSubtreeDirty) {
+    visitor = AlwaysDirtyVisitor;
+  }
+
+  if (isDirty || isSubtreeDirty) {
+    callback(visitor);
+  } else {
+    if (morph.buildChildEnv) {
+      env = morph.buildChildEnv(morph.getState(), env);
+    }
+    _htmlbarsUtilMorphUtils.validateChildMorphs(env, morph, visitor);
+  }
+}
+
+function isHelper(env, scope, path) {
+  return env.hooks.keywords[path] !== undefined || env.hooks.hasHelper(env, scope, path);
+}
+
+},{"../htmlbars-util/morph-utils":57,"./expression-visitor":48}],52:[function(require,module,exports){
+exports.__esModule = true;
+exports.default = render;
+exports.RenderOptions = RenderOptions;
 exports.manualElement = manualElement;
 exports.attachAttributes = attachAttributes;
 exports.createChildMorph = createChildMorph;
 exports.getCachedFragment = getCachedFragment;
 
-var array_utils = require('../htmlbars-util/array-utils');
-var morph_utils = require('../htmlbars-util/morph-utils');
-var ExpressionVisitor = require('./expression-visitor');
-var Morph = require('./morph');
-var template_utils = require('../htmlbars-util/template-utils');
-var voidMap = require('../htmlbars-util/void-tag-names');
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
 
+var _htmlbarsUtilMorphUtils = require("../htmlbars-util/morph-utils");
 
+var _nodeVisitor = require("./node-visitor");
 
-exports['default'] = render;
+var _nodeVisitor2 = _interopRequireDefault(_nodeVisitor);
+
+var _morph = require("./morph");
+
+var _morph2 = _interopRequireDefault(_morph);
+
+var _htmlbarsUtilTemplateUtils = require("../htmlbars-util/template-utils");
+
+var _htmlbarsUtilVoidTagNames = require('../htmlbars-util/void-tag-names');
+
+var _htmlbarsUtilVoidTagNames2 = _interopRequireDefault(_htmlbarsUtilVoidTagNames);
 
 var svgNamespace = "http://www.w3.org/2000/svg";
+
 function render(template, env, scope, options) {
   var dom = env.dom;
   var contextualElement;
@@ -12120,6 +15584,13 @@ function render(template, env, scope, options) {
   return renderResult;
 }
 
+function RenderOptions(renderNode, self, blockArguments, contextualElement) {
+  this.renderNode = renderNode || null;
+  this.self = self;
+  this.blockArguments = blockArguments || null;
+  this.contextualElement = contextualElement || null;
+}
+
 function RenderResult(env, scope, options, rootNode, ownerNode, nodes, fragment, template, shouldSetContent) {
   this.root = rootNode;
   this.fragment = fragment;
@@ -12130,13 +15601,6 @@ function RenderResult(env, scope, options, rootNode, ownerNode, nodes, fragment,
   this.env = env;
   this.scope = scope;
   this.shouldSetContent = shouldSetContent;
-
-  this.bindScope();
-
-  if (options.attributes !== undefined) {
-    nodes.push({ state: {} });
-    this.statements.push(["attributes", attachAttributes(options.attributes)]);
-  }
 
   if (options.self !== undefined) {
     this.bindSelf(options.self);
@@ -12162,30 +15626,35 @@ RenderResult.build = function (env, scope, template, options, contextualElement)
   } else {
     rootNode = dom.createMorph(null, fragment.firstChild, fragment.lastChild, contextualElement);
     ownerNode = rootNode;
-    initializeNode(rootNode, ownerNode);
+    rootNode.ownerNode = ownerNode;
     shouldSetContent = false;
   }
 
   if (rootNode.childNodes) {
-    morph_utils.visitChildren(rootNode.childNodes, function (node) {
-      template_utils.clearMorph(node, env, true);
+    _htmlbarsUtilMorphUtils.visitChildren(rootNode.childNodes, function (node) {
+      _htmlbarsUtilTemplateUtils.clearMorph(node, env, true);
     });
   }
 
   rootNode.childNodes = nodes;
   return new RenderResult(env, scope, options, rootNode, ownerNode, nodes, fragment, template, shouldSetContent);
 };
-function manualElement(tagName, attributes) {
+
+function manualElement(tagName, attributes, _isEmpty) {
   var statements = [];
 
   for (var key in attributes) {
-    if (typeof attributes[key] === "string") {
+    if (typeof attributes[key] === 'string') {
       continue;
     }
     statements.push(["attribute", key, attributes[key]]);
   }
 
-  statements.push(["content", "yield"]);
+  var isEmpty = _isEmpty || _htmlbarsUtilVoidTagNames2.default[tagName];
+
+  if (!isEmpty) {
+    statements.push(['content', 'yield']);
+  }
 
   var template = {
     arity: 0,
@@ -12193,19 +15662,19 @@ function manualElement(tagName, attributes) {
     hasRendered: false,
     buildFragment: function buildFragment(dom) {
       var el0 = dom.createDocumentFragment();
-      if (tagName === "svg") {
+      if (tagName === 'svg') {
         dom.setNamespace(svgNamespace);
       }
       var el1 = dom.createElement(tagName);
 
       for (var key in attributes) {
-        if (typeof attributes[key] !== "string") {
+        if (typeof attributes[key] !== 'string') {
           continue;
         }
         dom.setAttribute(el1, key, attributes[key]);
       }
 
-      if (!voidMap['default'][tagName]) {
+      if (!isEmpty) {
         var el2 = dom.createComment("");
         dom.appendChild(el1, el2);
       }
@@ -12219,13 +15688,16 @@ function manualElement(tagName, attributes) {
       var morphs = [];
 
       for (var key in attributes) {
-        if (typeof attributes[key] === "string") {
+        if (typeof attributes[key] === 'string') {
           continue;
         }
         morphs.push(dom.createAttrMorph(element, key));
       }
 
-      morphs.push(dom.createMorphAt(element, 0, 0));
+      if (!isEmpty) {
+        morphs.push(dom.createMorphAt(element, 0, 0));
+      }
+
       return morphs;
     },
     statements: statements,
@@ -12240,7 +15712,7 @@ function attachAttributes(attributes) {
   var statements = [];
 
   for (var key in attributes) {
-    if (typeof attributes[key] === "string") {
+    if (typeof attributes[key] === 'string') {
       continue;
     }
     statements.push(["attribute", key, attributes[key]]);
@@ -12256,7 +15728,7 @@ function attachAttributes(attributes) {
         dom.setNamespace(svgNamespace);
       }
       for (var key in attributes) {
-        if (typeof attributes[key] !== "string") {
+        if (typeof attributes[key] !== 'string') {
           continue;
         }
         dom.setAttribute(el0, key, attributes[key]);
@@ -12269,7 +15741,7 @@ function attachAttributes(attributes) {
       var morphs = [];
 
       for (var key in attributes) {
-        if (typeof attributes[key] === "string") {
+        if (typeof attributes[key] === 'string') {
           continue;
         }
         morphs.push(dom.createAttrMorph(element, key));
@@ -12287,15 +15759,17 @@ function attachAttributes(attributes) {
 }
 
 RenderResult.prototype.initializeNodes = function (ownerNode) {
-  array_utils.forEach(this.root.childNodes, function (node) {
-    initializeNode(node, ownerNode);
-  });
+  var childNodes = this.root.childNodes;
+
+  for (var i = 0, l = childNodes.length; i < l; i++) {
+    childNodes[i].ownerNode = ownerNode;
+  }
 };
 
 RenderResult.prototype.render = function () {
   this.root.lastResult = this;
   this.root.rendered = true;
-  this.populateNodes(ExpressionVisitor.AlwaysDirtyVisitor);
+  this.populateNodes(_nodeVisitor.AlwaysDirtyVisitor);
 
   if (this.shouldSetContent && this.root.setContent) {
     this.root.setContent(this.fragment);
@@ -12303,17 +15777,17 @@ RenderResult.prototype.render = function () {
 };
 
 RenderResult.prototype.dirty = function () {
-  morph_utils.visitChildren([this.root], function (node) {
+  _htmlbarsUtilMorphUtils.visitChildren([this.root], function (node) {
     node.isDirty = true;
   });
 };
 
 RenderResult.prototype.revalidate = function (env, self, blockArguments, scope) {
-  this.revalidateWith(env, scope, self, blockArguments, ExpressionVisitor['default']);
+  this.revalidateWith(env, scope, self, blockArguments, _nodeVisitor2.default);
 };
 
 RenderResult.prototype.rerender = function (env, self, blockArguments, scope) {
-  this.revalidateWith(env, scope, self, blockArguments, ExpressionVisitor.AlwaysDirtyVisitor);
+  this.revalidateWith(env, scope, self, blockArguments, _nodeVisitor.AlwaysDirtyVisitor);
 };
 
 RenderResult.prototype.revalidateWith = function (env, scope, self, blockArguments, visitor) {
@@ -12337,7 +15811,7 @@ RenderResult.prototype.revalidateWith = function (env, scope, self, blockArgumen
 
 RenderResult.prototype.destroy = function () {
   var rootNode = this.root;
-  template_utils.clearMorph(rootNode, this.env, true);
+  _htmlbarsUtilTemplateUtils.clearMorph(rootNode, this.env, true);
 };
 
 RenderResult.prototype.populateNodes = function (visitor) {
@@ -12357,20 +15831,18 @@ RenderResult.prototype.populateNodes = function (visitor) {
     }
 
     switch (statement[0]) {
-      case "block":
+      case 'block':
         visitor.block(statement, morph, env, scope, template, visitor);break;
-      case "inline":
+      case 'inline':
         visitor.inline(statement, morph, env, scope, visitor);break;
-      case "content":
+      case 'content':
         visitor.content(statement, morph, env, scope, visitor);break;
-      case "element":
+      case 'element':
         visitor.element(statement, morph, env, scope, template, visitor);break;
-      case "attribute":
+      case 'attribute':
         visitor.attribute(statement, morph, env, scope);break;
-      case "component":
+      case 'component':
         visitor.component(statement, morph, env, scope, template, visitor);break;
-      case "attributes":
-        visitor.attributes(statement, morph, env, scope, this.fragment, visitor);break;
     }
 
     if (env.hooks.didRenderNode) {
@@ -12414,8 +15886,9 @@ RenderResult.prototype.updateLocals = function (blockArguments) {
 function initializeNode(node, owner) {
   node.ownerNode = owner;
 }
+
 function createChildMorph(dom, parentMorph, contextualElement) {
-  var morph = Morph['default'].empty(dom, contextualElement || parentMorph.contextualElement);
+  var morph = _morph2.default.empty(dom, contextualElement || parentMorph.contextualElement);
   initializeNode(morph, parentMorph.ownerNode);
   return morph;
 }
@@ -12441,23 +15914,31 @@ function getCachedFragment(template, env) {
 
   return fragment;
 }
-},{"../htmlbars-util/array-utils":24,"../htmlbars-util/morph-utils":27,"../htmlbars-util/template-utils":31,"../htmlbars-util/void-tag-names":32,"./expression-visitor":19,"./morph":21}],23:[function(require,module,exports){
-'use strict';
 
-var SafeString = require('./htmlbars-util/safe-string');
-var utils = require('./htmlbars-util/handlebars/utils');
-var namespaces = require('./htmlbars-util/namespaces');
-var morph_utils = require('./htmlbars-util/morph-utils');
+},{"../htmlbars-util/morph-utils":57,"../htmlbars-util/template-utils":61,"../htmlbars-util/void-tag-names":62,"./morph":50,"./node-visitor":51}],53:[function(require,module,exports){
+exports.__esModule = true;
 
-exports.SafeString = SafeString['default'];
-exports.escapeExpression = utils.escapeExpression;
-exports.getAttrNamespace = namespaces.getAttrNamespace;
-exports.validateChildMorphs = morph_utils.validateChildMorphs;
-exports.linkParams = morph_utils.linkParams;
-exports.dump = morph_utils.dump;
-},{"./htmlbars-util/handlebars/utils":26,"./htmlbars-util/morph-utils":27,"./htmlbars-util/namespaces":28,"./htmlbars-util/safe-string":30}],24:[function(require,module,exports){
-'use strict';
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
+var _htmlbarsUtilSafeString = require('./htmlbars-util/safe-string');
+
+var _htmlbarsUtilSafeString2 = _interopRequireDefault(_htmlbarsUtilSafeString);
+
+var _htmlbarsUtilHandlebarsUtils = require('./htmlbars-util/handlebars/utils');
+
+var _htmlbarsUtilNamespaces = require('./htmlbars-util/namespaces');
+
+var _htmlbarsUtilMorphUtils = require('./htmlbars-util/morph-utils');
+
+exports.SafeString = _htmlbarsUtilSafeString2.default;
+exports.escapeExpression = _htmlbarsUtilHandlebarsUtils.escapeExpression;
+exports.getAttrNamespace = _htmlbarsUtilNamespaces.getAttrNamespace;
+exports.validateChildMorphs = _htmlbarsUtilMorphUtils.validateChildMorphs;
+exports.linkParams = _htmlbarsUtilMorphUtils.linkParams;
+exports.dump = _htmlbarsUtilMorphUtils.dump;
+
+},{"./htmlbars-util/handlebars/utils":56,"./htmlbars-util/morph-utils":57,"./htmlbars-util/namespaces":58,"./htmlbars-util/safe-string":60}],54:[function(require,module,exports){
+exports.__esModule = true;
 exports.forEach = forEach;
 exports.map = map;
 
@@ -12510,13 +15991,12 @@ var isArray = Array.isArray || function (array) {
   return Object.prototype.toString.call(array) === '[object Array]';
 };
 
-var indexOfArray = getIdx;
-
 exports.isArray = isArray;
+var indexOfArray = getIdx;
 exports.indexOfArray = indexOfArray;
-},{}],25:[function(require,module,exports){
-'use strict';
 
+},{}],55:[function(require,module,exports){
+exports.__esModule = true;
 // Build out our basic SafeString type
 function SafeString(string) {
   this.string = string;
@@ -12526,23 +16006,23 @@ SafeString.prototype.toString = SafeString.prototype.toHTML = function () {
   return '' + this.string;
 };
 
-exports['default'] = SafeString;
-},{}],26:[function(require,module,exports){
-'use strict';
+exports.default = SafeString;
+module.exports = exports.default;
 
+},{}],56:[function(require,module,exports){
+exports.__esModule = true;
 exports.extend = extend;
 exports.indexOf = indexOf;
 exports.escapeExpression = escapeExpression;
 exports.isEmpty = isEmpty;
 exports.blockParams = blockParams;
 exports.appendContextPath = appendContextPath;
-
 var escape = {
   '&': '&amp;',
   '<': '&lt;',
   '>': '&gt;',
   '"': '&quot;',
-  '\'': '&#x27;',
+  "'": '&#x27;',
   '`': '&#x60;'
 };
 
@@ -12552,6 +16032,7 @@ var badChars = /[&<>"'`]/g,
 function escapeChar(chr) {
   return escape[chr];
 }
+
 function extend(obj /* , ...source */) {
   for (var i = 1; i < arguments.length; i++) {
     for (var key in arguments[i]) {
@@ -12566,20 +16047,31 @@ function extend(obj /* , ...source */) {
 
 var toString = Object.prototype.toString;
 
+exports.toString = toString;
+// Sourced from lodash
+// https://github.com/bestiejs/lodash/blob/master/LICENSE.txt
+/*eslint-disable func-style, no-var */
 var isFunction = function (value) {
   return typeof value === 'function';
 };
 // fallback for older versions of Chrome and Safari
 /* istanbul ignore next */
 if (isFunction(/x/)) {
-  isFunction = function (value) {
+  exports.isFunction = isFunction = function (value) {
     return typeof value === 'function' && toString.call(value) === '[object Function]';
   };
 }
 var isFunction;
+exports.isFunction = isFunction;
+/*eslint-enable func-style, no-var */
+
+/* istanbul ignore next */
 var isArray = Array.isArray || function (value) {
   return value && typeof value === 'object' ? toString.call(value) === '[object Array]' : false;
 };
+
+exports.isArray = isArray;
+// Older IE versions do not directly support indexOf so we must implement our own, sadly.
 
 function indexOf(array, value) {
   for (var i = 0, len = array.length; i < len; i++) {
@@ -12632,16 +16124,13 @@ function appendContextPath(contextPath, id) {
   return (contextPath ? contextPath + '.' : '') + id;
 }
 
-exports.toString = toString;
-exports.isFunction = isFunction;
-exports.isArray = isArray;
-},{}],27:[function(require,module,exports){
-'use strict';
-
+},{}],57:[function(require,module,exports){
+exports.__esModule = true;
 exports.visitChildren = visitChildren;
 exports.validateChildMorphs = validateChildMorphs;
 exports.linkParams = linkParams;
 exports.dump = dump;
+/*globals console*/
 
 function visitChildren(nodes, callback) {
   if (!nodes || nodes.length === 0) {
@@ -12664,7 +16153,12 @@ function visitChildren(nodes, callback) {
         current = current.nextMorph;
       }
     } else if (node.morphList) {
-      nodes.push(node.morphList);
+      var current = node.morphList.firstChildMorph;
+
+      while (current) {
+        nodes.push(current);
+        current = current.nextMorph;
+      }
     }
   }
 }
@@ -12723,11 +16217,11 @@ function map(nodes, cb) {
     cb(nodes[i]);
   }
 }
-},{}],28:[function(require,module,exports){
-'use strict';
 
+},{}],58:[function(require,module,exports){
+exports.__esModule = true;
 exports.getAttrNamespace = getAttrNamespace;
-
+// ref http://dev.w3.org/html5/spec-LC/namespaces.html
 var defaultNamespaces = {
   html: 'http://www.w3.org/1999/xhtml',
   mathml: 'http://www.w3.org/1998/Math/MathML',
@@ -12735,7 +16229,12 @@ var defaultNamespaces = {
   xlink: 'http://www.w3.org/1999/xlink',
   xml: 'http://www.w3.org/XML/1998/namespace'
 };
-function getAttrNamespace(attrName) {
+
+function getAttrNamespace(attrName, detectedNamespace) {
+  if (detectedNamespace) {
+    return detectedNamespace;
+  }
+
   var namespace;
 
   var colonIndex = attrName.indexOf(':');
@@ -12746,12 +16245,10 @@ function getAttrNamespace(attrName) {
 
   return namespace || null;
 }
-},{}],29:[function(require,module,exports){
-'use strict';
 
+},{}],59:[function(require,module,exports){
+exports.__esModule = true;
 exports.merge = merge;
-exports.createObject = createObject;
-exports.objectKeys = objectKeys;
 exports.shallowCopy = shallowCopy;
 exports.keySet = keySet;
 exports.keyLength = keyLength;
@@ -12766,42 +16263,10 @@ function merge(options, defaults) {
   return options;
 }
 
-// IE8 does not have Object.create, so use a polyfill if needed.
-// Polyfill based on Mozilla's (MDN)
-
-function createObject(obj) {
-  if (typeof Object.create === 'function') {
-    return Object.create(obj);
-  } else {
-    var Temp = function () {};
-    Temp.prototype = obj;
-    return new Temp();
-  }
-}
-
-function objectKeys(obj) {
-  if (typeof Object.keys === 'function') {
-    return Object.keys(obj);
-  } else {
-    return legacyKeys(obj);
-  }
-}
-
 function shallowCopy(obj) {
   return merge({}, obj);
 }
 
-function legacyKeys(obj) {
-  var keys = [];
-
-  for (var prop in obj) {
-    if (obj.hasOwnProperty(prop)) {
-      keys.push(prop);
-    }
-  }
-
-  return keys;
-}
 function keySet(obj) {
   var set = {};
 
@@ -12825,24 +16290,30 @@ function keyLength(obj) {
 
   return count;
 }
-},{}],30:[function(require,module,exports){
-'use strict';
 
-var SafeString = require('./handlebars/safe-string');
+},{}],60:[function(require,module,exports){
+exports.__esModule = true;
 
-exports['default'] = SafeString['default'];
-},{"./handlebars/safe-string":25}],31:[function(require,module,exports){
-'use strict';
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
+var _handlebarsSafeString = require('./handlebars/safe-string');
+
+var _handlebarsSafeString2 = _interopRequireDefault(_handlebarsSafeString);
+
+exports.default = _handlebarsSafeString2.default;
+module.exports = exports.default;
+
+},{"./handlebars/safe-string":55}],61:[function(require,module,exports){
+exports.__esModule = true;
 exports.RenderState = RenderState;
 exports.blockFor = blockFor;
 exports.renderAndCleanup = renderAndCleanup;
 exports.clearMorph = clearMorph;
 exports.clearMorphList = clearMorphList;
 
-var morph_utils = require('../htmlbars-util/morph-utils');
+var _htmlbarsUtilMorphUtils = require("../htmlbars-util/morph-utils");
 
-
+var _htmlbarsRuntimeRender = require("../htmlbars-runtime/render");
 
 function RenderState(renderNode, morphList) {
   // The morph list that is no longer needed and can be
@@ -12857,6 +16328,7 @@ function RenderState(renderNode, morphList) {
   // rendering pass. Any morphs in the DOM but not in this map
   // will be pruned during cleanup.
   this.handledMorphs = {};
+  this.collisions = undefined;
 
   // The morph to clear once rendering is complete. By
   // default, we set this to the previous morph (to catch
@@ -12868,44 +16340,55 @@ function RenderState(renderNode, morphList) {
   this.shadowOptions = null;
 }
 
+function Block(render, template, blockOptions) {
+  this.render = render;
+  this.template = template;
+  this.blockOptions = blockOptions;
+  this.arity = template.arity;
+}
+
+Block.prototype.invoke = function (env, blockArguments, _self, renderNode, parentScope, visitor) {
+  if (renderNode.lastResult) {
+    renderNode.lastResult.revalidateWith(env, undefined, _self, blockArguments, visitor);
+  } else {
+    this._firstRender(env, blockArguments, _self, renderNode, parentScope);
+  }
+};
+
+Block.prototype._firstRender = function (env, blockArguments, _self, renderNode, parentScope) {
+  var options = { renderState: new RenderState(renderNode) };
+  var render = this.render;
+  var template = this.template;
+  var scope = this.blockOptions.scope;
+
+  var shadowScope = scope ? env.hooks.createChildScope(scope) : env.hooks.createFreshScope();
+
+  env.hooks.bindShadowScope(env, parentScope, shadowScope, this.blockOptions.options);
+
+  if (_self !== undefined) {
+    env.hooks.bindSelf(env, shadowScope, _self);
+  } else if (this.blockOptions.self !== undefined) {
+    env.hooks.bindSelf(env, shadowScope, this.blockOptions.self);
+  }
+
+  bindBlocks(env, shadowScope, this.blockOptions.yieldTo);
+
+  renderAndCleanup(renderNode, env, options, null, function () {
+    options.renderState.morphToClear = null;
+    var renderOptions = new _htmlbarsRuntimeRender.RenderOptions(renderNode, undefined, blockArguments);
+    render(template, env, shadowScope, renderOptions);
+  });
+};
+
 function blockFor(render, template, blockOptions) {
-  var block = function (env, blockArguments, self, renderNode, parentScope, visitor) {
-    if (renderNode.lastResult) {
-      renderNode.lastResult.revalidateWith(env, undefined, self, blockArguments, visitor);
-    } else {
-      var options = { renderState: new RenderState(renderNode) };
-
-      var scope = blockOptions.scope;
-      var shadowScope = scope ? env.hooks.createChildScope(scope) : env.hooks.createFreshScope();
-      var attributes = blockOptions.attributes;
-
-      env.hooks.bindShadowScope(env, parentScope, shadowScope, blockOptions.options);
-
-      if (self !== undefined) {
-        env.hooks.bindSelf(env, shadowScope, self);
-      } else if (blockOptions.self !== undefined) {
-        env.hooks.bindSelf(env, shadowScope, blockOptions.self);
-      }
-
-      bindBlocks(env, shadowScope, blockOptions.yieldTo);
-
-      renderAndCleanup(renderNode, env, options, null, function () {
-        options.renderState.morphToClear = null;
-        render(template, env, shadowScope, { renderNode: renderNode, blockArguments: blockArguments, attributes: attributes });
-      });
-    }
-  };
-
-  block.arity = template.arity;
-
-  return block;
+  return new Block(render, template, blockOptions);
 }
 
 function bindBlocks(env, shadowScope, blocks) {
   if (!blocks) {
     return;
   }
-  if (typeof blocks === "function") {
+  if (blocks instanceof Block) {
     env.hooks.bindBlock(env, shadowScope, blocks);
   } else {
     for (var name in blocks) {
@@ -12915,6 +16398,7 @@ function bindBlocks(env, shadowScope, blocks) {
     }
   }
 }
+
 function renderAndCleanup(morph, env, options, shadowOptions, callback) {
   // The RenderState object is used to collect information about what the
   // helper or hook being invoked has yielded. Once it has finished either
@@ -12922,6 +16406,7 @@ function renderAndCleanup(morph, env, options, shadowOptions, callback) {
   // yieldTemplate), we detect what was rendered and how it differs from
   // the previous render, cleaning up old state in DOM as appropriate.
   var renderState = options.renderState;
+  renderState.collisions = undefined;
   renderState.shadowOptions = shadowOptions;
 
   // Invoke the callback, instructing it to save information about what it
@@ -12948,7 +16433,7 @@ function renderAndCleanup(morph, env, options, shadowOptions, callback) {
       // If we don't see the key in handledMorphs, it wasn't
       // yielded in and we can safely remove it from DOM.
       if (!(item.key in handledMorphs)) {
-        delete morphMap[item.key];
+        morphMap[item.key] = undefined;
         clearMorph(item, env, true);
         item.destroy();
       }
@@ -12993,7 +16478,7 @@ function clearMorph(morph, env, destroySelf) {
     destroy(morph);
   }
 
-  morph_utils.visitChildren(morph.childNodes, destroyNode);
+  _htmlbarsUtilMorphUtils.visitChildren(morph.childNodes, destroyNode);
 
   // TODO: Deal with logical children that are not in the DOM tree
   morph.clear();
@@ -13011,7 +16496,7 @@ function clearMorphList(morphList, morph, env) {
 
   while (item) {
     var next = item.nextMorph;
-    delete morph.morphMap[item.key];
+    morph.morphMap[item.key] = undefined;
     clearMorph(item, env, true);
     item.destroy();
 
@@ -13022,33 +16507,43 @@ function clearMorphList(morphList, morph, env) {
   morphList.clear();
   morph.morphList = null;
 }
-},{"../htmlbars-util/morph-utils":27}],32:[function(require,module,exports){
-'use strict';
 
-var array_utils = require('./array-utils');
+},{"../htmlbars-runtime/render":52,"../htmlbars-util/morph-utils":57}],62:[function(require,module,exports){
+exports.__esModule = true;
 
+var _arrayUtils = require("./array-utils");
+
+// The HTML elements in this list are speced by
+// http://www.w3.org/TR/html-markup/syntax.html#syntax-elements,
+// and will be forced to close regardless of if they have a
+// self-closing /> at the end.
 var voidTagNames = "area base br col command embed hr img input keygen link meta param source track wbr";
 var voidMap = {};
 
-array_utils.forEach(voidTagNames.split(" "), function (tagName) {
+_arrayUtils.forEach(voidTagNames.split(" "), function (tagName) {
   voidMap[tagName] = true;
 });
 
-exports['default'] = voidMap;
-},{"./array-utils":24}],33:[function(require,module,exports){
-'use strict';
+exports.default = voidMap;
+module.exports = exports.default;
 
-var sanitize_attribute_value = require('./morph-attr/sanitize-attribute-value');
-var prop = require('./dom-helper/prop');
-var build_html_dom = require('./dom-helper/build-html-dom');
-var htmlbars_util = require('./htmlbars-util');
+},{"./array-utils":54}],63:[function(require,module,exports){
+exports.__esModule = true;
+
+var _morphAttrSanitizeAttributeValue = require("./morph-attr/sanitize-attribute-value");
+
+var _domHelperProp = require("./dom-helper/prop");
+
+var _domHelperBuildHtmlDom = require("./dom-helper/build-html-dom");
+
+var _htmlbarsUtil = require("./htmlbars-util");
 
 function getProperty() {
   return this.domHelper.getPropertyStrict(this.element, this.attrName);
 }
 
 function updateProperty(value) {
-  if (this._renderedInitially === true || !prop.isAttrRemovalValue(value)) {
+  if (this._renderedInitially === true || !_domHelperProp.isAttrRemovalValue(value)) {
     // do not render if initial value is undefined or null
     this.domHelper.setPropertyStrict(this.element, this.attrName, value);
   }
@@ -13061,7 +16556,7 @@ function getAttribute() {
 }
 
 function updateAttribute(value) {
-  if (prop.isAttrRemovalValue(value)) {
+  if (_domHelperProp.isAttrRemovalValue(value)) {
     this.domHelper.removeAttribute(this.element, this.attrName);
   } else {
     this.domHelper.setAttribute(this.element, this.attrName, value);
@@ -13073,7 +16568,7 @@ function getAttributeNS() {
 }
 
 function updateAttributeNS(value) {
-  if (prop.isAttrRemovalValue(value)) {
+  if (_domHelperProp.isAttrRemovalValue(value)) {
     this.domHelper.removeAttribute(this.element, this.attrName);
   } else {
     this.domHelper.setAttributeNS(this.element, this.namespace, this.attrName, value);
@@ -13084,11 +16579,34 @@ var UNSET = { unset: true };
 
 var guid = 1;
 
-function AttrMorph(element, attrName, domHelper, namespace) {
+AttrMorph.create = function (element, attrName, domHelper, namespace) {
+  var ns = _htmlbarsUtil.getAttrNamespace(attrName, namespace);
+
+  if (ns) {
+    return new AttributeNSAttrMorph(element, attrName, domHelper, ns);
+  } else {
+    return createNonNamespacedAttrMorph(element, attrName, domHelper);
+  }
+};
+
+function createNonNamespacedAttrMorph(element, attrName, domHelper) {
+  var _normalizeProperty = _domHelperProp.normalizeProperty(element, attrName);
+
+  var normalized = _normalizeProperty.normalized;
+  var type = _normalizeProperty.type;
+
+  if (element.namespaceURI === _domHelperBuildHtmlDom.svgNamespace || attrName === 'style' || type === 'attr') {
+    return new AttributeAttrMorph(element, normalized, domHelper);
+  } else {
+    return new PropertyAttrMorph(element, normalized, domHelper);
+  }
+}
+
+function AttrMorph(element, attrName, domHelper) {
   this.element = element;
   this.domHelper = domHelper;
-  this.namespace = namespace !== undefined ? namespace : htmlbars_util.getAttrNamespace(attrName);
-  this.state = {};
+  this.attrName = attrName;
+  this._state = undefined;
   this.isDirty = false;
   this.isSubtreeDirty = false;
   this.escaped = true;
@@ -13099,36 +16617,41 @@ function AttrMorph(element, attrName, domHelper, namespace) {
   this.linkedParams = null;
   this.linkedResult = null;
   this.guid = "attr" + guid++;
+  this.seen = false;
   this.ownerNode = null;
   this.rendered = false;
   this._renderedInitially = false;
-
-  var normalizedAttrName = prop.normalizeProperty(this.element, attrName);
-  if (this.namespace) {
-    this._update = updateAttributeNS;
-    this._get = getAttributeNS;
-    this.attrName = attrName;
-  } else {
-    if (element.namespaceURI === build_html_dom.svgNamespace || attrName === "style" || !normalizedAttrName) {
-      this._update = updateAttribute;
-      this._get = getAttribute;
-      this.attrName = attrName;
-    } else {
-      this._update = updateProperty;
-      this._get = getProperty;
-      this.attrName = normalizedAttrName;
-    }
-  }
+  this.namespace = undefined;
+  this.didInit();
 }
 
+AttrMorph.prototype.getState = function () {
+  if (!this._state) {
+    this._state = {};
+  }
+
+  return this._state;
+};
+
+AttrMorph.prototype.setState = function (newState) {
+  /*jshint -W093 */
+
+  return this._state = newState;
+};
+
+AttrMorph.prototype.didInit = function () {};
+AttrMorph.prototype.willSetContent = function () {};
+
 AttrMorph.prototype.setContent = function (value) {
+  this.willSetContent(value);
+
   if (this.lastValue === value) {
     return;
   }
   this.lastValue = value;
 
   if (this.escaped) {
-    var sanitized = sanitize_attribute_value.sanitizeAttributeValue(this.domHelper, this.element, this.attrName, value);
+    var sanitized = _morphAttrSanitizeAttributeValue.sanitizeAttributeValue(this.domHelper, this.element, this.attrName, value);
     this._update(sanitized, this.namespace);
   } else {
     this._update(value, this.namespace);
@@ -13152,13 +16675,40 @@ AttrMorph.prototype.destroy = function () {
   this.domHelper = null;
 };
 
-exports['default'] = AttrMorph;
+AttrMorph.prototype._$superAttrMorph = AttrMorph;
 
-exports.sanitizeAttributeValue = sanitize_attribute_value.sanitizeAttributeValue;
-},{"./dom-helper/build-html-dom":16,"./dom-helper/prop":18,"./htmlbars-util":23,"./morph-attr/sanitize-attribute-value":34}],34:[function(require,module,exports){
-'use strict';
+function PropertyAttrMorph(element, attrName, domHelper) {
+  this._$superAttrMorph(element, attrName, domHelper);
+}
 
+PropertyAttrMorph.prototype = Object.create(AttrMorph.prototype);
+PropertyAttrMorph.prototype._update = updateProperty;
+PropertyAttrMorph.prototype._get = getProperty;
+
+function AttributeNSAttrMorph(element, attrName, domHelper, namespace) {
+  this._$superAttrMorph(element, attrName, domHelper);
+  this.namespace = namespace;
+}
+
+AttributeNSAttrMorph.prototype = Object.create(AttrMorph.prototype);
+AttributeNSAttrMorph.prototype._update = updateAttributeNS;
+AttributeNSAttrMorph.prototype._get = getAttributeNS;
+
+function AttributeAttrMorph(element, attrName, domHelper) {
+  this._$superAttrMorph(element, attrName, domHelper);
+}
+
+AttributeAttrMorph.prototype = Object.create(AttrMorph.prototype);
+AttributeAttrMorph.prototype._update = updateAttribute;
+AttributeAttrMorph.prototype._get = getAttribute;
+
+exports.default = AttrMorph;
+exports.sanitizeAttributeValue = _morphAttrSanitizeAttributeValue.sanitizeAttributeValue;
+
+},{"./dom-helper/build-html-dom":45,"./dom-helper/prop":47,"./htmlbars-util":53,"./morph-attr/sanitize-attribute-value":64}],64:[function(require,module,exports){
+exports.__esModule = true;
 exports.sanitizeAttributeValue = sanitizeAttributeValue;
+/* jshint scripturl:true */
 
 var badProtocols = {
   'javascript:': true,
@@ -13171,7 +16721,8 @@ var badTags = {
   'LINK': true,
   'IMG': true,
   'IFRAME': true,
-  'BASE': true
+  'BASE': true,
+  'FORM': true
 };
 
 var badTagsForDataURI = {
@@ -13181,12 +16732,15 @@ var badTagsForDataURI = {
 var badAttributes = {
   'href': true,
   'src': true,
-  'background': true
+  'background': true,
+  'action': true
 };
 
+exports.badAttributes = badAttributes;
 var badAttributesForDataURI = {
   'src': true
 };
+
 function sanitizeAttributeValue(dom, element, attribute, value) {
   var tagName;
 
@@ -13214,12 +16768,13 @@ function sanitizeAttributeValue(dom, element, attribute, value) {
   return value;
 }
 
-exports.badAttributes = badAttributes;
-},{}],35:[function(require,module,exports){
-'use strict';
+},{}],65:[function(require,module,exports){
+exports.__esModule = true;
 
-var utils = require('./morph-range/utils');
+var _morphRangeUtils = require('./morph-range/utils');
 
+// constructor just initializes the fields
+// use one of the static initializers to create a valid morph.
 function Morph(domHelper, contextualElement) {
   this.domHelper = domHelper;
   // context if content if current content is detached
@@ -13265,7 +16820,7 @@ Morph.prototype.setContent = function Morph$setContent(content) {
   switch (type) {
     case 'string':
       if (this.parseTextAsHTML) {
-        return this.setHTML(content);
+        return this.domHelper.setMorphHTML(this, content);
       }
       return this.setText(content);
     case 'object':
@@ -13283,10 +16838,25 @@ Morph.prototype.setContent = function Morph$setContent(content) {
     case 'boolean':
     case 'number':
       return this.setText(content.toString());
+    case 'function':
+      raiseCannotBindToFunction(content);
     default:
       throw new TypeError('unsupported content');
   }
 };
+
+function raiseCannotBindToFunction(content) {
+  var functionName = content.name;
+  var message;
+
+  if (functionName) {
+    message = 'Unsupported Content: Cannot bind to function `' + functionName + '`';
+  } else {
+    message = 'Unsupported Content: Cannot bind to function';
+  }
+
+  throw new TypeError(message);
+}
 
 Morph.prototype.clear = function Morph$clear() {
   var node = this.setNode(this.domHelper.createComment(''));
@@ -13338,8 +16908,8 @@ Morph.prototype.setRange = function (firstNode, lastNode) {
 
     var parentNode = previousFirstNode.parentNode;
     if (parentNode !== null) {
-      utils.insertBefore(parentNode, firstNode, lastNode, previousFirstNode);
-      utils.clear(parentNode, previousFirstNode, this.lastNode);
+      _morphRangeUtils.insertBefore(parentNode, firstNode, lastNode, previousFirstNode);
+      _morphRangeUtils.clear(parentNode, previousFirstNode, this.lastNode);
     }
   }
 
@@ -13362,7 +16932,7 @@ Morph.prototype.destroy = function Morph$destroy() {
   this.firstNode = null;
   this.lastNode = null;
 
-  utils.clear(parentNode, firstNode, lastNode);
+  _morphRangeUtils.clear(parentNode, firstNode, lastNode);
 };
 
 Morph.prototype.unlink = function Morph$unlink() {
@@ -13469,25 +17039,21 @@ Morph.prototype._syncLastNode = function Morph$syncLastNode() {
   }
 };
 
-Morph.prototype.insertBeforeNode = function Morph$insertBeforeNode(parent, reference) {
-  var current = this.firstNode;
-
-  while (current) {
-    var next = current.nextSibling;
-    parent.insertBefore(current, reference);
-    current = next;
-  }
+Morph.prototype.insertBeforeNode = function Morph$insertBeforeNode(parentNode, refNode) {
+  _morphRangeUtils.insertBefore(parentNode, this.firstNode, this.lastNode, refNode);
 };
 
-Morph.prototype.appendToNode = function Morph$appendToNode(parent) {
-  this.insertBeforeNode(parent, null);
+Morph.prototype.appendToNode = function Morph$appendToNode(parentNode) {
+  _morphRangeUtils.insertBefore(parentNode, this.firstNode, this.lastNode, null);
 };
 
-exports['default'] = Morph;
-},{"./morph-range/utils":37}],36:[function(require,module,exports){
-'use strict';
+exports.default = Morph;
+module.exports = exports.default;
 
-var utils = require('./utils');
+},{"./morph-range/utils":67}],66:[function(require,module,exports){
+exports.__esModule = true;
+
+var _utils = require('./utils');
 
 function MorphList() {
   // morph graph
@@ -13534,11 +17100,11 @@ prototype.insertBeforeMorph = function MorphList$insertBeforeMorph(morph, refere
     var parentNode = mountedMorph.firstNode.parentNode;
     var referenceNode = referenceMorph ? referenceMorph.firstNode : mountedMorph.lastNode.nextSibling;
 
-    utils.insertBefore(parentNode, morph.firstNode, morph.lastNode, referenceNode);
+    _utils.insertBefore(parentNode, morph.firstNode, morph.lastNode, referenceNode);
 
     // was not in list mode replace current content
     if (!this.firstChildMorph) {
-      utils.clear(this.mountedMorph.firstNode.parentNode, this.mountedMorph.firstNode, this.mountedMorph.lastNode);
+      _utils.clear(this.mountedMorph.firstNode.parentNode, this.mountedMorph.firstNode, this.mountedMorph.lastNode);
     }
   }
 
@@ -13565,18 +17131,20 @@ prototype.insertBeforeMorph = function MorphList$insertBeforeMorph(morph, refere
 
 prototype.removeChildMorph = function MorphList$removeChildMorph(morph) {
   if (morph.parentMorphList !== this) {
-    throw new Error('Cannot remove a morph from a parent it is not inside of');
+    throw new Error("Cannot remove a morph from a parent it is not inside of");
   }
 
   morph.destroy();
 };
 
-exports['default'] = MorphList;
-},{"./utils":37}],37:[function(require,module,exports){
-'use strict';
+exports.default = MorphList;
+module.exports = exports.default;
 
+},{"./utils":67}],67:[function(require,module,exports){
+exports.__esModule = true;
 exports.clear = clear;
 exports.insertBefore = insertBefore;
+// inclusive of both nodes
 
 function clear(parentNode, firstNode, lastNode) {
   if (!parentNode) {
@@ -13595,21 +17163,20 @@ function clear(parentNode, firstNode, lastNode) {
   } while (node);
 }
 
-function insertBefore(parentNode, firstNode, lastNode, _refNode) {
-  var node = lastNode;
-  var refNode = _refNode;
-  var prevNode;
+function insertBefore(parentNode, firstNode, lastNode, refNode) {
+  var node = firstNode;
+  var nextNode;
   do {
-    prevNode = node.previousSibling;
+    nextNode = node.nextSibling;
     parentNode.insertBefore(node, refNode);
-    if (node === firstNode) {
+    if (node === lastNode) {
       break;
     }
-    refNode = node;
-    node = prevNode;
+    node = nextNode;
   } while (node);
 }
-},{}],38:[function(require,module,exports){
+
+},{}],68:[function(require,module,exports){
 // Load modules
 
 var Stringify = require('./stringify');
@@ -13626,7 +17193,7 @@ module.exports = {
     parse: Parse
 };
 
-},{"./parse":39,"./stringify":40}],39:[function(require,module,exports){
+},{"./parse":69,"./stringify":70}],69:[function(require,module,exports){
 // Load modules
 
 var Utils = require('./utils');
@@ -13815,7 +17382,7 @@ module.exports = function (str, options) {
     return Utils.compact(obj);
 };
 
-},{"./utils":41}],40:[function(require,module,exports){
+},{"./utils":71}],70:[function(require,module,exports){
 // Load modules
 
 var Utils = require('./utils');
@@ -13938,7 +17505,7 @@ module.exports = function (obj, options) {
     return keys.join(delimiter);
 };
 
-},{"./utils":41}],41:[function(require,module,exports){
+},{"./utils":71}],71:[function(require,module,exports){
 // Load modules
 
 
@@ -14130,5 +17697,7 @@ exports.isBuffer = function (obj) {
               obj.constructor.isBuffer(obj));
 };
 
-},{}]},{},[14])
+},{}]},{},[39])
 
+
+//# sourceMappingURL=rebound.runtime.js.map

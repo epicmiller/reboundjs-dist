@@ -1,23 +1,33 @@
-// Rebound Router
-// ----------------
-
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+exports.services = exports.Router = undefined;
 
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+var _backbone = require("backbone");
 
-var _reboundComponentUtils = require("rebound-component/utils");
+var _backbone2 = _interopRequireDefault(_backbone);
 
-var _reboundComponentUtils2 = _interopRequireDefault(_reboundComponentUtils);
+var _reboundUtils = require("rebound-utils/rebound-utils");
 
-var _reboundRouterLazyComponent = require("rebound-router/lazy-component");
+var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
 
-var _reboundRouterLazyComponent2 = _interopRequireDefault(_reboundRouterLazyComponent);
+var _service = require("rebound-router/service");
 
-var DEFAULT_404_PAGE = "<div style=\"display: block;text-align: center;font-size: 22px;\">\n  <h1 style=\"margin-top: 60px;\">\n    Oops! We couldn't find this page.\n  </h1>\n  <a href=\"#\" onclick=\"window.history.back();return false;\" style=\"display: block;text-decoration: none;margin-top: 30px;\">\n    Take me back\n  </a>\n</div>";
+var _factory = require("rebound-component/factory");
+
+var _factory2 = _interopRequireDefault(_factory);
+
+var _loader = require("rebound-router/loader");
+
+var _loader2 = _interopRequireDefault(_loader);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// If no error page is defined for an app, this is the default 404 page
+var DEFAULT_404_PAGE = "<div style=\"display: block;text-align: center;font-size: 22px;\">\n  <h1 style=\"margin-top: 60px;\">\n    Oops! We couldn't find this page.\n  </h1>\n  <a href=\"#\" onclick=\"window.history.back();return false;\" style=\"display: block;text-decoration: none;margin-top: 30px;\">\n    Take me back\n  </a>\n</div>"; // Rebound Router
+// ----------------
 
 var ERROR_ROUTE_NAME = 'error';
 var SUCCESS = 'success';
@@ -26,10 +36,23 @@ var LOADING = 'loading';
 
 // Regexp to validate remote URLs
 var IS_REMOTE_URL = /^([a-z]+:)|^(\/\/)|^([^\/]+\.)/;
+var STRIP_SLASHES = /(^\/+|\/+$)/mg;
+
+function normalizeUrl() {
+  var url = '';
+  var args = Array.prototype.slice.call(arguments);
+  args.forEach(function (val) {
+    if (!val || val === '/') {
+      return void 0;
+    }
+    url += '/' + val.replace(STRIP_SLASHES, '');
+  });
+  return url || '/';
+}
 
 // Overload Backbone's loadUrl so it returns the value of the routed callback
 // Only ever compare the current path (excludes the query params) to the route regexp
-Backbone.history.loadUrl = function (fragment) {
+_backbone2.default.history.loadUrl = function (fragment) {
   var key,
       resp = false;
   this.fragment = this.getFragment(fragment).split('?')[0];
@@ -43,13 +66,13 @@ Backbone.history.loadUrl = function (fragment) {
 // Remove the hash up to a `?` character. In IE9, which does not support the
 // History API, we need to allow query params to be set both on the URL itself
 // and in the hash, giving precedence to the query params in the URL.
-Backbone.history.getSearch = function () {
+_backbone2.default.history.getSearch = function () {
   var match = this.location.href.replace(/#[^\?]*/, '').match(/\?.+/);
   return match ? match[0] : '';
 };
 
-// ReboundRouter Constructor
-var ReboundRouter = Backbone.Router.extend({
+// Router Constructor
+var Router = _backbone2.default.Router.extend({
 
   status: SUCCESS, // loading, success or error
   _currentRoute: '', // The route path that triggered the current page
@@ -60,6 +83,8 @@ var ReboundRouter = Backbone.Router.extend({
   routes: {
     '*route': 'wildcardRoute'
   },
+
+  _loadDeps: _loader2.default.load,
 
   // Called when no matching routes are found. Extracts root route and fetches it's resources
   wildcardRoute: function wildcardRoute(route) {
@@ -80,18 +105,18 @@ var ReboundRouter = Backbone.Router.extend({
   navigate: function navigate(fragment) {
     var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
+    // Default trigger to true unless otherwise specified
     options.trigger === undefined && (options.trigger = true);
 
     // Stringify any data passed in the options hash
-    console.log(fragment, ~fragment.indexOf('?') ? '?' : '&');
-    var query = options.data ? (~fragment.indexOf('?') ? '&' : '?') + _reboundComponentUtils2["default"].qs.stringify(options.data) : '';
+    var query = options.data ? (~fragment.indexOf('?') ? '&' : '?') + _reboundUtils2.default.url.query.stringify(options.data) : '';
 
     // Un-Mark any `active` links in the page container
-    var $container = (0, _reboundComponentUtils2["default"])(this.config.containers).unMarkLinks();
+    var $container = (0, _reboundUtils2.default)(this.config.containers).unMarkLinks();
 
     // Navigate to the specified path. Return value is the value from the router
     // callback specified on the component
-    var resp = Backbone.history.navigate(fragment + query, options);
+    var resp = _backbone2.default.history.navigate(fragment + query, options);
 
     // Always return a promise. If the response of `Backbone.histroy.navigate`
     // was a promise, wait for it to resolve before resolving. Once resolved,
@@ -107,7 +132,9 @@ var ReboundRouter = Backbone.Router.extend({
 
   // Modify `router.execute` to return the value of our route callback
   execute: function execute(callback, args, name) {
-    if (callback) return callback.apply(this, args);
+    if (callback) {
+      return callback.apply(this, args);
+    }
   },
 
   // Override routeToRegExp so:
@@ -120,7 +147,7 @@ var ReboundRouter = Backbone.Router.extend({
       res = new RegExp(route.slice(1, route.length - 1), '');
       res._isRegexp = true;
     } else if (typeof route == 'string') {
-      res = Backbone.Router.prototype._routeToRegExp.call(this, route);
+      res = _backbone2.default.Router.prototype._routeToRegExp.call(this, route);
       res._isString = true;
     }
 
@@ -142,8 +169,10 @@ var ReboundRouter = Backbone.Router.extend({
       _route = this._routeToRegExp(_route);
     }
 
-    if (!callback) callback = this[name];
-    Backbone.history.route(_route, function (fragment) {
+    if (!callback) {
+      callback = this[name];
+    }
+    _backbone2.default.history.route(_route, function (fragment) {
 
       // If this route was defined as a regular expression, we don't capture
       // query params. Only parse the actual path.
@@ -153,23 +182,25 @@ var ReboundRouter = Backbone.Router.extend({
       var args = _this._extractParameters(_route, fragment);
 
       // Get the query params string
-      var search = (Backbone.history.getSearch() || '').slice(1);
+      var search = (_backbone2.default.history.getSearch() || '').slice(1);
 
       // If this route was created from a string (not a regexp), remove the auto-captured
       // search params.
-      if (_route._isString) args.pop();
+      if (_route._isString) {
+        args.pop();
+      }
 
       // If the route is not user prodided, if the history object has search params
       // then our args have the params as its last agrument as of Backbone 1.2.0
       // If the route is a user provided regex, add in parsed search params from
       // the history object before passing to the callback.
-      args.push(search ? _reboundComponentUtils2["default"].qs.parse(search) : {});
+      args.push(search ? _reboundUtils2.default.url.query.parse(search) : {});
 
       var resp = _this.execute(callback, args, name);
       if (resp !== false) {
         _this.trigger.apply(_this, ['route:' + name].concat(args));
         _this.trigger('route', name, args);
-        Backbone.history.trigger('route', _this, name, args);
+        _backbone2.default.history.trigger('route', _this, name, args);
       }
       return resp;
     });
@@ -182,15 +213,21 @@ var ReboundRouter = Backbone.Router.extend({
     var callback = arguments.length <= 1 || arguments[1] === undefined ? function () {} : arguments[1];
 
     // Let all of our components always have referance to our router
-    Rebound.Component.prototype.router = this;
+    _factory2.default.prototype.router = this;
 
     // Save our config referance
     this.config = options;
     this.config.handlers = [];
     this.config.containers = [];
 
+    // Normalize our url configs
+    this.config.root = normalizeUrl(this.config.root);
+    this.config.assetRoot = this.config.assetRoot ? normalizeUrl(this.config.assetRoot) : this.config.root;
+    this.config.jsPath = normalizeUrl(this.config.assetRoot, this.config.jsPath);
+    this.config.cssPath = normalizeUrl(this.config.assetRoot, this.config.cssPath);
+
     // Get a unique instance id for this router
-    this.uid = _.uniqueId('router');
+    this.uid = _reboundUtils2.default.uniqueId('router');
 
     // Allow user to override error route
     this.config.errorRoute && (ERROR_ROUTE_NAME = this.config.errorRoute);
@@ -202,35 +239,35 @@ var ReboundRouter = Backbone.Router.extend({
     }, this);
 
     // Use the user provided container, or default to the closest `<main>` tag
-    this.config.container = (0, _reboundComponentUtils2["default"])(this.config.container || 'main')[0];
+    this.config.container = (0, _reboundUtils2.default)(this.config.container || 'main')[0];
     this.config.containers.push(this.config.container);
-    Rebound.services.page = new _reboundRouterLazyComponent2["default"]();
+    _service.SERVICES.page = new _service.ServiceLoader('page');
 
     // Install our global components
     _.each(this.config.services, function (selector, route) {
-      var container = (0, _reboundComponentUtils2["default"])(selector)[0] || document.createElement('span');
+      var container = (0, _reboundUtils2.default)(selector)[0] || document.createElement('span');
       this.config.containers.push(container);
-      Rebound.services[route] = new _reboundRouterLazyComponent2["default"]();
-      this._fetchResource(route, container)["catch"](function () {});
+      _service.SERVICES[route] = new _service.ServiceLoader(route);
+      this._fetchResource(route, container).catch(function () {});
     }, this);
 
     // Watch click events on links in all out containers
     this._watchLinks(this.config.containers);
 
     // Start the history and call the provided callback
-    Backbone.history.start({
+    _backbone2.default.history.start({
       pushState: this.config.pushState === undefined ? true : this.config.pushState,
-      root: this.config.root
+      root: this.config.root || ''
     }).then(callback);
 
     return this;
   },
 
   stop: function stop() {
-    (0, _reboundComponentUtils2["default"])(this.config.container).off('click');
-    Backbone.history.stop();
+    (0, _reboundUtils2.default)(this.config.container).off('click');
+    _backbone2.default.history.stop();
     this._uninstallResource();
-    Backbone.history.handlers = [];
+    _backbone2.default.history.handlers = [];
   },
 
   // Given a dom element, watch for all click events on anchor tags.
@@ -240,16 +277,18 @@ var ReboundRouter = Backbone.Router.extend({
     var _this2 = this;
 
     // Navigate to route for any link with a relative href
-    (0, _reboundComponentUtils2["default"])(container).on('click', 'a', function (e) {
+    (0, _reboundUtils2.default)(container).on('click', 'a', function (e) {
       var path = e.target.getAttribute('href');
 
       // If the path is a remote URL, allow the browser to navigate normally.
       // Otherwise, prevent default so we can handle the route event.
-      if (IS_REMOTE_URL.test(path) || path === '#') return;
+      if (IS_REMOTE_URL.test(path) || path === '#') {
+        return void 0;
+      }
       e.preventDefault();
 
       // If this is not our current route, navigate to the new route
-      if (path !== '/' + Backbone.history.fragment) {
+      if (path !== '/' + _backbone2.default.history.fragment) {
         _this2.navigate(path, { trigger: true });
       }
     });
@@ -268,14 +307,16 @@ var ReboundRouter = Backbone.Router.extend({
     // the handler from our route object and delete our referance to the route's callback
     _.each(routes, function (value, key) {
       var regExp = _this3._routeToRegExp(key).toString();
-      Backbone.history.handlers = _.filter(Backbone.history.handlers, function (obj) {
+      _backbone2.default.history.handlers = _.filter(_backbone2.default.history.handlers, function (obj) {
         return obj.route.toString() !== regExp;
       });
     });
 
-    if (!this.current) return;
+    if (!this.current) {
+      return void 0;
+    }
 
-    var oldPageName = this.current.__name;
+    var oldPageName = this.current.__pageId;
 
     // Un-hook Event Bindings, Delete Objects
     this.current.data.deinitialize();
@@ -285,7 +326,9 @@ var ReboundRouter = Backbone.Router.extend({
 
     // Disable old css if it exists
     setTimeout(function () {
-      if (_this3.status === ERROR) return;
+      if (_this3.status === ERROR) {
+        return void 0;
+      }
       document.getElementById(oldPageName + '-css').setAttribute('disabled', true);
     }, 500);
   },
@@ -299,28 +342,44 @@ var ReboundRouter = Backbone.Router.extend({
         pageInstance,
         routes = [];
     var isService = container !== this.config.container;
+    var name = isService ? appName : 'page';
 
+    // If no container exists, throw an error
     if (!container) throw 'No container found on the page! Please specify a container that exists in your Rebound config.';
 
+    // Add page level loading class
     container.classList.remove('error', 'loading');
 
-    if (!isService && this.current) this._uninstallResource();
+    // Uninstall any old resource we have loaded
+    if (!isService && this.current) {
+      this._uninstallResource();
+    }
 
     // Load New PageApp, give it it's name so we know what css to remove when it deinitializes
-    pageInstance = new PageApp();
-    pageInstance.__name = this.uid + '-' + appName;
+    pageInstance = (0, _factory2.default)(PageApp).el;
+    if (_service.SERVICES[name].isLazyComponent) {
+      _service.SERVICES[name].hydrate(pageInstance.data);
+    } else {
+      _service.SERVICES[name] = pageInstance.data;
+    }
+    pageInstance.__pageId = this.uid + '-' + appName;
 
     // Add to our page
-    container.innerHTML = '';
+    (0, _reboundUtils2.default)(container).empty();
     container.appendChild(pageInstance);
 
     // Make sure we're back at the top of the page
     document.body.scrollTop = 0;
 
+    // Add a default route handler for the route that got us here so if the component
+    // does not define a route that handles it, we don't get a redirect loop
+    if (!isService) {
+      this.route(this._currentRoute, 'default', function () {
+        return void 0;
+      });
+    }
+
     // Augment ApplicationRouter with new routes from PageApp added in reverse order to preserve order higherarchy
-    if (!isService) this.route(this._currentRoute, 'default', function () {
-      return 'DEFAULT';
-    });
     _.each(pageInstance.data.routes, function (value, key) {
       // Add the new callback referance on to our router and add the route handler
       _this4.route(key, value, function () {
@@ -328,13 +387,10 @@ var ReboundRouter = Backbone.Router.extend({
       });
     });
 
-    var name = isService ? appName : 'page';
-    if (!isService) this.current = pageInstance;
-
-    // If the target is a dummy service, hydrate it with the proper service object
-    // Otherwise, install the page instance here
-    if (window.Rebound.services[name].isService) window.Rebound.services[name].hydrate(pageInstance.data);
-    window.Rebound.services[name] = pageInstance.data;
+    // If this is the main page component, set it as current
+    if (!isService) {
+      this.current = pageInstance;
+    }
 
     // Always return a promise
     return new Promise(function (resolve, reject) {
@@ -342,7 +398,7 @@ var ReboundRouter = Backbone.Router.extend({
       // Re-trigger route so the newly added route may execute if there's a route match.
       // If no routes are matched, app will hit wildCard route which will then trigger 404
       if (!isService) {
-        var res = Backbone.history.loadUrl(Backbone.history.fragment);
+        var res = _backbone2.default.history.loadUrl(_backbone2.default.history.fragment);
         if (res && typeof res.then === 'function') return res.then(resolve);
         return resolve(res);
       }
@@ -352,80 +408,20 @@ var ReboundRouter = Backbone.Router.extend({
   },
 
   _fetchJavascript: function _fetchJavascript(routeName, appName) {
-    var jsID = this.uid + '-' + appName + '-js',
-        jsUrl = this.config.jsPath.replace(/:route/g, routeName).replace(/:app/g, appName),
-        jsElement = document.getElementById(appName + '-js');
+    var jsID = this.uid + '-' + appName + '-route',
+        jsUrl = this.config.jsPath.replace(/:route/g, routeName).replace(/:app/g, appName);
 
-    // AMD will manage dependancies for us. Load the JavaScript.
-    return new Promise(function (resolve, reject) {
-      window.require([jsUrl], function (PageClass) {
-        jsElement = (0, _reboundComponentUtils2["default"])('script[src="' + jsUrl + '"]')[0];
-        jsElement.setAttribute('id', jsID);
-        resolve(PageClass);
-      }, function (err) {
-        console.error(err);
-        reject(err);
-      });
-    });
+    // Load the JavaScript.
+    return _loader2.default.loadJS(jsUrl, jsID);
   },
 
   _fetchCSS: function _fetchCSS(routeName, appName) {
 
     var cssID = this.uid + '-' + appName + '-css',
-        cssUrl = this.config.cssPath.replace(/:route/g, routeName).replace(/:app/g, appName),
-        cssElement = document.getElementById(cssID);
+        cssUrl = this.config.cssPath.replace(/:route/g, routeName).replace(/:app/g, appName);
 
-    // If this css element is not on the page already, it hasn't been loaded before -
-    // create the element and load the css resource.
-    // Else if the css resource has been loaded before, enable it
-    return new Promise(function (resolve, reject) {
-      var count = 0,
-          ti;
-      if (cssElement === null) {
-        // Construct our `<link>` element.
-        cssElement = document.createElement('link');
-        cssElement.setAttribute('type', 'text/css');
-        cssElement.setAttribute('rel', 'stylesheet');
-        cssElement.setAttribute('href', cssUrl);
-        cssElement.setAttribute('id', cssID);
-
-        // On successful load, clearInterval and resolve.
-        // On failed load, clearInterval and reject.
-        var successCallback = function successCallback() {
-          clearInterval(ti);
-          resolve(cssElement);
-        };
-        var errorCallback = function errorCallback(err) {
-          clearInterval(ti);
-          cssElement.dataset.error = '';
-          reject(err);
-        };
-
-        // Older browsers and phantomJS < 2.0 don't support the onLoad event for
-        // `<link>` tags. Pool stylesheets array as a fallback. Timeout at 5s.
-        ti = setInterval(function () {
-          for (var i = 0; i < document.styleSheets.length; i++) {
-            count = count + 50;
-            if (document.styleSheets[i].href.indexOf(cssUrl) > -1) successCallback();else if (count >= 5000) errorCallback('CSS Timeout');
-          }
-        }, 50);
-
-        // Modern browsers support loading events on `<link>` elements, bind these
-        // events. These will be callsed before our interval is called and they will
-        // clearInterval so the resolve/reject handlers aren't called twice.
-        (0, _reboundComponentUtils2["default"])(cssElement).on('load', successCallback);
-        (0, _reboundComponentUtils2["default"])(cssElement).on('error', errorCallback);
-        (0, _reboundComponentUtils2["default"])(cssElement).on('readystatechange', function () {
-          clearInterval(ti);
-        });
-
-        // Add our `<link>` element to the page.
-        document.head.appendChild(cssElement);
-      } else {
-        if (cssElement.hasAttribute('data-error')) return reject();
-        resolve(cssElement);
-      }
-    });
+    // Load the CSS
+    return _loader2.default.loadCSS(cssUrl, cssID);
   },
 
   // Fetches HTML and CSS
@@ -481,24 +477,27 @@ var ReboundRouter = Backbone.Router.extend({
       // Otherwise, set status, activate the css, and install the page component
       var install = function install(response) {
         var cssElement = response[0],
-            PageClass = response[1];
-        if (!(cssElement instanceof Element) || typeof PageClass !== 'function') return throwError();
+            jsElement = response[1];
+        if (!(cssElement instanceof Element) || !(jsElement instanceof Element)) return throwError();
         !isService && !isError && (_this5.status = SUCCESS);
         cssElement && cssElement.removeAttribute('disabled');
-
-        _this5._installResource(PageClass, appName, container).then(resolve, resolve);
+        _this5._installResource(jsElement.getAttribute('data-name'), appName, container).then(resolve, resolve);
       };
 
       // If loading a page, set status to loading
       !isService && !isError && (_this5.status = LOADING);
 
       // If Page Is Already Loaded Then The Route Does Not Exist. 404 and Exit.
-      if (_this5.current && _this5.current.__name === _this5.uid + '-' + appName) return throwError();
+      if (_this5.current && _this5.current.__pageId === _this5.uid + '-' + appName) {
+        return throwError();
+      }
+
       // Fetch our css and js in paralell, install or throw when both complete
       Promise.all([_this5._fetchCSS(routeName, appName), _this5._fetchJavascript(routeName, appName)]).then(install, throwError);
     });
   }
 });
 
-exports["default"] = ReboundRouter;
-module.exports = exports["default"];
+exports.default = Router;
+exports.Router = Router;
+exports.services = _service.SERVICES;

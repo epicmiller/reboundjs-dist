@@ -1,57 +1,71 @@
-// Rebound Compiler
-// ----------------
-
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+var _parser = require("rebound-compiler/parser");
 
-var _reboundCompilerParser = require("rebound-compiler/parser");
+var _parser2 = _interopRequireDefault(_parser);
 
-var _reboundCompilerParser2 = _interopRequireDefault(_reboundCompilerParser);
+var _compile = require("rebound-htmlbars/compile");
 
-var _htmlbarsCompilerCompiler = require("htmlbars-compiler/compiler");
+var _reboundHtmlbars = require("rebound-htmlbars/rebound-htmlbars");
 
-var _htmlbarsUtilObjectUtils = require("htmlbars-util/object-utils");
+var _render = require("rebound-htmlbars/render");
 
-var _domHelper = require("dom-helper");
+var _render2 = _interopRequireDefault(_render);
 
-var _domHelper2 = _interopRequireDefault(_domHelper);
+var _factory = require("rebound-component/factory");
 
-var _reboundComponentHelpers = require("rebound-component/helpers");
+var _factory2 = _interopRequireDefault(_factory);
 
-var _reboundComponentHelpers2 = _interopRequireDefault(_reboundComponentHelpers);
+var _loader = require("rebound-router/loader");
 
-var _reboundComponentHooks = require("rebound-component/hooks");
+var _loader2 = _interopRequireDefault(_loader);
 
-var _reboundComponentHooks2 = _interopRequireDefault(_reboundComponentHooks);
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-var _reboundComponentComponent = require("rebound-component/component");
-
-var _reboundComponentComponent2 = _interopRequireDefault(_reboundComponentComponent);
+// Rebound Compiler
+// ----------------
 
 function compile(str) {
   var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
   /* jshint evil: true */
-  // Parse the template and compile our template function
-  var defs = (0, _reboundCompilerParser2["default"])(str, options),
-      template = new Function("return " + (0, _htmlbarsCompilerCompiler.compileSpec)(defs.template))();
 
+  // Parse the component
+  var defs = (0, _parser2.default)(str, options);
+
+  // Compile our template
+  defs.template = (0, _compile.compile)(defs.template);
+
+  // For client side rendered templates, put the render function directly on the
+  // template result for convenience. To sue templates rendered server side will
+  // consumers will have to invoke the view layer's render function themselves.
+  defs.template.render = function (data, options) {
+    return (0, _render2.default)(this, data, options);
+  };
+
+  // Fetch any dependancies
+  _loader2.default.load(defs.deps);
+
+  // If this is a partial, register the partial
   if (defs.isPartial) {
-    if (options.name) _reboundComponentHelpers2["default"].registerPartial(options.name, template);
-    return _reboundComponentHooks2["default"].wrap(template);
-  } else {
-    return _reboundComponentComponent2["default"].registerComponent(defs.name, {
-      prototype: new Function("return " + defs.script)(),
-      template: _reboundComponentHooks2["default"].wrap(template),
-      style: defs.style
-    });
+    if (options.name) {
+      (0, _reboundHtmlbars.registerPartial)(options.name, defs.template);
+    }
+    return defs.template;
   }
+
+  // If this is a component, register the component
+  else {
+      return _factory2.default.registerComponent(defs.name, {
+        prototype: new Function("return " + defs.script)(),
+        template: defs.template,
+        stylesheet: defs.stylesheet
+      });
+    }
 }
 
-exports["default"] = { compile: compile };
-module.exports = exports["default"];
+exports.default = { compile: compile };

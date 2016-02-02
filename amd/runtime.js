@@ -1,53 +1,47 @@
-define("runtime", ["exports", "module", "rebound-component/utils", "rebound-component/helpers", "rebound-data/rebound-data", "rebound-component/component", "rebound-router/rebound-router"], function (exports, module, _reboundComponentUtils, _reboundComponentHelpers, _reboundDataReboundData, _reboundComponentComponent, _reboundRouterReboundRouter) {
-  //     Rebound.js 0.0.92
-
-  //     (c) 2015 Adam Miller
-  //     Rebound may be freely distributed under the MIT license.
-  //     For all details and documentation:
-  //     http://reboundjs.com
-
-  // Rebound Runtime
-  // ----------------
-
-  // If Backbone isn't preset on the page yet, or if `window.Rebound` is already
-  // in use, throw an error
+define("runtime", ["exports", "backbone", "rebound-utils/rebound-utils", "rebound-data/rebound-data", "rebound-router/rebound-router", "rebound-htmlbars/rebound-htmlbars", "rebound-component/factory"], function (exports, _backbone, _reboundUtils, _reboundData, _reboundRouter, _reboundHtmlbars, _factory) {
   "use strict";
 
-  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
 
-  // Load our **Utils**, helper environment, **Rebound Data**,
-  // **Rebound Components** and the **Rebound Router**
+  var _backbone2 = _interopRequireDefault(_backbone);
 
-  var _utils = _interopRequireDefault(_reboundComponentUtils);
+  var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
 
-  var _helpers = _interopRequireDefault(_reboundComponentHelpers);
+  function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : {
+      default: obj
+    };
+  }
 
-  var _Component = _interopRequireDefault(_reboundComponentComponent);
-
-  var _Router = _interopRequireDefault(_reboundRouterReboundRouter);
-
-  // If Backbone doesn't have an ajax method from an external DOM library, use ours
-  if (!window.Backbone) throw "Backbone must be on the page for Rebound to load.";window.Backbone.ajax = window.Backbone.$ && window.Backbone.$.ajax && window.Backbone.ajax || _utils["default"].ajax;
-
-  // Create Global Rebound Object
+  _backbone2.default.ajax = _backbone2.default.$ && _backbone2.default.$.ajax && _backbone2.default.ajax || _reboundUtils2.default.ajax;
+  var Config = document.getElementById('Rebound');
+  Config = Config ? JSON.parse(Config.innerHTML) : false;
   var Rebound = window.Rebound = {
-    services: {},
-    registerHelper: _helpers["default"].registerHelper,
-    registerPartial: _helpers["default"].registerPartial,
-    registerComponent: _Component["default"].registerComponent,
-    Model: _reboundDataReboundData.Model,
-    Collection: _reboundDataReboundData.Collection,
-    ComputedProperty: _reboundDataReboundData.ComputedProperty,
-    Component: _Component["default"],
+    version: '0.2.0',
+    testing: window.Rebound && window.Rebound.testing || Config && Config.testing || false,
+    registerHelper: _reboundHtmlbars.registerHelper,
+    registerPartial: _reboundHtmlbars.registerPartial,
+    registerComponent: _factory.registerComponent,
+    Component: _factory.ComponentFactory,
+    Model: _reboundData.Model,
+    Collection: _reboundData.Collection,
+    ComputedProperty: _reboundData.ComputedProperty,
+    history: _backbone2.default.history,
+    services: _reboundRouter.services,
     start: function start(options) {
-      var _this = this;
-
+      var R = this;
       return new Promise(function (resolve, reject) {
         var run = function run() {
-          if (!document.body) return setTimeout(run.bind(_this), 1);
-          delete _this.router;
-          _this.router = new _Router["default"](options, resolve);
+          if (!document.body) {
+            return setTimeout(run.bind(R), 1);
+          }
+
+          delete R.router;
+          R.router = new _reboundRouter.Router(options, resolve);
         };
+
         run();
       });
     },
@@ -57,17 +51,9 @@ define("runtime", ["exports", "module", "rebound-component/utils", "rebound-comp
     }
   };
 
-  // Fetch Rebound's Config Object from Rebound's `script` tag
-  var Config = document.getElementById('Rebound');
-  Config = Config ? Config.innerHTML : false;
+  if (Config) {
+    Rebound.start(Config);
+  }
 
-  // Set our require config
-  requirejs.config({
-    baseUrl: "/"
-  });
-
-  // Start the router if a config object is preset
-  if (Config) Rebound.start(JSON.parse(Config));
-
-  module.exports = Rebound;
+  exports.default = Rebound;
 });
