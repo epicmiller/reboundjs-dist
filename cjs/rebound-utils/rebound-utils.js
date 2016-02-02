@@ -11,8 +11,6 @@ var _backbone2 = _interopRequireDefault(_backbone);
 
 var _urls = require("rebound-utils/urls");
 
-var _urls2 = _interopRequireDefault(_urls);
-
 var _ajax = require("rebound-utils/ajax");
 
 var _ajax2 = _interopRequireDefault(_ajax);
@@ -66,7 +64,7 @@ var $ = exports.$ = function $(query) {
 };
 
 // Add url utils
-$.url = _urls2.default;
+$.url = { query: _urls.query };
 
 // Add ajax util
 $.ajax = _ajax2.default;

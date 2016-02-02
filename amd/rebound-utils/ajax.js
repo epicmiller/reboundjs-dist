@@ -6,14 +6,6 @@ define('rebound-utils/ajax', ['exports', 'rebound-utils/urls'], function (export
     });
     exports.default = ajax;
 
-    var _urls2 = _interopRequireDefault(_urls);
-
-    function _interopRequireDefault(obj) {
-        return obj && obj.__esModule ? obj : {
-            default: obj
-        };
-    }
-
     var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {
         return typeof obj;
     } : function (obj) {
@@ -62,7 +54,7 @@ define('rebound-utils/ajax', ['exports', 'rebound-utils/urls'], function (export
                 }
 
                 if (ops.method == 'get') {
-                    this.xhr.open("GET", ops.url + $.url.query.stringify(ops.data), true);
+                    this.xhr.open("GET", ops.url + _urls.query.stringify(ops.data), true);
                     this.setHeaders({
                         'X-Requested-With': 'XMLHttpRequest'
                     });
@@ -79,7 +71,7 @@ define('rebound-utils/ajax', ['exports', 'rebound-utils/urls'], function (export
                 }
 
                 setTimeout(function () {
-                    ops.method == 'get' ? self.xhr.send() : self.xhr.send($.url.query.stringify(ops.data));
+                    ops.method == 'get' ? self.xhr.send() : self.xhr.send(_urls.query.stringify(ops.data));
                 }, 20);
                 return this.xhr;
             },

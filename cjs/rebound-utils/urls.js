@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+exports.query = undefined;
 
 var _qs = require("qs");
 
@@ -21,13 +22,13 @@ var QS_PARSE_OPTS = {
   delimiter: /[;,&]/
 };
 
-exports.default = {
-  query: {
-    stringify: function stringify(str) {
-      return _qs2.default.stringify(str, QS_STRINGIFY_OPTS);
-    },
-    parse: function parse(obj) {
-      return _qs2.default.parse(obj, QS_PARSE_OPTS);
-    }
+var query = {
+  stringify: function stringify(str) {
+    return _qs2.default.stringify(str, QS_STRINGIFY_OPTS);
+  },
+  parse: function parse(obj) {
+    return _qs2.default.parse(obj, QS_PARSE_OPTS);
   }
 };
+
+exports.query = query;

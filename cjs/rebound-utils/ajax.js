@@ -15,10 +15,6 @@ exports.default = ajax;
 
 var _urls = require('rebound-utils/urls');
 
-var _urls2 = _interopRequireDefault(_urls);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
 function ajax(ops) {
     if (typeof ops == 'string') ops = { url: ops };
     ops.url = ops.url || '';
@@ -53,7 +49,7 @@ function ajax(ops) {
                 };
             }
             if (ops.method == 'get') {
-                this.xhr.open("GET", ops.url + $.url.query.stringify(ops.data), true);
+                this.xhr.open("GET", ops.url + _urls.query.stringify(ops.data), true);
                 this.setHeaders({
                     'X-Requested-With': 'XMLHttpRequest'
                 });
@@ -68,7 +64,7 @@ function ajax(ops) {
                 this.setHeaders(ops.headers);
             }
             setTimeout(function () {
-                ops.method == 'get' ? self.xhr.send() : self.xhr.send($.url.query.stringify(ops.data));
+                ops.method == 'get' ? self.xhr.send() : self.xhr.send(_urls.query.stringify(ops.data));
             }, 20);
             return this.xhr;
         },

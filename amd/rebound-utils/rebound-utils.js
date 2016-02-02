@@ -8,8 +8,6 @@ define("rebound-utils/rebound-utils", ["exports", "backbone", "rebound-utils/url
 
   var _backbone2 = _interopRequireDefault(_backbone);
 
-  var _urls2 = _interopRequireDefault(_urls);
-
   var _ajax2 = _interopRequireDefault(_ajax);
 
   var _events2 = _interopRequireDefault(_events);
@@ -49,7 +47,9 @@ define("rebound-utils/rebound-utils", ["exports", "backbone", "rebound-utils/url
     }
   };
 
-  $.url = _urls2.default;
+  $.url = {
+    query: _urls.query
+  };
   $.ajax = _ajax2.default;
   $.prototype.trigger = _events2.default.trigger;
   $.prototype.on = _events2.default.on;

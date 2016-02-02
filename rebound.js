@@ -5691,10 +5691,6 @@ exports.default = ajax;
 
 var _urls = require('rebound-utils/urls');
 
-var _urls2 = _interopRequireDefault(_urls);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
 function ajax(ops) {
     if (typeof ops == 'string') ops = { url: ops };
     ops.url = ops.url || '';
@@ -5729,7 +5725,7 @@ function ajax(ops) {
                 };
             }
             if (ops.method == 'get') {
-                this.xhr.open("GET", ops.url + $.url.query.stringify(ops.data), true);
+                this.xhr.open("GET", ops.url + _urls.query.stringify(ops.data), true);
                 this.setHeaders({
                     'X-Requested-With': 'XMLHttpRequest'
                 });
@@ -5744,7 +5740,7 @@ function ajax(ops) {
                 this.setHeaders(ops.headers);
             }
             setTimeout(function () {
-                ops.method == 'get' ? self.xhr.send() : self.xhr.send($.url.query.stringify(ops.data));
+                ops.method == 'get' ? self.xhr.send() : self.xhr.send(_urls.query.stringify(ops.data));
             }, 20);
             return this.xhr;
         },
@@ -6081,8 +6077,6 @@ var _backbone2 = _interopRequireDefault(_backbone);
 
 var _urls = require("rebound-utils/urls");
 
-var _urls2 = _interopRequireDefault(_urls);
-
 var _ajax = require("rebound-utils/ajax");
 
 var _ajax2 = _interopRequireDefault(_ajax);
@@ -6136,7 +6130,7 @@ var $ = exports.$ = function $(query) {
 };
 
 // Add url utils
-$.url = _urls2.default;
+$.url = { query: _urls.query };
 
 // Add ajax util
 $.ajax = _ajax2.default;
@@ -6256,6 +6250,7 @@ exports.default = $;
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+exports.query = undefined;
 
 var _qs = require("qs");
 
@@ -6274,16 +6269,16 @@ var QS_PARSE_OPTS = {
   delimiter: /[;,&]/
 };
 
-exports.default = {
-  query: {
-    stringify: function stringify(str) {
-      return _qs2.default.stringify(str, QS_STRINGIFY_OPTS);
-    },
-    parse: function parse(obj) {
-      return _qs2.default.parse(obj, QS_PARSE_OPTS);
-    }
+var query = {
+  stringify: function stringify(str) {
+    return _qs2.default.stringify(str, QS_STRINGIFY_OPTS);
+  },
+  parse: function parse(obj) {
+    return _qs2.default.parse(obj, QS_PARSE_OPTS);
   }
 };
+
+exports.query = query;
 },{"qs":105}],43:[function(require,module,exports){
 "use strict";
 
@@ -6310,7 +6305,7 @@ var _factory = require("rebound-component/factory");
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 // If Backbone doesn't have an ajax method from an external DOM library, use ours
-//     Rebound.js v0.2.0
+//     Rebound.js v0.2.1
 
 //     (c) 2015 Adam Miller
 //     Rebound may be freely distributed under the MIT license.
@@ -6331,7 +6326,7 @@ var Config = document.getElementById('Rebound');
 Config = Config ? JSON.parse(Config.innerHTML) : false;
 
 var Rebound = window.Rebound = {
-  version: '0.2.0',
+  version: '0.2.1',
   testing: window.Rebound && window.Rebound.testing || Config && Config.testing || false,
 
   registerHelper: _reboundHtmlbars.registerHelper,

@@ -23,7 +23,7 @@ var _factory = require("rebound-component/factory");
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 // If Backbone doesn't have an ajax method from an external DOM library, use ours
-//     Rebound.js v0.2.0
+//     Rebound.js v0.2.1
 
 //     (c) 2015 Adam Miller
 //     Rebound may be freely distributed under the MIT license.
@@ -44,7 +44,7 @@ var Config = document.getElementById('Rebound');
 Config = Config ? JSON.parse(Config.innerHTML) : false;
 
 var Rebound = window.Rebound = {
-  version: '0.2.0',
+  version: '0.2.1',
   testing: window.Rebound && window.Rebound.testing || Config && Config.testing || false,
 
   registerHelper: _reboundHtmlbars.registerHelper,
