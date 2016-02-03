@@ -12,7 +12,8 @@ define("rebound-htmlbars/hooks/createFreshScope", ["exports"], function (exports
       self: null,
       locals: {},
       localPresent: {},
-      streams: {}
+      streams: {},
+      blocks: {}
     };
   }
 });

@@ -15,11 +15,12 @@ define("runtime", ["exports", "backbone", "rebound-utils/rebound-utils", "reboun
     };
   }
 
+  _backbone2.default.$ = window.$;
   _backbone2.default.ajax = _backbone2.default.$ && _backbone2.default.$.ajax && _backbone2.default.ajax || _reboundUtils2.default.ajax;
   var Config = document.getElementById('Rebound');
   Config = Config ? JSON.parse(Config.innerHTML) : false;
   var Rebound = window.Rebound = {
-    version: '0.2.1',
+    version: '0.2.2',
     testing: window.Rebound && window.Rebound.testing || Config && Config.testing || false,
     registerHelper: _reboundHtmlbars.registerHelper,
     registerPartial: _reboundHtmlbars.registerPartial,

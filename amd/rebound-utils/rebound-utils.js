@@ -32,7 +32,7 @@ define("rebound-utils/rebound-utils", ["exports", "backbone", "rebound-utils/url
     query = _.isArray(query) ? query : [query];
 
     _.each(query, function (item, index) {
-      if (_.isElement(item) || item === document || item === window) {
+      if (_.isElement(item) || item === document || item === window || item instanceof DocumentFragment) {
         selector.push(item);
       } else if (_.isString(item)) {
         this.selector = item;

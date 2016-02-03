@@ -1642,8 +1642,8 @@ function compile(str) {
   // For client side rendered templates, put the render function directly on the
   // template result for convenience. To sue templates rendered server side will
   // consumers will have to invoke the view layer's render function themselves.
-  defs.template.render = function (data, options) {
-    return (0, _render2.default)(this, data, options);
+  defs.template.render = function (el, data, options) {
+    return (0, _render2.default)(el, this, data, options);
   };
 
   // Fetch any dependancies
@@ -1830,6 +1830,7 @@ var Component = _reboundData.Model.extend({
     this.consumers = [];
     this.services = {};
     this.loadCallbacks = [];
+    this.options = options;
 
     // If we are told this is not a hydrated component, mark it as such
     if (options.isHydrated === false) {
@@ -1913,7 +1914,7 @@ var Component = _reboundData.Model.extend({
   // TODO: Check if template is a string, and if the compiler exists on the page, and compile if needed
   render: function render() {
     (0, _reboundUtils.$)(this.el).empty();
-    this.el.appendChild((0, _render3.default)(this[_reboundUtils.REBOUND_SYMBOL].template, this).fragment);
+    (0, _render3.default)(this.el, this[_reboundUtils.REBOUND_SYMBOL].template, this);
   },
   deinitialize: function deinitialize() {
     var _this2 = this;
@@ -2053,7 +2054,7 @@ function processProps(protoProps, staticProps) {
 
     // If this is a reserved property name, yell
     if (reservedMethods[key]) {
-      throw "ERROR: " + key + " is a reserved method name in " + staticProps.tagName + "!";
+      throw "ERROR: " + key + " is a reserved method name in " + staticProps.type + "!";
     }
 
     // If a configuration property, or not actually on the obj, ignore it
@@ -2294,11 +2295,11 @@ var ComponentFactory = exports.ComponentFactory = function ComponentFactory(type
   if (!REGISTRY[type] || !REGISTRY[type].isHydrated) {
     el = document.createElement(type);
     options.isHydrated = false;
-    REGISTRY[type] = _component2.default.extend({}, {
+    REGISTRY[type] = REGISTRY[type] || _component2.default.extend({}, {
       isHydrated: false,
       type: type,
       template: DUMMY_TEMPLATE
-    });
+    }, options);
     el.data = new REGISTRY[type](el, data, options);
   }
 
@@ -3114,8 +3115,17 @@ var Model = _backbone2.default.Model.extend({
     obj = obj && obj.isModel && obj.attributes || obj || {};
     options.previousAttributes = _.clone(this.attributes);
 
+    // Any unset previously existing values will be set back to default
+    _.each(this.defaults, function (val, key) {
+      if (!obj.hasOwnProperty(key)) {
+        obj[key] = val;
+      }
+    }, this);
+
     // Iterate over the Model's attributes:
     // - If the property is the `idAttribute`, skip.
+    // - If the properties are already the same, skip
+    // - If the property is currently undefined and being changed, assign
     // - If the property is a `Model`, `Collection`, or `ComputedProperty`, reset it.
     // - If the passed object has the property, set it to the new value.
     // - If the Model has a default value for this property, set it back to default.
@@ -3124,8 +3134,8 @@ var Model = _backbone2.default.Model.extend({
       value = this.attributes[key];
       if (value === obj[key]) {
         continue;
-      } else if (_.isUndefined(value)) {
-        obj[key] && (changed[key] = obj[key]);
+      } else if (_.isUndefined(value) && !_.isUndefined(obj[key])) {
+        changed[key] = obj[key];
       } else if (value.isComponent) {
         continue;
       } else if (value.isCollection || value.isModel || value.isComputedProperty) {
@@ -3133,17 +3143,17 @@ var Model = _backbone2.default.Model.extend({
         if (value.isCollection) changed[key] = value.previousModels;else if (value.isModel && value.isComputedProperty) changed[key] = value.cache.model.changedAttributes();else if (value.isModel) changed[key] = value.changedAttributes();
       } else if (obj.hasOwnProperty(key)) {
         changed[key] = obj[key];
-      } else if (this.defaults.hasOwnProperty(key) && !_.isFunction(this.defaults[key])) {
-        changed[key] = obj[key] = this.defaults[key];
       } else {
         changed[key] = undefined;
         this.unset(key, { silent: true });
       }
     }
 
-    // Any unset changed values will be set to obj[key]
-    _.each(obj, function (value, key, obj) {
-      changed[key] = changed[key] || obj[key];
+    // Any new values will be set to on the model
+    _.each(obj, function (val, key) {
+      if (_.isUndefined(changed[key])) {
+        changed[key] = val;
+      }
     });
 
     // Reset our model
@@ -3662,7 +3672,7 @@ function isTruthy(condition) {
     return false;
   }
 
-  return false;
+  return !!condition;
 }
 
 HELPERS.if = function ifHelper(params, hash, templates) {
@@ -3691,6 +3701,11 @@ HELPERS.unless = function unlessHelper(params, hash, templates) {
 };
 
 HELPERS.each = function eachHelper(params, hash, templates) {
+
+  // If no data passed, exit
+  if (!params[0]) {
+    return void 0;
+  }
 
   // Accepts collections, arrays, models, or objects
   var value = params[0].isCollection ? params[0].models : params[0].isModel ? params[0].attributes : params[0];
@@ -3894,35 +3909,7 @@ var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-// All valid HTML attributes
-var ATTRIBUTES = { abbr: 1, "accept-charset": 1, accept: 1, accesskey: 1, action: 1,
-  align: 1, alink: 1, alt: 1, archive: 1, axis: 1,
-  background: 1, bgcolor: 1, border: 1, cellpadding: 1, cellspacing: 1,
-  char: 1, charoff: 1, charset: 1, checked: 1, cite: 1,
-  class: 1, classid: 1, clear: 1, code: 1, codebase: 1,
-  codetype: 1, color: 1, cols: 1, colspan: 1, compact: 1,
-  content: 1, coords: 1, data: 1, datetime: 1, declare: 1,
-  defer: 1, dir: 1, disabled: 1, enctype: 1, face: 1,
-  for: 1, frame: 1, frameborder: 1, headers: 1, height: 1,
-  href: 1, hreflang: 1, hspace: 1, "http-equiv": 1, id: 1,
-  ismap: 1, label: 1, lang: 1, language: 1, link: 1,
-  longdesc: 1, marginheight: 1, marginwidth: 1, maxlength: 1, media: 1,
-  method: 1, multiple: 1, name: 1, nohref: 1, noresize: 1,
-  noshade: 1, nowrap: 1, object: 1, onblur: 1, onchange: 1,
-  onclick: 1, ondblclick: 1, onfocus: 1, onkeydown: 1, onkeypress: 1,
-  onkeyup: 1, onload: 1, onmousedown: 1, onmousemove: 1, onmouseout: 1,
-  onmouseover: 1, onmouseup: 1, onreset: 1, onselect: 1, onsubmit: 1,
-  onunload: 1, profile: 1, prompt: 1, readonly: 1, rel: 1,
-  rev: 1, rows: 1, rowspan: 1, rules: 1, scheme: 1,
-  scope: 1, scrolling: 1, selected: 1, shape: 1, size: 1,
-  span: 1, src: 1, standby: 1, start: 1, style: 1,
-  summary: 1, tabindex: 1, target: 1, text: 1, title: 1,
-  type: 1, usemap: 1, valign: 1, value: 1, valuetype: 1,
-  version: 1, vlink: 1, vspace: 1, width: 1 };
-
 // All valid text based HTML input types
-// ### Attribute Hook
-
 var TEXT_INPUTS = { "null": 1, text: 1, email: 1, password: 1,
   search: 1, url: 1, tel: 1, hidden: 1,
   number: 1, color: 1, date: 1, datetime: 1,
@@ -3931,6 +3918,8 @@ var TEXT_INPUTS = { "null": 1, text: 1, email: 1, password: 1,
 };
 
 // All valid boolean HTML input types
+// ### Attribute Hook
+
 var BOOLEAN_INPUTS = { checkbox: 1, radio: 1 };
 
 // Attribute Hook
@@ -4014,13 +4003,39 @@ exports.default = component;
 
 var _reboundUtils = require("rebound-utils/rebound-utils");
 
-var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
-
 var _factory = require("rebound-component/factory");
 
 var _factory2 = _interopRequireDefault(_factory);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
+// All valid HTML attributes
+var ATTRIBUTES = { abbr: 1, "accept-charset": 1, accept: 1, accesskey: 1, action: 1,
+  align: 1, alink: 1, alt: 1, archive: 1, axis: 1,
+  background: 1, bgcolor: 1, border: 1, cellpadding: 1, cellspacing: 1,
+  char: 1, charoff: 1, charset: 1, checked: 1, cite: 1,
+  class: 1, classid: 1, clear: 1, code: 1, codebase: 1,
+  codetype: 1, color: 1, cols: 1, colspan: 1, compact: 1,
+  content: 1, coords: 1, data: 1, datetime: 1, declare: 1,
+  defer: 1, dir: 1, disabled: 1, enctype: 1, face: 1,
+  for: 1, frame: 1, frameborder: 1, headers: 1, height: 1,
+  href: 1, hreflang: 1, hspace: 1, "http-equiv": 1, id: 1,
+  ismap: 1, label: 1, lang: 1, language: 1, link: 1,
+  longdesc: 1, marginheight: 1, marginwidth: 1, maxlength: 1, media: 1,
+  method: 1, multiple: 1, name: 1, nohref: 1, noresize: 1,
+  noshade: 1, nowrap: 1, object: 1, onblur: 1, onchange: 1,
+  onclick: 1, ondblclick: 1, onfocus: 1, onkeydown: 1, onkeypress: 1,
+  onkeyup: 1, onload: 1, onmousedown: 1, onmousemove: 1, onmouseout: 1,
+  onmouseover: 1, onmouseup: 1, onreset: 1, onselect: 1, onsubmit: 1,
+  onunload: 1, profile: 1, prompt: 1, readonly: 1, rel: 1,
+  rev: 1, rows: 1, rowspan: 1, rules: 1, scheme: 1,
+  scope: 1, scrolling: 1, selected: 1, shape: 1, size: 1,
+  span: 1, src: 1, standby: 1, start: 1, style: 1,
+  summary: 1, tabindex: 1, target: 1, text: 1, title: 1,
+  type: 1, usemap: 1, valign: 1, value: 1, valuetype: 1,
+  version: 1, vlink: 1, vspace: 1, width: 1 };
 
 function component(morph, env, scope, tagName, params, attrs, templates, visitor) {
   var _this = this;
@@ -4028,10 +4043,6 @@ function component(morph, env, scope, tagName, params, attrs, templates, visitor
   // Components are only ever rendered once
   if (morph.componentIsRendered) {
     return void 0;
-  }
-
-  if (this.hasHelper(env, scope, tagName)) {
-    return this.block(morph, env, scope, tagName, params, attrs, templates.default, templates.inverse, visitor);
   }
 
   var component,
@@ -4048,7 +4059,7 @@ function component(morph, env, scope, tagName, params, attrs, templates, visitor
   }
 
   // For each param passed to our shared component, add it to our custom element
-  component = (0, _factory2.default)(tagName, seedData);
+  component = (0, _factory2.default)(tagName, seedData, _defineProperty({}, _reboundUtils.REBOUND_SYMBOL, { templates: templates, env: env, scope: scope }));
   element = component.el;
   componentScope.self = component;
 
@@ -4079,29 +4090,33 @@ function component(morph, env, scope, tagName, params, attrs, templates, visitor
     _loop(key);
   }
 
-  /** The attributeChangedCallback on our custom element updates the component's data. **/
+  // TODO: Move this to Component
+  // // For each change on our component, update the states of the original context and the element's proeprties.
+  function updateAttrs() {
+    var json = component.toJSON();
 
-  // Walk the dom, without traversing into other custom elements, and search for
-  // `<content>` outlets to render templates into.
-  (0, _reboundUtils2.default)(element).walkTheDOM(function (el) {
-    if (element === el) {
-      return true;
-    }
-    if (el.tagName === 'CONTENT') {
-      outlet = el;
-    }
-    if (el.tagName.indexOf('-') > -1) {
-      return false;
-    }
-    return true;
-  });
+    if (_.isString(json)) return; // If is a string, this model is seralizing already
 
-  // If a `<content>` outlet is present in component's template, and a template
-  // is provided, render it into the outlet
-  if (templates.default && _.isElement(outlet)) {
-    (0, _reboundUtils2.default)(outlet).empty();
-    outlet.appendChild(render(templates.default, env, scope, {}).fragment);
+    // Set the properties on our element for visual referance if we are on a top level attribute
+    _.each(json, function (value, key) {
+      // TODO: Currently, showing objects as properties on the custom element causes problems.
+      // Linked models between the context and component become the same exact model and all hell breaks loose.
+      // Find a way to remedy this. Until then, don't show objects.
+      if (_.isObject(value) || _.isUndefined(value)) {
+        return;
+      }
+      value = _.isObject(value) ? JSON.stringify(value) : value;
+      try {
+        ATTRIBUTES[key] ? element.setAttribute(key, value) : element.dataset[key] = value;
+      } catch (e) {
+        console.error(e.message);
+      }
+    });
   }
+  component.listenTo(component, 'change', updateAttrs);
+  updateAttrs();
+
+  /** The attributeChangedCallback on our custom element updates the component's data. **/
 
   morph.setNode(element);
   morph.componentIsRendered = true;
@@ -4220,6 +4235,7 @@ function createChildScope(parent) {
   scope.locals = Object.create(parent.locals);
   scope.localPresent = Object.create(parent.localPresent);
   scope.streams = Object.create(parent.streams);
+  scope.blocks = Object.create(parent.blocks);
   return scope;
 }
 },{}],22:[function(require,module,exports){
@@ -4280,7 +4296,8 @@ function createFreshScope() {
     self: null,
     locals: {},
     localPresent: {},
-    streams: {}
+    streams: {},
+    blocks: {}
   };
 }
 },{}],24:[function(require,module,exports){
@@ -4792,8 +4809,6 @@ exports.default = render;
 
 var _reboundUtils = require("rebound-utils/rebound-utils");
 
-var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
-
 var _hooks2 = require("rebound-htmlbars/hooks");
 
 var _hooks3 = _interopRequireDefault(_hooks2);
@@ -4825,6 +4840,45 @@ var push = function push(arr) {
   });
 };
 
+function reslot(env) {
+
+  // Fix for stupid Babel module importer
+  // TODO: Fix this. This is dumb. Modules don't resolve in by time of this file's
+  // execution because of the dependancy tree so babel doesn't get a chance to
+  // interop the default value of these imports. We need to do this at runtime instead.
+  var hooks = _hooks3.default.default || _hooks3.default;
+
+  var outlet,
+      slots = env.root.options && env.root.options[_reboundUtils.REBOUND_SYMBOL];
+
+  if (!env.root || !slots) {
+    return;
+  }
+
+  // Walk the dom, without traversing into other custom elements, and search for
+  // `<content>` outlets to render templates into.
+  (0, _reboundUtils.$)(env.root.el).walkTheDOM(function (el) {
+    if (env.root.el === el) {
+      return true;
+    }
+    if (el.tagName === 'CONTENT') {
+      outlet = el;
+    }
+    if (el.tagName.indexOf('-') > -1) {
+      return false;
+    }
+    return true;
+  });
+
+  // If a `<content>` outlet is present in component's template, and a template
+  // is provided, render it into the outlet
+  if (slots.templates.default && _.isElement(outlet) && !outlet.slotted) {
+    outlet.slotted = true;
+    (0, _reboundUtils.$)(outlet).empty();
+    outlet.appendChild(hooks.buildRenderResult(slots.templates.default, slots.env, slots.scope, {}).fragment);
+  }
+}
+
 // Called on animation frame. TO_RENDER is a list of lazy-values to notify.
 // When notified, they mark themselves as dirty. Then, call revalidate on all
 // dirty expressions for each environment we need to re-render. Use `while(queue.length)`
@@ -4843,6 +4897,7 @@ function renderCallback() {
     for (var key in env.revalidateQueue) {
       env.revalidateQueue[key].revalidate();
     }
+    reslot(env);
   }
   ENV_QUEUE.added = {};
 }
@@ -4881,7 +4936,7 @@ function trigger(type, data, changed) {
   // element that triggered the event and add all relevent callbacks to this
   // object's TO_RENDER queue.
   basePath = basePath.replace(/\[[^\]]+\]/g, ".@each");
-  var parts = _reboundUtils2.default.splitPath(basePath);
+  var parts = _reboundUtils.$.splitPath(basePath);
   var context = [];
 
   while (1) {
@@ -4891,7 +4946,7 @@ function trigger(type, data, changed) {
     for (var key in changed) {
       var path = post + (post && key && '.') + key;
       for (var testPath in this.env.observers[pre]) {
-        if (_reboundUtils2.default.startsWith(testPath, path)) {
+        if (_reboundUtils.$.startsWith(testPath, path)) {
           push.call(TO_RENDER, this.env.observers[pre][testPath]);
           push.call(ENV_QUEUE, [this.env]);
         }
@@ -4919,8 +4974,8 @@ function trigger(type, data, changed) {
 // A render function that will merge user provided helpers and hooks with our defaults
 // and bind a method that re-renders dirty expressions on data change and executes
 // other delegated listeners added by our hooks.
-function render(template, data) {
-  var options = arguments.length <= 2 || arguments[2] === undefined ? {} : arguments[2];
+function render(el, template, data) {
+  var options = arguments.length <= 3 || arguments[3] === undefined ? {} : arguments[3];
 
   // Fix for stupid Babel module importer
   // TODO: Fix this. This is dumb. Modules don't resolve in by time of this file's
@@ -4960,7 +5015,11 @@ function render(template, data) {
 
   // If this is a real template, run it with our merged helpers and hooks
   // If there is no template, just return an empty fragment
-  return env.template = template ? hooks.buildRenderResult(template, env, scope, options) : { fragment: document.createDocumentFragment() };
+  env.template = template ? hooks.buildRenderResult(template, env, scope, options) : { fragment: document.createDocumentFragment() };
+  (0, _reboundUtils.$)(el).empty();
+  el.appendChild(env.template.fragment);
+  reslot(env);
+  return el;
 }
 },{"rebound-htmlbars/hooks":13,"rebound-utils/rebound-utils":41}],36:[function(require,module,exports){
 'use strict';
@@ -5120,6 +5179,10 @@ var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
 
 var _service = require("rebound-router/service");
 
+var _component = require("rebound-component/component");
+
+var _component2 = _interopRequireDefault(_component);
+
 var _factory = require("rebound-component/factory");
 
 var _factory2 = _interopRequireDefault(_factory);
@@ -5131,8 +5194,10 @@ var _loader2 = _interopRequireDefault(_loader);
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 // If no error page is defined for an app, this is the default 404 page
-var DEFAULT_404_PAGE = "<div style=\"display: block;text-align: center;font-size: 22px;\">\n  <h1 style=\"margin-top: 60px;\">\n    Oops! We couldn't find this page.\n  </h1>\n  <a href=\"#\" onclick=\"window.history.back();return false;\" style=\"display: block;text-decoration: none;margin-top: 30px;\">\n    Take me back\n  </a>\n</div>"; // Rebound Router
+// Rebound Router
 // ----------------
+
+var DEFAULT_404_PAGE = "<div style=\"display: block;text-align: center;font-size: 22px;\">\n  <h1 style=\"margin-top: 60px;\">\n    Oops! We couldn't find this page.\n  </h1>\n  <a href=\"#\" onclick=\"window.history.back();return false;\" style=\"display: block;text-decoration: none;margin-top: 30px;\">\n    Take me back\n  </a>\n</div>";
 
 var ERROR_ROUTE_NAME = 'error';
 var SUCCESS = 'success';
@@ -5318,7 +5383,7 @@ var Router = _backbone2.default.Router.extend({
     var callback = arguments.length <= 1 || arguments[1] === undefined ? function () {} : arguments[1];
 
     // Let all of our components always have referance to our router
-    _factory2.default.prototype.router = this;
+    _component2.default.prototype.router = this;
 
     // Save our config referance
     this.config = options;
@@ -5606,7 +5671,7 @@ var Router = _backbone2.default.Router.extend({
 exports.default = Router;
 exports.Router = Router;
 exports.services = _service.SERVICES;
-},{"backbone":45,"rebound-component/factory":6,"rebound-router/loader":36,"rebound-router/service":38,"rebound-utils/rebound-utils":41}],38:[function(require,module,exports){
+},{"backbone":45,"rebound-component/component":5,"rebound-component/factory":6,"rebound-router/loader":36,"rebound-router/service":38,"rebound-utils/rebound-utils":41}],38:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -6110,7 +6175,7 @@ var $ = exports.$ = function $(query) {
   // For each query in query array: If it is an element, push it to the selectors
   // array. If it is a string, push all elements that match to selectors array.
   _.each(query, function (item, index) {
-    if (_.isElement(item) || item === document || item === window) {
+    if (_.isElement(item) || item === document || item === window || item instanceof DocumentFragment) {
       selector.push(item);
     }
     // Call slice to convert node list to array for push. Save selector used.
@@ -6304,8 +6369,9 @@ var _factory = require("rebound-component/factory");
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-// If Backbone doesn't have an ajax method from an external DOM library, use ours
-//     Rebound.js v0.2.1
+// Because of our bundle and how it plays with Backbone's UMD header, we need to
+// be a little more explicit with out DOM library search.
+//     Rebound.js v0.2.2
 
 //     (c) 2015 Adam Miller
 //     Rebound may be freely distributed under the MIT license.
@@ -6316,17 +6382,20 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 // ----------------
 
 // Import Backbone
-_backbone2.default.ajax = _backbone2.default.$ && _backbone2.default.$.ajax && _backbone2.default.ajax || _reboundUtils2.default.ajax;
+_backbone2.default.$ = window.$;
 
-// Fetch Rebound's Config Object from Rebound's `script` tag
+// If Backbone doesn't have an ajax method from an external DOM library, use ours
 
 // Load our **Utils**, helper environment, **Rebound Data**,
 // **Rebound Components** and the **Rebound Router**
+_backbone2.default.ajax = _backbone2.default.$ && _backbone2.default.$.ajax && _backbone2.default.ajax || _reboundUtils2.default.ajax;
+
+// Fetch Rebound's Config Object from Rebound's `script` tag
 var Config = document.getElementById('Rebound');
 Config = Config ? JSON.parse(Config.innerHTML) : false;
 
 var Rebound = window.Rebound = {
-  version: '0.2.1',
+  version: '0.2.2',
   testing: window.Rebound && window.Rebound.testing || Config && Config.testing || false,
 
   registerHelper: _reboundHtmlbars.registerHelper,

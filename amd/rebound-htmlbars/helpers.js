@@ -127,7 +127,7 @@ define("rebound-htmlbars/helpers", ["exports", "rebound-utils/rebound-utils", "r
       return false;
     }
 
-    return false;
+    return !!condition;
   }
 
   HELPERS.if = function ifHelper(params, hash, templates) {
@@ -152,6 +152,10 @@ define("rebound-htmlbars/helpers", ["exports", "rebound-utils/rebound-utils", "r
   };
 
   HELPERS.each = function eachHelper(params, hash, templates) {
+    if (!params[0]) {
+      return void 0;
+    }
+
     var value = params[0].isCollection ? params[0].models : params[0].isModel ? params[0].attributes : params[0];
 
     if (value && (_.isArray(value) && value.length > 0 || _.isObject(value) && Object.keys(value).length > 0)) {

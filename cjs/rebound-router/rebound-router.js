@@ -15,6 +15,10 @@ var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
 
 var _service = require("rebound-router/service");
 
+var _component = require("rebound-component/component");
+
+var _component2 = _interopRequireDefault(_component);
+
 var _factory = require("rebound-component/factory");
 
 var _factory2 = _interopRequireDefault(_factory);
@@ -26,8 +30,10 @@ var _loader2 = _interopRequireDefault(_loader);
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 // If no error page is defined for an app, this is the default 404 page
-var DEFAULT_404_PAGE = "<div style=\"display: block;text-align: center;font-size: 22px;\">\n  <h1 style=\"margin-top: 60px;\">\n    Oops! We couldn't find this page.\n  </h1>\n  <a href=\"#\" onclick=\"window.history.back();return false;\" style=\"display: block;text-decoration: none;margin-top: 30px;\">\n    Take me back\n  </a>\n</div>"; // Rebound Router
+// Rebound Router
 // ----------------
+
+var DEFAULT_404_PAGE = "<div style=\"display: block;text-align: center;font-size: 22px;\">\n  <h1 style=\"margin-top: 60px;\">\n    Oops! We couldn't find this page.\n  </h1>\n  <a href=\"#\" onclick=\"window.history.back();return false;\" style=\"display: block;text-decoration: none;margin-top: 30px;\">\n    Take me back\n  </a>\n</div>";
 
 var ERROR_ROUTE_NAME = 'error';
 var SUCCESS = 'success';
@@ -213,7 +219,7 @@ var Router = _backbone2.default.Router.extend({
     var callback = arguments.length <= 1 || arguments[1] === undefined ? function () {} : arguments[1];
 
     // Let all of our components always have referance to our router
-    _factory2.default.prototype.router = this;
+    _component2.default.prototype.router = this;
 
     // Save our config referance
     this.config = options;

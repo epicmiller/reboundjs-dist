@@ -7,8 +7,6 @@ exports.default = render;
 
 var _reboundUtils = require("rebound-utils/rebound-utils");
 
-var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
-
 var _hooks2 = require("rebound-htmlbars/hooks");
 
 var _hooks3 = _interopRequireDefault(_hooks2);
@@ -40,6 +38,45 @@ var push = function push(arr) {
   });
 };
 
+function reslot(env) {
+
+  // Fix for stupid Babel module importer
+  // TODO: Fix this. This is dumb. Modules don't resolve in by time of this file's
+  // execution because of the dependancy tree so babel doesn't get a chance to
+  // interop the default value of these imports. We need to do this at runtime instead.
+  var hooks = _hooks3.default.default || _hooks3.default;
+
+  var outlet,
+      slots = env.root.options && env.root.options[_reboundUtils.REBOUND_SYMBOL];
+
+  if (!env.root || !slots) {
+    return;
+  }
+
+  // Walk the dom, without traversing into other custom elements, and search for
+  // `<content>` outlets to render templates into.
+  (0, _reboundUtils.$)(env.root.el).walkTheDOM(function (el) {
+    if (env.root.el === el) {
+      return true;
+    }
+    if (el.tagName === 'CONTENT') {
+      outlet = el;
+    }
+    if (el.tagName.indexOf('-') > -1) {
+      return false;
+    }
+    return true;
+  });
+
+  // If a `<content>` outlet is present in component's template, and a template
+  // is provided, render it into the outlet
+  if (slots.templates.default && _.isElement(outlet) && !outlet.slotted) {
+    outlet.slotted = true;
+    (0, _reboundUtils.$)(outlet).empty();
+    outlet.appendChild(hooks.buildRenderResult(slots.templates.default, slots.env, slots.scope, {}).fragment);
+  }
+}
+
 // Called on animation frame. TO_RENDER is a list of lazy-values to notify.
 // When notified, they mark themselves as dirty. Then, call revalidate on all
 // dirty expressions for each environment we need to re-render. Use `while(queue.length)`
@@ -58,6 +95,7 @@ function renderCallback() {
     for (var key in env.revalidateQueue) {
       env.revalidateQueue[key].revalidate();
     }
+    reslot(env);
   }
   ENV_QUEUE.added = {};
 }
@@ -96,7 +134,7 @@ function trigger(type, data, changed) {
   // element that triggered the event and add all relevent callbacks to this
   // object's TO_RENDER queue.
   basePath = basePath.replace(/\[[^\]]+\]/g, ".@each");
-  var parts = _reboundUtils2.default.splitPath(basePath);
+  var parts = _reboundUtils.$.splitPath(basePath);
   var context = [];
 
   while (1) {
@@ -106,7 +144,7 @@ function trigger(type, data, changed) {
     for (var key in changed) {
       var path = post + (post && key && '.') + key;
       for (var testPath in this.env.observers[pre]) {
-        if (_reboundUtils2.default.startsWith(testPath, path)) {
+        if (_reboundUtils.$.startsWith(testPath, path)) {
           push.call(TO_RENDER, this.env.observers[pre][testPath]);
           push.call(ENV_QUEUE, [this.env]);
         }
@@ -134,8 +172,8 @@ function trigger(type, data, changed) {
 // A render function that will merge user provided helpers and hooks with our defaults
 // and bind a method that re-renders dirty expressions on data change and executes
 // other delegated listeners added by our hooks.
-function render(template, data) {
-  var options = arguments.length <= 2 || arguments[2] === undefined ? {} : arguments[2];
+function render(el, template, data) {
+  var options = arguments.length <= 3 || arguments[3] === undefined ? {} : arguments[3];
 
   // Fix for stupid Babel module importer
   // TODO: Fix this. This is dumb. Modules don't resolve in by time of this file's
@@ -175,5 +213,9 @@ function render(template, data) {
 
   // If this is a real template, run it with our merged helpers and hooks
   // If there is no template, just return an empty fragment
-  return env.template = template ? hooks.buildRenderResult(template, env, scope, options) : { fragment: document.createDocumentFragment() };
+  env.template = template ? hooks.buildRenderResult(template, env, scope, options) : { fragment: document.createDocumentFragment() };
+  (0, _reboundUtils.$)(el).empty();
+  el.appendChild(env.template.fragment);
+  reslot(env);
+  return el;
 }

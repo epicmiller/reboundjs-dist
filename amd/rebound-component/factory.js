@@ -90,11 +90,11 @@ define("rebound-component/factory", ["exports", "rebound-utils/rebound-utils", "
     if (!REGISTRY[type] || !REGISTRY[type].isHydrated) {
       el = document.createElement(type);
       options.isHydrated = false;
-      REGISTRY[type] = _component2.default.extend({}, {
+      REGISTRY[type] = REGISTRY[type] || _component2.default.extend({}, {
         isHydrated: false,
         type: type,
         template: DUMMY_TEMPLATE
-      });
+      }, options);
       el.data = new REGISTRY[type](el, data, options);
     } else {
       ELEMENT_DATA = {

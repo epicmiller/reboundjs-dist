@@ -44,7 +44,7 @@ var $ = exports.$ = function $(query) {
   // For each query in query array: If it is an element, push it to the selectors
   // array. If it is a string, push all elements that match to selectors array.
   _.each(query, function (item, index) {
-    if (_.isElement(item) || item === document || item === window) {
+    if (_.isElement(item) || item === document || item === window || item instanceof DocumentFragment) {
       selector.push(item);
     }
     // Call slice to convert node list to array for push. Save selector used.

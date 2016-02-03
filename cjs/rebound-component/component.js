@@ -43,6 +43,7 @@ var Component = _reboundData.Model.extend({
     this.consumers = [];
     this.services = {};
     this.loadCallbacks = [];
+    this.options = options;
 
     // If we are told this is not a hydrated component, mark it as such
     if (options.isHydrated === false) {
@@ -126,7 +127,7 @@ var Component = _reboundData.Model.extend({
   // TODO: Check if template is a string, and if the compiler exists on the page, and compile if needed
   render: function render() {
     (0, _reboundUtils.$)(this.el).empty();
-    this.el.appendChild((0, _render3.default)(this[_reboundUtils.REBOUND_SYMBOL].template, this).fragment);
+    (0, _render3.default)(this.el, this[_reboundUtils.REBOUND_SYMBOL].template, this);
   },
   deinitialize: function deinitialize() {
     var _this2 = this;
@@ -266,7 +267,7 @@ function processProps(protoProps, staticProps) {
 
     // If this is a reserved property name, yell
     if (reservedMethods[key]) {
-      throw "ERROR: " + key + " is a reserved method name in " + staticProps.tagName + "!";
+      throw "ERROR: " + key + " is a reserved method name in " + staticProps.type + "!";
     }
 
     // If a configuration property, or not actually on the obj, ignore it

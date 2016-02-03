@@ -14,5 +14,6 @@ function createChildScope(parent) {
   scope.locals = Object.create(parent.locals);
   scope.localPresent = Object.create(parent.localPresent);
   scope.streams = Object.create(parent.streams);
+  scope.blocks = Object.create(parent.blocks);
   return scope;
 }

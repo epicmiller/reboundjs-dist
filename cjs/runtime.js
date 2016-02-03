@@ -22,8 +22,9 @@ var _factory = require("rebound-component/factory");
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-// If Backbone doesn't have an ajax method from an external DOM library, use ours
-//     Rebound.js v0.2.1
+// Because of our bundle and how it plays with Backbone's UMD header, we need to
+// be a little more explicit with out DOM library search.
+//     Rebound.js v0.2.2
 
 //     (c) 2015 Adam Miller
 //     Rebound may be freely distributed under the MIT license.
@@ -34,17 +35,20 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 // ----------------
 
 // Import Backbone
-_backbone2.default.ajax = _backbone2.default.$ && _backbone2.default.$.ajax && _backbone2.default.ajax || _reboundUtils2.default.ajax;
+_backbone2.default.$ = window.$;
 
-// Fetch Rebound's Config Object from Rebound's `script` tag
+// If Backbone doesn't have an ajax method from an external DOM library, use ours
 
 // Load our **Utils**, helper environment, **Rebound Data**,
 // **Rebound Components** and the **Rebound Router**
+_backbone2.default.ajax = _backbone2.default.$ && _backbone2.default.$.ajax && _backbone2.default.ajax || _reboundUtils2.default.ajax;
+
+// Fetch Rebound's Config Object from Rebound's `script` tag
 var Config = document.getElementById('Rebound');
 Config = Config ? JSON.parse(Config.innerHTML) : false;
 
 var Rebound = window.Rebound = {
-  version: '0.2.1',
+  version: '0.2.2',
   testing: window.Rebound && window.Rebound.testing || Config && Config.testing || false,
 
   registerHelper: _reboundHtmlbars.registerHelper,

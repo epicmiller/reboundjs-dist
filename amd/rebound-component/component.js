@@ -36,6 +36,7 @@ define("rebound-component/component", ["exports", "backbone", "rebound-utils/reb
       this.consumers = [];
       this.services = {};
       this.loadCallbacks = [];
+      this.options = options;
 
       if (options.isHydrated === false) {
         this.isHydrated = false;
@@ -100,7 +101,7 @@ define("rebound-component/component", ["exports", "backbone", "rebound-utils/reb
     },
     render: function render() {
       (0, _reboundUtils.$)(this.el).empty();
-      this.el.appendChild((0, _render3.default)(this[_reboundUtils.REBOUND_SYMBOL].template, this).fragment);
+      (0, _render3.default)(this.el, this[_reboundUtils.REBOUND_SYMBOL].template, this);
     },
     deinitialize: function deinitialize() {
       var _this2 = this;
@@ -236,7 +237,7 @@ define("rebound-component/component", ["exports", "backbone", "rebound-utils/reb
       }
 
       if (reservedMethods[key]) {
-        throw "ERROR: " + key + " is a reserved method name in " + staticProps.tagName + "!";
+        throw "ERROR: " + key + " is a reserved method name in " + staticProps.type + "!";
       }
 
       if (!protoProps.hasOwnProperty(key) || configProperties[key]) {

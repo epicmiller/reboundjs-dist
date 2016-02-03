@@ -6,8 +6,6 @@ define("rebound-htmlbars/render", ["exports", "rebound-utils/rebound-utils", "re
   });
   exports.default = render;
 
-  var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
-
   var _hooks3 = _interopRequireDefault(_hooks2);
 
   function _interopRequireDefault(obj) {
@@ -41,6 +39,38 @@ define("rebound-htmlbars/render", ["exports", "rebound-utils/rebound-utils", "re
     });
   };
 
+  function reslot(env) {
+    var hooks = _hooks3.default.default || _hooks3.default;
+    var outlet,
+        slots = env.root.options && env.root.options[_reboundUtils.REBOUND_SYMBOL];
+
+    if (!env.root || !slots) {
+      return;
+    }
+
+    (0, _reboundUtils.$)(env.root.el).walkTheDOM(function (el) {
+      if (env.root.el === el) {
+        return true;
+      }
+
+      if (el.tagName === 'CONTENT') {
+        outlet = el;
+      }
+
+      if (el.tagName.indexOf('-') > -1) {
+        return false;
+      }
+
+      return true;
+    });
+
+    if (slots.templates.default && _.isElement(outlet) && !outlet.slotted) {
+      outlet.slotted = true;
+      (0, _reboundUtils.$)(outlet).empty();
+      outlet.appendChild(hooks.buildRenderResult(slots.templates.default, slots.env, slots.scope, {}).fragment);
+    }
+  }
+
   function renderCallback() {
     while (TO_RENDER.length) {
       TO_RENDER.shift().notify();
@@ -54,6 +84,8 @@ define("rebound-htmlbars/render", ["exports", "rebound-utils/rebound-utils", "re
       for (var key in env.revalidateQueue) {
         env.revalidateQueue[key].revalidate();
       }
+
+      reslot(env);
     }
 
     ENV_QUEUE.added = {};
@@ -90,7 +122,7 @@ define("rebound-htmlbars/render", ["exports", "rebound-utils/rebound-utils", "re
 
     basePath = basePath.replace(/\[[^\]]+\]/g, ".@each");
 
-    var parts = _reboundUtils2.default.splitPath(basePath);
+    var parts = _reboundUtils.$.splitPath(basePath);
 
     var context = [];
 
@@ -102,7 +134,7 @@ define("rebound-htmlbars/render", ["exports", "rebound-utils/rebound-utils", "re
         var path = post + (post && key && '.') + key;
 
         for (var testPath in this.env.observers[pre]) {
-          if (_reboundUtils2.default.startsWith(testPath, path)) {
+          if (_reboundUtils.$.startsWith(testPath, path)) {
             push.call(TO_RENDER, this.env.observers[pre][testPath]);
             push.call(ENV_QUEUE, [this.env]);
           }
@@ -124,8 +156,8 @@ define("rebound-htmlbars/render", ["exports", "rebound-utils/rebound-utils", "re
     RENDER_TIMEOUT = window.requestAnimationFrame(renderCallback);
   }
 
-  function render(template, data) {
-    var options = arguments.length <= 2 || arguments[2] === undefined ? {} : arguments[2];
+  function render(el, template, data) {
+    var options = arguments.length <= 3 || arguments[3] === undefined ? {} : arguments[3];
     var hooks = _hooks3.default.default || _hooks3.default;
 
     if (!data) {
@@ -147,8 +179,12 @@ define("rebound-htmlbars/render", ["exports", "rebound-utils/rebound-utils", "re
       data.listenTo(data, 'change', onChange).listenTo(data, 'reset', onReset).listenTo(data, 'update', onUpdate);
     }
 
-    return env.template = template ? hooks.buildRenderResult(template, env, scope, options) : {
+    env.template = template ? hooks.buildRenderResult(template, env, scope, options) : {
       fragment: document.createDocumentFragment()
     };
+    (0, _reboundUtils.$)(el).empty();
+    el.appendChild(env.template.fragment);
+    reslot(env);
+    return el;
   }
 });

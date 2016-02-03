@@ -110,13 +110,19 @@ define("rebound-data/model", ["exports", "backbone", "rebound-data/computed-prop
       obj = obj && obj.isModel && obj.attributes || obj || {};
       options.previousAttributes = _.clone(this.attributes);
 
+      _.each(this.defaults, function (val, key) {
+        if (!obj.hasOwnProperty(key)) {
+          obj[key] = val;
+        }
+      }, this);
+
       for (key in this.attributes) {
         value = this.attributes[key];
 
         if (value === obj[key]) {
           continue;
-        } else if (_.isUndefined(value)) {
-          obj[key] && (changed[key] = obj[key]);
+        } else if (_.isUndefined(value) && !_.isUndefined(obj[key])) {
+          changed[key] = obj[key];
         } else if (value.isComponent) {
           continue;
         } else if (value.isCollection || value.isModel || value.isComputedProperty) {
@@ -126,8 +132,6 @@ define("rebound-data/model", ["exports", "backbone", "rebound-data/computed-prop
           if (value.isCollection) changed[key] = value.previousModels;else if (value.isModel && value.isComputedProperty) changed[key] = value.cache.model.changedAttributes();else if (value.isModel) changed[key] = value.changedAttributes();
         } else if (obj.hasOwnProperty(key)) {
           changed[key] = obj[key];
-        } else if (this.defaults.hasOwnProperty(key) && !_.isFunction(this.defaults[key])) {
-          changed[key] = obj[key] = this.defaults[key];
         } else {
           changed[key] = undefined;
           this.unset(key, {
@@ -136,8 +140,10 @@ define("rebound-data/model", ["exports", "backbone", "rebound-data/computed-prop
         }
       }
 
-      _.each(obj, function (value, key, obj) {
-        changed[key] = changed[key] || obj[key];
+      _.each(obj, function (val, key) {
+        if (_.isUndefined(changed[key])) {
+          changed[key] = val;
+        }
       });
 
       obj = this.set(obj, _.extend({}, options, {

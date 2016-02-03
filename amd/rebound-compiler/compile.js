@@ -24,8 +24,8 @@ define("rebound-compiler/compile", ["exports", "rebound-compiler/parser", "rebou
     var defs = (0, _parser2.default)(str, options);
     defs.template = (0, _compile.compile)(defs.template);
 
-    defs.template.render = function (data, options) {
-      return (0, _render2.default)(this, data, options);
+    defs.template.render = function (el, data, options) {
+      return (0, _render2.default)(el, this, data, options);
     };
 
     _loader2.default.load(defs.deps);

@@ -1,4 +1,4 @@
-define("rebound-router/rebound-router", ["exports", "backbone", "rebound-utils/rebound-utils", "rebound-router/service", "rebound-component/factory", "rebound-router/loader"], function (exports, _backbone, _reboundUtils, _service, _factory, _loader) {
+define("rebound-router/rebound-router", ["exports", "backbone", "rebound-utils/rebound-utils", "rebound-router/service", "rebound-component/component", "rebound-component/factory", "rebound-router/loader"], function (exports, _backbone, _reboundUtils, _service, _component, _factory, _loader) {
   "use strict";
 
   Object.defineProperty(exports, "__esModule", {
@@ -9,6 +9,8 @@ define("rebound-router/rebound-router", ["exports", "backbone", "rebound-utils/r
   var _backbone2 = _interopRequireDefault(_backbone);
 
   var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
+
+  var _component2 = _interopRequireDefault(_component);
 
   var _factory2 = _interopRequireDefault(_factory);
 
@@ -155,7 +157,7 @@ define("rebound-router/rebound-router", ["exports", "backbone", "rebound-utils/r
     initialize: function initialize() {
       var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
       var callback = arguments.length <= 1 || arguments[1] === undefined ? function () {} : arguments[1];
-      _factory2.default.prototype.router = this;
+      _component2.default.prototype.router = this;
       this.config = options;
       this.config.handlers = [];
       this.config.containers = [];
