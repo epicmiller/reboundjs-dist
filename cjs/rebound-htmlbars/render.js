@@ -138,11 +138,11 @@ function trigger(type, data, changed) {
   var context = [];
 
   while (1) {
-    var pre = context.join('.');
-    var post = parts.join('.');
+    var pre = context.join('.').trim();
+    var post = parts.join('.').trim();
 
     for (var key in changed) {
-      var path = post + (post && key && '.') + key;
+      var path = (post + (post && key && '.') + key).trim();
       for (var testPath in this.env.observers[pre]) {
         if (_reboundUtils.$.startsWith(testPath, path)) {
           push.call(TO_RENDER, this.env.observers[pre][testPath]);
@@ -186,17 +186,21 @@ function render(el, template, data) {
     return console.error('No data passed to render function.');
   }
 
-  // Create a fresh scope if it doesn't exist
-  var scope = scope || hooks.createFreshScope();
+  // Every component's template is rendered using a unique Environment and Scope
+  // If this component already has them, re-use the same objects – they contain
+  // important state information. Otherwise, create fresh ones for it.
+  var env = data.env || hooks.createFreshEnv();
+  var scope = data.scope || hooks.createFreshScope();
 
-  // Every component's template is rendered using a unique environment
-  var env = hooks.createChildEnv(options.env || hooks.createFreshEnv());
+  // Bind the component as the scope's main data object
+  hooks.bindSelf(env, scope, data);
 
   // Add template specific hepers to env
   _.extend(env.helpers, options.helpers);
 
-  // Save env on component data to trigger lazy-value streams on data change
+  // Save env and scope on component data to trigger lazy-value streams on data change
   data.env = env;
+  data.scope = scope;
 
   // Save data on env to allow helpers / hooks access to component methods
   env.root = data;

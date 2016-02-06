@@ -163,8 +163,7 @@ define("rebound-htmlbars/hooks/component", ["exports", "rebound-utils/rebound-ut
         outlet,
         render = this.buildRenderResult,
         seedData = {},
-        componentData = {},
-        componentScope = this.createFreshScope();
+        componentData = {};
 
     for (var key in attrs) {
       seedData[key] = this.getValue(attrs[key]);
@@ -176,10 +175,9 @@ define("rebound-htmlbars/hooks/component", ["exports", "rebound-utils/rebound-ut
       scope: scope
     }));
     element = component.el;
-    componentScope.self = component;
 
     var _loop = function _loop(key) {
-      componentData[key] = _this.get(component.env, componentScope, key);
+      componentData[key] = _this.get(component.env, component.scope, key);
 
       if (componentData[key].isLazyValue && attrs[key].isLazyValue) {
         componentData[key].onNotify(function () {

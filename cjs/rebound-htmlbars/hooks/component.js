@@ -54,8 +54,7 @@ function component(morph, env, scope, tagName, params, attrs, templates, visitor
       outlet,
       render = this.buildRenderResult,
       seedData = {},
-      componentData = {},
-      componentScope = this.createFreshScope();
+      componentData = {};
 
   // Create a plain data object to pass to our new component as seed data
   for (var key in attrs) {
@@ -65,12 +64,11 @@ function component(morph, env, scope, tagName, params, attrs, templates, visitor
   // For each param passed to our shared component, add it to our custom element
   component = (0, _factory2.default)(tagName, seedData, _defineProperty({}, _reboundUtils.REBOUND_SYMBOL, { templates: templates, env: env, scope: scope }));
   element = component.el;
-  componentScope.self = component;
 
   var _loop = function _loop(key) {
 
     // For each param passed to our component, create its lazyValue
-    componentData[key] = _this.get(component.env, componentScope, key);
+    componentData[key] = _this.get(component.env, component.scope, key);
 
     // Set up two way binding between component and original context
     if (componentData[key].isLazyValue && attrs[key].isLazyValue) {

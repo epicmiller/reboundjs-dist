@@ -81,7 +81,9 @@ define('rebound-htmlbars/lazy-value', ['exports', 'rebound-utils/rebound-utils']
         return console.error('Error adding observer for', context, path);
       }
 
-      var origin = context.__path().replace(/\[[^\]]+\]/g, ".@each");
+      path = path.trim();
+
+      var origin = context.__path().replace(/\[[^\]]+\]/g, ".@each").trim();
 
       var cache = env.observers[origin] || (env.observers[origin] = {});
       cache[path] || (cache[path] = []);

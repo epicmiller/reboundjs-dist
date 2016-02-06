@@ -127,11 +127,11 @@ define("rebound-htmlbars/render", ["exports", "rebound-utils/rebound-utils", "re
     var context = [];
 
     while (1) {
-      var pre = context.join('.');
-      var post = parts.join('.');
+      var pre = context.join('.').trim();
+      var post = parts.join('.').trim();
 
       for (var key in changed) {
-        var path = post + (post && key && '.') + key;
+        var path = (post + (post && key && '.') + key).trim();
 
         for (var testPath in this.env.observers[pre]) {
           if (_reboundUtils.$.startsWith(testPath, path)) {
@@ -164,12 +164,14 @@ define("rebound-htmlbars/render", ["exports", "rebound-utils/rebound-utils", "re
       return console.error('No data passed to render function.');
     }
 
-    var scope = scope || hooks.createFreshScope();
-    var env = hooks.createChildEnv(options.env || hooks.createFreshEnv());
+    var env = data.env || hooks.createFreshEnv();
+    var scope = data.scope || hooks.createFreshScope();
+    hooks.bindSelf(env, scope, data);
 
     _.extend(env.helpers, options.helpers);
 
     data.env = env;
+    data.scope = scope;
     env.root = data;
     options.contextualElement || (options.contextualElement = data.el || document.body);
     options.self = data;

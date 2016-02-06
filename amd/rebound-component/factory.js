@@ -42,7 +42,15 @@ define("rebound-component/factory", ["exports", "rebound-utils/rebound-utils", "
       var _this = this;
 
       if (this.data) {
-        this.data.reset(this.data.toJSON());
+        var current = this.data.toJSON();
+        var defaults = this.data.defaults;
+
+        for (var key in defaults) {
+          if (!current.hasOwnProperty(key) && defaults.hasOwnProperty(key)) {
+            this.data.set(key, defaults[key]);
+          }
+        }
+
         this.data.render();
         this.data.isHydrated = true;
         this.data.loadCallbacks.forEach(function (cb) {

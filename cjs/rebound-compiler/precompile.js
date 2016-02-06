@@ -23,6 +23,9 @@ function precompile(str) {
     return console.error('No template provided!');
   }
 
+  // Ensure baseDest exists
+  options.baseDest || (options.baseDest = '');
+
   var template;
   str = (0, _parser2.default)(str, options);
 
@@ -31,11 +34,11 @@ function precompile(str) {
 
   // If is a partial
   if (str.isPartial) {
-    template = ["(function(R){", "  R.router._loadDeps([ " + (str.deps.length ? '"' + str.deps.join('", "') + '"' : '') + " ]);", "  R.registerPartial(\"" + str.name + "\", " + str.template + ");", "})(window.Rebound);"].join('\n');
+    template = ["(function(R){", "  R.router._loadDeps([ " + (str.deps.length ? "\"" + options.baseDest + str.deps.join("\", \"" + options.baseDest) + '"' : '') + " ]);", "  R.registerPartial(\"" + str.name + "\", " + str.template + ");", "})(window.Rebound);"].join('\n');
   }
   // Else, is a component
   else {
-      template = ["(function(R){", "  R.router._loadDeps([ " + (str.deps.length ? '"' + str.deps.join('", "') + '"' : '') + " ]);", "  document.currentScript.setAttribute(\"data-name\", \"" + str.name + "\");", "  return R.registerComponent(\"" + str.name + "\", {", "    prototype: " + str.script + ",", "    template: " + str.template + ",", "    stylesheet: \"" + str.stylesheet + "\"", "   });", "})(window.Rebound);"].join('\n');
+      template = ["(function(R){", "  R.router._loadDeps([ " + (str.deps.length ? "\"" + options.baseDest + str.deps.join("\", \"" + options.baseDest) + '"' : '') + " ]);", "  document.currentScript.setAttribute(\"data-name\", \"" + str.name + "\");", "  return R.registerComponent(\"" + str.name + "\", {", "    prototype: " + str.script + ",", "    template: " + str.template + ",", "    stylesheet: \"" + str.stylesheet + "\"", "   });", "})(window.Rebound);"].join('\n');
     }
   return { src: template, deps: str.deps };
 }

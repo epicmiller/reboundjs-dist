@@ -2010,7 +2010,19 @@ function registerComponent(type) {
     // actually registered. Now, we need to finish hydrating this instance of the
     // component data object.
     if (this.data) {
-      this.data.reset(this.data.toJSON());
+
+      // Anything that is not already set on our component should be set to our
+      // new default if it exists
+      // TODO: If a default value perscribes a certain user-defined subclass
+      // of Component or Model for a property already passed into a component,
+      // the existing vanila Component or Model should be upgraded to that subclass
+      var current = this.data.toJSON();
+      var defaults = this.data.defaults;
+      for (var key in defaults) {
+        if (!current.hasOwnProperty(key) && defaults.hasOwnProperty(key)) {
+          this.data.set(key, defaults[key]);
+        }
+      }
       this.data.render();
       this.data.isHydrated = true;
       this.data.loadCallbacks.forEach(function (cb) {
@@ -3813,8 +3825,7 @@ function component(morph, env, scope, tagName, params, attrs, templates, visitor
       outlet,
       render = this.buildRenderResult,
       seedData = {},
-      componentData = {},
-      componentScope = this.createFreshScope();
+      componentData = {};
 
   // Create a plain data object to pass to our new component as seed data
   for (var key in attrs) {
@@ -3824,12 +3835,11 @@ function component(morph, env, scope, tagName, params, attrs, templates, visitor
   // For each param passed to our shared component, add it to our custom element
   component = (0, _factory2.default)(tagName, seedData, _defineProperty({}, _reboundUtils.REBOUND_SYMBOL, { templates: templates, env: env, scope: scope }));
   element = component.el;
-  componentScope.self = component;
 
   var _loop = function _loop(key) {
 
     // For each param passed to our component, create its lazyValue
-    componentData[key] = _this.get(component.env, componentScope, key);
+    componentData[key] = _this.get(component.env, component.scope, key);
 
     // Set up two way binding between component and original context
     if (componentData[key].isLazyValue && attrs[key].isLazyValue) {
@@ -4463,7 +4473,8 @@ LazyValue.prototype = {
     if (!_.isObject(context) || !_.isString(path)) {
       return console.error('Error adding observer for', context, path);
     }
-    var origin = context.__path().replace(/\[[^\]]+\]/g, ".@each");
+    path = path.trim();
+    var origin = context.__path().replace(/\[[^\]]+\]/g, ".@each").trim();
     var cache = env.observers[origin] || (env.observers[origin] = {});
     cache[path] || (cache[path] = []);
     var position = cache[path].push(this) - 1;
@@ -4703,11 +4714,11 @@ function trigger(type, data, changed) {
   var context = [];
 
   while (1) {
-    var pre = context.join('.');
-    var post = parts.join('.');
+    var pre = context.join('.').trim();
+    var post = parts.join('.').trim();
 
     for (var key in changed) {
-      var path = post + (post && key && '.') + key;
+      var path = (post + (post && key && '.') + key).trim();
       for (var testPath in this.env.observers[pre]) {
         if (_reboundUtils.$.startsWith(testPath, path)) {
           push.call(TO_RENDER, this.env.observers[pre][testPath]);
@@ -4751,17 +4762,21 @@ function render(el, template, data) {
     return console.error('No data passed to render function.');
   }
 
-  // Create a fresh scope if it doesn't exist
-  var scope = scope || hooks.createFreshScope();
+  // Every component's template is rendered using a unique Environment and Scope
+  // If this component already has them, re-use the same objects – they contain
+  // important state information. Otherwise, create fresh ones for it.
+  var env = data.env || hooks.createFreshEnv();
+  var scope = data.scope || hooks.createFreshScope();
 
-  // Every component's template is rendered using a unique environment
-  var env = hooks.createChildEnv(options.env || hooks.createFreshEnv());
+  // Bind the component as the scope's main data object
+  hooks.bindSelf(env, scope, data);
 
   // Add template specific hepers to env
   _.extend(env.helpers, options.helpers);
 
-  // Save env on component data to trigger lazy-value streams on data change
+  // Save env and scope on component data to trigger lazy-value streams on data change
   data.env = env;
+  data.scope = scope;
 
   // Save data on env to allow helpers / hooks access to component methods
   env.root = data;
@@ -6134,7 +6149,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 // Because of our bundle and how it plays with Backbone's UMD header, we need to
 // be a little more explicit with out DOM library search.
-//     Rebound.js v0.2.2
+//     Rebound.js v0.2.3
 
 //     (c) 2015 Adam Miller
 //     Rebound may be freely distributed under the MIT license.
@@ -6158,7 +6173,7 @@ var Config = document.getElementById('Rebound');
 Config = Config ? JSON.parse(Config.innerHTML) : false;
 
 var Rebound = window.Rebound = {
-  version: '0.2.2',
+  version: '0.2.3',
   testing: window.Rebound && window.Rebound.testing || Config && Config.testing || false,
 
   registerHelper: _reboundHtmlbars.registerHelper,
