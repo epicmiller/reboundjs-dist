@@ -20,7 +20,7 @@ define("runtime", ["exports", "backbone", "rebound-utils/rebound-utils", "reboun
   var Config = document.getElementById('Rebound');
   Config = Config ? JSON.parse(Config.innerHTML) : false;
   var Rebound = window.Rebound = {
-    version: '0.2.3',
+    version: '0.3.0',
     testing: window.Rebound && window.Rebound.testing || Config && Config.testing || false,
     registerHelper: _reboundHtmlbars.registerHelper,
     registerPartial: _reboundHtmlbars.registerPartial,

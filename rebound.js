@@ -6386,7 +6386,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 // Because of our bundle and how it plays with Backbone's UMD header, we need to
 // be a little more explicit with out DOM library search.
-//     Rebound.js v0.2.3
+//     Rebound.js v0.3.0
 
 //     (c) 2015 Adam Miller
 //     Rebound may be freely distributed under the MIT license.
@@ -6410,7 +6410,7 @@ var Config = document.getElementById('Rebound');
 Config = Config ? JSON.parse(Config.innerHTML) : false;
 
 var Rebound = window.Rebound = {
-  version: '0.2.3',
+  version: '0.3.0',
   testing: window.Rebound && window.Rebound.testing || Config && Config.testing || false,
 
   registerHelper: _reboundHtmlbars.registerHelper,
