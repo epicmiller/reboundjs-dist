@@ -1,4 +1,4 @@
-define("rebound-htmlbars/hooks/partial", ["exports", "rebound-utils/rebound-utils", "rebound-router/loader"], function (exports, _reboundUtils, _loader) {
+define("rebound-htmlbars/hooks/partial", ["exports", "rebound-utils/rebound-utils", "rebound-router/loader", "rebound-htmlbars/lazy-value"], function (exports, _reboundUtils, _loader, _lazyValue) {
   "use strict";
 
   Object.defineProperty(exports, "__esModule", {
@@ -10,6 +10,8 @@ define("rebound-htmlbars/hooks/partial", ["exports", "rebound-utils/rebound-util
   var _reboundUtils2 = _interopRequireDefault(_reboundUtils);
 
   var _loader2 = _interopRequireDefault(_loader);
+
+  var _lazyValue2 = _interopRequireDefault(_lazyValue);
 
   function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
@@ -35,30 +37,28 @@ define("rebound-htmlbars/hooks/partial", ["exports", "rebound-utils/rebound-util
 
   function partial(renderNode, env, scope, path) {
     if (!path) {
-      console.error('Partial hook must be passed path!');
+      console.error('Partial helper must be passed a path!');
     }
 
     path = path.isLazyValue ? path.value : path;
     scope = this.createChildScope(scope);
     var render = this.buildRenderResult;
+    var node = document.createElement('rebound-partial');
+    node.setAttribute('path', path);
 
     if (PARTIALS[path] && !Array.isArray(PARTIALS[path])) {
-      return render(PARTIALS[path], env, scope, {
+      node.appendChild(render(PARTIALS[path], env, scope, {
         contextualElement: renderNode
-      }).fragment;
+      }).fragment);
+    } else {
+      PARTIALS[path] || (PARTIALS[path] = []);
+      PARTIALS[path].push(function partialCallback(template) {
+        node.appendChild(render(template, env, scope, {
+          contextualElement: renderNode
+        }).fragment, node);
+      });
     }
 
-    var node = document.createTextNode('');
-    PARTIALS[path] || (PARTIALS[path] = []);
-    PARTIALS[path].push(function partialCallback(template) {
-      if (!node.parentNode) {
-        return void 0;
-      }
-
-      node.parentNode.replaceChild(render(template, env, scope, {
-        contextualElement: renderNode
-      }).fragment, node);
-    });
     return node;
   }
 });

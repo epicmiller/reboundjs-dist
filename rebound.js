@@ -4527,6 +4527,10 @@ var _loader = require("rebound-router/loader");
 
 var _loader2 = _interopRequireDefault(_loader);
 
+var _lazyValue = require("rebound-htmlbars/lazy-value");
+
+var _lazyValue2 = _interopRequireDefault(_lazyValue);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var PARTIALS = {};
@@ -4552,10 +4556,10 @@ function partial(renderNode, env, scope, path) {
 
   // If no path is passed, yell
   if (!path) {
-    console.error('Partial hook must be passed path!');
+    console.error('Partial helper must be passed a path!');
   }
 
-  // Resolve the value of path
+  // Resolve our path value
   path = path.isLazyValue ? path.value : path;
 
   // Create new child scope for partial
@@ -4563,25 +4567,30 @@ function partial(renderNode, env, scope, path) {
 
   var render = this.buildRenderResult;
 
+  // Because of how htmlbars works with re-renders, we need a contextual element
+  // for our partial that will not disappear on it when lazy partials are loaded.
+  // We use a `<rebound-partial>` element for this.
+  var node = document.createElement('rebound-partial');
+  node.setAttribute('path', path);
+
   // If a partial is registered with this path name, render it
   if (PARTIALS[path] && !Array.isArray(PARTIALS[path])) {
-    return render(PARTIALS[path], env, scope, { contextualElement: renderNode }).fragment;
+    node.appendChild(render(PARTIALS[path], env, scope, { contextualElement: renderNode }).fragment);
   }
 
   // If this partial is not yet registered, add it to a callback list to be called
   // when registered. When registered, replace the dummy node we created with the
   // rendered partial template.
-  var node = document.createTextNode('');
-  PARTIALS[path] || (PARTIALS[path] = []);
-  PARTIALS[path].push(function partialCallback(template) {
-    if (!node.parentNode) {
-      return void 0;
+  else {
+      PARTIALS[path] || (PARTIALS[path] = []);
+      PARTIALS[path].push(function partialCallback(template) {
+        node.appendChild(render(template, env, scope, { contextualElement: renderNode }).fragment, node);
+      });
     }
-    node.parentNode.replaceChild(render(template, env, scope, { contextualElement: renderNode }).fragment, node);
-  });
+
   return node;
 }
-},{"rebound-router/loader":36,"rebound-utils/rebound-utils":41}],31:[function(require,module,exports){
+},{"rebound-htmlbars/lazy-value":33,"rebound-router/loader":36,"rebound-utils/rebound-utils":41}],31:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -6386,7 +6395,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 // Because of our bundle and how it plays with Backbone's UMD header, we need to
 // be a little more explicit with out DOM library search.
-//     Rebound.js v0.3.0
+//     Rebound.js v0.3.1
 
 //     (c) 2015 Adam Miller
 //     Rebound may be freely distributed under the MIT license.
@@ -6410,7 +6419,7 @@ var Config = document.getElementById('Rebound');
 Config = Config ? JSON.parse(Config.innerHTML) : false;
 
 var Rebound = window.Rebound = {
-  version: '0.3.0',
+  version: '0.3.1',
   testing: window.Rebound && window.Rebound.testing || Config && Config.testing || false,
 
   registerHelper: _reboundHtmlbars.registerHelper,

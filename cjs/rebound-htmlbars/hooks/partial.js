@@ -14,6 +14,10 @@ var _loader = require("rebound-router/loader");
 
 var _loader2 = _interopRequireDefault(_loader);
 
+var _lazyValue = require("rebound-htmlbars/lazy-value");
+
+var _lazyValue2 = _interopRequireDefault(_lazyValue);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var PARTIALS = {};
@@ -39,10 +43,10 @@ function partial(renderNode, env, scope, path) {
 
   // If no path is passed, yell
   if (!path) {
-    console.error('Partial hook must be passed path!');
+    console.error('Partial helper must be passed a path!');
   }
 
-  // Resolve the value of path
+  // Resolve our path value
   path = path.isLazyValue ? path.value : path;
 
   // Create new child scope for partial
@@ -50,21 +54,26 @@ function partial(renderNode, env, scope, path) {
 
   var render = this.buildRenderResult;
 
+  // Because of how htmlbars works with re-renders, we need a contextual element
+  // for our partial that will not disappear on it when lazy partials are loaded.
+  // We use a `<rebound-partial>` element for this.
+  var node = document.createElement('rebound-partial');
+  node.setAttribute('path', path);
+
   // If a partial is registered with this path name, render it
   if (PARTIALS[path] && !Array.isArray(PARTIALS[path])) {
-    return render(PARTIALS[path], env, scope, { contextualElement: renderNode }).fragment;
+    node.appendChild(render(PARTIALS[path], env, scope, { contextualElement: renderNode }).fragment);
   }
 
   // If this partial is not yet registered, add it to a callback list to be called
   // when registered. When registered, replace the dummy node we created with the
   // rendered partial template.
-  var node = document.createTextNode('');
-  PARTIALS[path] || (PARTIALS[path] = []);
-  PARTIALS[path].push(function partialCallback(template) {
-    if (!node.parentNode) {
-      return void 0;
+  else {
+      PARTIALS[path] || (PARTIALS[path] = []);
+      PARTIALS[path].push(function partialCallback(template) {
+        node.appendChild(render(template, env, scope, { contextualElement: renderNode }).fragment, node);
+      });
     }
-    node.parentNode.replaceChild(render(template, env, scope, { contextualElement: renderNode }).fragment, node);
-  });
+
   return node;
 }
