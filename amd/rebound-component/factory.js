@@ -46,7 +46,7 @@ define("rebound-component/factory", ["exports", "rebound-utils/rebound-utils", "
         var defaults = this.data.defaults;
 
         for (var key in defaults) {
-          if (!current.hasOwnProperty(key) && defaults.hasOwnProperty(key)) {
+          if ((!current.hasOwnProperty(key) || _.isUndefined(current[key])) && defaults.hasOwnProperty(key)) {
             this.data.set(key, defaults[key]);
           }
         }
@@ -54,7 +54,7 @@ define("rebound-component/factory", ["exports", "rebound-utils/rebound-utils", "
         this.data.render();
         this.data.isHydrated = true;
         this.data.loadCallbacks.forEach(function (cb) {
-          cb(_this.data);
+          cb.call(_this.data, _this.data);
         });
       } else if (ELEMENT_DATA) {
         this.data = new REGISTRY[type](this, ELEMENT_DATA.data, ELEMENT_DATA.options);

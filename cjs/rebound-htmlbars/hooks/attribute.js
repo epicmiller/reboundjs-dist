@@ -24,45 +24,89 @@ var TEXT_INPUTS = { "null": 1, text: 1, email: 1, password: 1,
 
 var BOOLEAN_INPUTS = { checkbox: 1, radio: 1 };
 
+// Returns true is value is numeric based on HTML5 number input field logic.
+// Trailing decimals are considered non-numeric (ex `12.`).
+function isNumeric(val) {
+  return val && !isNaN(Number(val)) && (!_.isString(val) || _.isString(val) && val[val.length - 1] !== '.');
+}
+
 // Attribute Hook
 function attribute(attrMorph, env, scope, name, value) {
 
   var val = value.isLazyValue ? value.value : value,
       el = attrMorph.element,
       tagName = el.tagName,
-      type = el.getAttribute("type");
+      type = el.getAttribute("type"),
+      cursor = false;
 
   // If this is a text input element's value prop, wire up our databinding
-  if (tagName === 'INPUT' && TEXT_INPUTS[type] && name === 'value') {
+  if (tagName === 'INPUT' && type === 'number' && name === 'value') {
 
-    // If our input events have not been bound yet, bind them
+    // If our input events have not been bound yet, bind them. Attempt to convert
+    // to a proper number type before setting.
     if (!attrMorph.eventsBound) {
       (0, _reboundUtils2.default)(el).on('change input propertychange', function (event) {
-        value.set(value.path, this.value);
+        var val = this.value;
+        val = isNumeric(val) ? Number(val) : undefined;
+        value.set(value.path, val);
       });
       attrMorph.eventsBound = true;
     }
 
     // Set the value property of the input
-    el.value = val ? String(val) : '';
-  } else if (tagName === 'INPUT' && BOOLEAN_INPUTS[type] && name === 'checked') {
-
-    // If our input events have not been bound yet, bind them
-    if (!attrMorph.eventsBound) {
-      (0, _reboundUtils2.default)(el).on('change propertychange', function (event) {
-        value.set(value.path, this.checked ? true : false);
-      });
-      attrMorph.eventsBound = true;
+    // Number Input elements may return `''` for non valid numbers. If both values
+    // are falsy, then don't blow away what the user is typing.
+    if (!el.value && !val) {
+      return;
+    } else {
+      el.value = isNumeric(val) ? Number(val) : '';
     }
-
-    el.checked = val ? true : undefined;
   }
 
-  // Special case for link elements with dynamic classes.
-  // If the router has assigned it a truthy 'active' property, ensure that the extra class is present on re-render.
-  else if (tagName === 'A' && name === 'class' && el.active) {
-      val = val ? String(val) + ' active' : 'active';
+  // If this is a text input element's value prop, wire up our databinding
+  else if (tagName === 'INPUT' && TEXT_INPUTS[type] && name === 'value') {
+
+      // If our input events have not been bound yet, bind them
+      if (!attrMorph.eventsBound) {
+        (0, _reboundUtils2.default)(el).on('change input propertychange', function (event) {
+          value.set(value.path, this.value);
+        });
+        attrMorph.eventsBound = true;
+      }
+
+      // Set the value property of the input if it has changed
+      if (el.value !== val) {
+
+        // Only save the cursor position if this element is the currently focused one.
+        // Some browsers are dumb about selectionStart on some input types (I'm looking at you [type='email'])
+        // so wrap in try catch so it doesn't explode. Then, set the new value and
+        // re-position the cursor.
+        if (el === document.activeElement) {
+          try {
+            cursor = el.selectionStart;
+          } catch (e) {}
+        }
+        el.value = val ? String(val) : '';
+        cursor !== false && el.setSelectionRange(cursor, cursor);
+      }
+    } else if (tagName === 'INPUT' && BOOLEAN_INPUTS[type] && name === 'checked') {
+
+      // If our input events have not been bound yet, bind them
+      if (!attrMorph.eventsBound) {
+        (0, _reboundUtils2.default)(el).on('change propertychange', function (event) {
+          value.set(value.path, this.checked ? true : false);
+        });
+        attrMorph.eventsBound = true;
+      }
+
+      el.checked = val ? true : undefined;
     }
+
+    // Special case for link elements with dynamic classes.
+    // If the router has assigned it a truthy 'active' property, ensure that the extra class is present on re-render.
+    else if (tagName === 'A' && name === 'class' && el.active) {
+        val = val ? String(val) + ' active' : 'active';
+      }
 
   // Set the attribute on our element for visual referance
   val ? el.setAttribute(name, String(val)) : el.removeAttribute(name);

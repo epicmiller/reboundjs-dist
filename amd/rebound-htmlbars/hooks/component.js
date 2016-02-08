@@ -194,7 +194,11 @@ define("rebound-htmlbars/hooks/component", ["exports", "rebound-utils/rebound-ut
       _loop(key);
     }
 
-    function updateAttrs() {
+    var updateAttrs = function updateAttrs() {
+      if (!component.isHydrated) {
+        return;
+      }
+
       var json = component.toJSON();
       if (_.isString(json)) return;
 
@@ -211,10 +215,10 @@ define("rebound-htmlbars/hooks/component", ["exports", "rebound-utils/rebound-ut
           console.error(e.message);
         }
       });
-    }
+    };
 
     component.listenTo(component, 'change', updateAttrs);
-    updateAttrs();
+    component.onLoad(updateAttrs);
     morph.setNode(element);
     morph.componentIsRendered = true;
   }

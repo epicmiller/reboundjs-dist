@@ -38,13 +38,33 @@ define("rebound-htmlbars/hooks/attribute", ["exports", "rebound-utils/rebound-ut
     radio: 1
   };
 
+  function isNumeric(val) {
+    return val && !isNaN(Number(val)) && (!_.isString(val) || _.isString(val) && val[val.length - 1] !== '.');
+  }
+
   function attribute(attrMorph, env, scope, name, value) {
     var val = value.isLazyValue ? value.value : value,
         el = attrMorph.element,
         tagName = el.tagName,
-        type = el.getAttribute("type");
+        type = el.getAttribute("type"),
+        cursor = false;
 
-    if (tagName === 'INPUT' && TEXT_INPUTS[type] && name === 'value') {
+    if (tagName === 'INPUT' && type === 'number' && name === 'value') {
+      if (!attrMorph.eventsBound) {
+        (0, _reboundUtils2.default)(el).on('change input propertychange', function (event) {
+          var val = this.value;
+          val = isNumeric(val) ? Number(val) : undefined;
+          value.set(value.path, val);
+        });
+        attrMorph.eventsBound = true;
+      }
+
+      if (!el.value && !val) {
+        return;
+      } else {
+        el.value = isNumeric(val) ? Number(val) : '';
+      }
+    } else if (tagName === 'INPUT' && TEXT_INPUTS[type] && name === 'value') {
       if (!attrMorph.eventsBound) {
         (0, _reboundUtils2.default)(el).on('change input propertychange', function (event) {
           value.set(value.path, this.value);
@@ -52,7 +72,16 @@ define("rebound-htmlbars/hooks/attribute", ["exports", "rebound-utils/rebound-ut
         attrMorph.eventsBound = true;
       }
 
-      el.value = val ? String(val) : '';
+      if (el.value !== val) {
+        if (el === document.activeElement) {
+          try {
+            cursor = el.selectionStart;
+          } catch (e) {}
+        }
+
+        el.value = val ? String(val) : '';
+        cursor !== false && el.setSelectionRange(cursor, cursor);
+      }
     } else if (tagName === 'INPUT' && BOOLEAN_INPUTS[type] && name === 'checked') {
       if (!attrMorph.eventsBound) {
         (0, _reboundUtils2.default)(el).on('change propertychange', function (event) {

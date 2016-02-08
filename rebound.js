@@ -2246,14 +2246,14 @@ function registerComponent(type) {
       var current = this.data.toJSON();
       var defaults = this.data.defaults;
       for (var key in defaults) {
-        if (!current.hasOwnProperty(key) && defaults.hasOwnProperty(key)) {
+        if ((!current.hasOwnProperty(key) || _.isUndefined(current[key])) && defaults.hasOwnProperty(key)) {
           this.data.set(key, defaults[key]);
         }
       }
       this.data.render();
       this.data.isHydrated = true;
       this.data.loadCallbacks.forEach(function (cb) {
-        cb(_this.data);
+        cb.call(_this.data, _this.data);
       });
     }
 
@@ -3947,45 +3947,89 @@ var TEXT_INPUTS = { "null": 1, text: 1, email: 1, password: 1,
 
 var BOOLEAN_INPUTS = { checkbox: 1, radio: 1 };
 
+// Returns true is value is numeric based on HTML5 number input field logic.
+// Trailing decimals are considered non-numeric (ex `12.`).
+function isNumeric(val) {
+  return val && !isNaN(Number(val)) && (!_.isString(val) || _.isString(val) && val[val.length - 1] !== '.');
+}
+
 // Attribute Hook
 function attribute(attrMorph, env, scope, name, value) {
 
   var val = value.isLazyValue ? value.value : value,
       el = attrMorph.element,
       tagName = el.tagName,
-      type = el.getAttribute("type");
+      type = el.getAttribute("type"),
+      cursor = false;
 
   // If this is a text input element's value prop, wire up our databinding
-  if (tagName === 'INPUT' && TEXT_INPUTS[type] && name === 'value') {
+  if (tagName === 'INPUT' && type === 'number' && name === 'value') {
 
-    // If our input events have not been bound yet, bind them
+    // If our input events have not been bound yet, bind them. Attempt to convert
+    // to a proper number type before setting.
     if (!attrMorph.eventsBound) {
       (0, _reboundUtils2.default)(el).on('change input propertychange', function (event) {
-        value.set(value.path, this.value);
+        var val = this.value;
+        val = isNumeric(val) ? Number(val) : undefined;
+        value.set(value.path, val);
       });
       attrMorph.eventsBound = true;
     }
 
     // Set the value property of the input
-    el.value = val ? String(val) : '';
-  } else if (tagName === 'INPUT' && BOOLEAN_INPUTS[type] && name === 'checked') {
-
-    // If our input events have not been bound yet, bind them
-    if (!attrMorph.eventsBound) {
-      (0, _reboundUtils2.default)(el).on('change propertychange', function (event) {
-        value.set(value.path, this.checked ? true : false);
-      });
-      attrMorph.eventsBound = true;
+    // Number Input elements may return `''` for non valid numbers. If both values
+    // are falsy, then don't blow away what the user is typing.
+    if (!el.value && !val) {
+      return;
+    } else {
+      el.value = isNumeric(val) ? Number(val) : '';
     }
-
-    el.checked = val ? true : undefined;
   }
 
-  // Special case for link elements with dynamic classes.
-  // If the router has assigned it a truthy 'active' property, ensure that the extra class is present on re-render.
-  else if (tagName === 'A' && name === 'class' && el.active) {
-      val = val ? String(val) + ' active' : 'active';
+  // If this is a text input element's value prop, wire up our databinding
+  else if (tagName === 'INPUT' && TEXT_INPUTS[type] && name === 'value') {
+
+      // If our input events have not been bound yet, bind them
+      if (!attrMorph.eventsBound) {
+        (0, _reboundUtils2.default)(el).on('change input propertychange', function (event) {
+          value.set(value.path, this.value);
+        });
+        attrMorph.eventsBound = true;
+      }
+
+      // Set the value property of the input if it has changed
+      if (el.value !== val) {
+
+        // Only save the cursor position if this element is the currently focused one.
+        // Some browsers are dumb about selectionStart on some input types (I'm looking at you [type='email'])
+        // so wrap in try catch so it doesn't explode. Then, set the new value and
+        // re-position the cursor.
+        if (el === document.activeElement) {
+          try {
+            cursor = el.selectionStart;
+          } catch (e) {}
+        }
+        el.value = val ? String(val) : '';
+        cursor !== false && el.setSelectionRange(cursor, cursor);
+      }
+    } else if (tagName === 'INPUT' && BOOLEAN_INPUTS[type] && name === 'checked') {
+
+      // If our input events have not been bound yet, bind them
+      if (!attrMorph.eventsBound) {
+        (0, _reboundUtils2.default)(el).on('change propertychange', function (event) {
+          value.set(value.path, this.checked ? true : false);
+        });
+        attrMorph.eventsBound = true;
+      }
+
+      el.checked = val ? true : undefined;
     }
+
+    // Special case for link elements with dynamic classes.
+    // If the router has assigned it a truthy 'active' property, ensure that the extra class is present on re-render.
+    else if (tagName === 'A' && name === 'class' && el.active) {
+        val = val ? String(val) + ' active' : 'active';
+      }
 
   // Set the attribute on our element for visual referance
   val ? el.setAttribute(name, String(val)) : el.removeAttribute(name);
@@ -4115,7 +4159,11 @@ function component(morph, env, scope, tagName, params, attrs, templates, visitor
 
   // TODO: Move this to Component
   // // For each change on our component, update the states of the original context and the element's proeprties.
-  function updateAttrs() {
+  var updateAttrs = function updateAttrs() {
+    // Only do this for fully hydrated components
+    if (!component.isHydrated) {
+      return;
+    }
     var json = component.toJSON();
 
     if (_.isString(json)) return; // If is a string, this model is seralizing already
@@ -4135,9 +4183,9 @@ function component(morph, env, scope, tagName, params, attrs, templates, visitor
         console.error(e.message);
       }
     });
-  }
+  };
   component.listenTo(component, 'change', updateAttrs);
-  updateAttrs();
+  component.onLoad(updateAttrs);
 
   /** The attributeChangedCallback on our custom element updates the component's data. **/
 
@@ -6408,7 +6456,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 // Because of our bundle and how it plays with Backbone's UMD header, we need to
 // be a little more explicit with out DOM library search.
-//     Rebound.js v0.3.2
+//     Rebound.js v0.3.3
 
 //     (c) 2015 Adam Miller
 //     Rebound may be freely distributed under the MIT license.
@@ -6432,7 +6480,7 @@ var Config = document.getElementById('Rebound');
 Config = Config ? JSON.parse(Config.innerHTML) : false;
 
 var Rebound = window.Rebound = {
-  version: '0.3.2',
+  version: '0.3.3',
   testing: window.Rebound && window.Rebound.testing || Config && Config.testing || false,
 
   registerHelper: _reboundHtmlbars.registerHelper,

@@ -74,14 +74,14 @@ function registerComponent(type) {
       var current = this.data.toJSON();
       var defaults = this.data.defaults;
       for (var key in defaults) {
-        if (!current.hasOwnProperty(key) && defaults.hasOwnProperty(key)) {
+        if ((!current.hasOwnProperty(key) || _.isUndefined(current[key])) && defaults.hasOwnProperty(key)) {
           this.data.set(key, defaults[key]);
         }
       }
       this.data.render();
       this.data.isHydrated = true;
       this.data.loadCallbacks.forEach(function (cb) {
-        cb(_this.data);
+        cb.call(_this.data, _this.data);
       });
     }
 
