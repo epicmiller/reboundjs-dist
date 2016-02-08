@@ -2530,9 +2530,7 @@ If Computed Property returns a value, all downstream dependancies will re-comput
 
   isComponent: <span class="hljs-literal">true</span>,
   isHydrated: <span class="hljs-literal">true</span>,
-  defaults: {},
-
-  <span class="hljs-keyword">constructor</span>(el, data, options){</pre></div></div>
+  defaults: {},</pre></div></div>
             
         </li>
         
@@ -2543,11 +2541,15 @@ If Computed Property returns a value, all downstream dependancies will re-comput
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-120">&#182;</a>
               </div>
-              <p>Ensure options is an object</p>
+              <p>A method that returns a root scope by default. Meant to be overridden on
+instantiation if applicable.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    options || (options = {});</pre></div></div>
+            <div class="content"><div class='highlight'><pre>  __path: <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params"></span>)</span>{ <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>._scope || <span class="hljs-string">''</span>; },
+
+
+  <span class="hljs-keyword">constructor</span>(el, data, options){</pre></div></div>
             
         </li>
         
@@ -2558,11 +2560,11 @@ If Computed Property returns a value, all downstream dependancies will re-comput
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-121">&#182;</a>
               </div>
-              <p>Bind certian methods to ensure they are run in the context of our Component</p>
+              <p>Ensure options is an object</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    _.bindAll(<span class="hljs-keyword">this</span>, <span class="hljs-string">'_callOnComponent'</span>, <span class="hljs-string">'_listenToService'</span>);</pre></div></div>
+            <div class="content"><div class='highlight'><pre>    options || (options = {});</pre></div></div>
             
         </li>
         
@@ -2572,6 +2574,21 @@ If Computed Property returns a value, all downstream dependancies will re-comput
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-122">&#182;</a>
+              </div>
+              <p>Bind certian methods to ensure they are run in the context of our Component</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    _.bindAll(<span class="hljs-keyword">this</span>, <span class="hljs-string">'_callOnComponent'</span>, <span class="hljs-string">'_listenToService'</span>);</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-123">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-123">&#182;</a>
               </div>
               <p>Set instance cid and caches for this Component</p>
 
@@ -2588,11 +2605,11 @@ If Computed Property returns a value, all downstream dependancies will re-comput
         </li>
         
         
-        <li id="section-123">
+        <li id="section-124">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-123">&#182;</a>
+                <a class="pilcrow" href="#section-124">&#182;</a>
               </div>
               <p>If we are told this is not a hydrated component, mark it as such</p>
 
@@ -2603,11 +2620,11 @@ If Computed Property returns a value, all downstream dependancies will re-comput
         </li>
         
         
-        <li id="section-124">
+        <li id="section-125">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-124">&#182;</a>
+                <a class="pilcrow" href="#section-125">&#182;</a>
               </div>
               <p>Components are always the top of their data tree. Set parent and root to itself.</p>
 
@@ -2618,11 +2635,11 @@ If Computed Property returns a value, all downstream dependancies will re-comput
         </li>
         
         
-        <li id="section-125">
+        <li id="section-126">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-125">&#182;</a>
+                <a class="pilcrow" href="#section-126">&#182;</a>
               </div>
               <p>Take our parsed data and add it to our backbone data structure. Does a deep defaults set.
 In the model, primatives (arrays, objects, etc) are converted to Backbone Objects
@@ -2637,11 +2654,11 @@ Set our component’s context with the passed data merged with the component’s
         </li>
         
         
-        <li id="section-126">
+        <li id="section-127">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-126">&#182;</a>
+                <a class="pilcrow" href="#section-127">&#182;</a>
               </div>
               <p>Get any additional routes passed in from options</p>
 
@@ -2652,11 +2669,11 @@ Set our component’s context with the passed data merged with the component’s
         </li>
         
         
-        <li id="section-127">
+        <li id="section-128">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-127">&#182;</a>
+                <a class="pilcrow" href="#section-128">&#182;</a>
               </div>
               <p>Ensure that all route functions exist</p>
 
@@ -2670,11 +2687,11 @@ Set our component’s context with the passed data merged with the component’s
         </li>
         
         
-        <li id="section-128">
+        <li id="section-129">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-128">&#182;</a>
+                <a class="pilcrow" href="#section-129">&#182;</a>
               </div>
               <p>Set or create our element and template if we have them</p>
 
@@ -2686,11 +2703,11 @@ Set our component’s context with the passed data merged with the component’s
         </li>
         
         
-        <li id="section-129">
+        <li id="section-130">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-129">&#182;</a>
+                <a class="pilcrow" href="#section-130">&#182;</a>
               </div>
               <p>Render our dom and place the dom in our custom element</p>
 
@@ -2701,11 +2718,11 @@ Set our component’s context with the passed data merged with the component’s
         </li>
         
         
-        <li id="section-130">
+        <li id="section-131">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-130">&#182;</a>
+                <a class="pilcrow" href="#section-131">&#182;</a>
               </div>
               <p>Add active class to this newly rendered template’s link elements that require it</p>
 
@@ -2716,11 +2733,11 @@ Set our component’s context with the passed data merged with the component’s
         </li>
         
         
-        <li id="section-131">
+        <li id="section-132">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-131">&#182;</a>
+                <a class="pilcrow" href="#section-132">&#182;</a>
               </div>
               <p>Call user provided initialize</p>
 
@@ -2739,29 +2756,9 @@ Set our component’s context with the passed data merged with the component’s
   _listenToService(key, service){
     <span class="hljs-keyword">var</span> self = <span class="hljs-keyword">this</span>;
     <span class="hljs-keyword">this</span>.listenTo(service, <span class="hljs-string">'all'</span>, (type, model, value, options={}) =&gt; {
-      <span class="hljs-keyword">var</span> attr,
+      <span class="hljs-keyword">var</span> attr, oldScope = service._scope,
           path = model.__path(),
           changed;</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-132">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-132">&#182;</a>
-              </div>
-              <p>Send the service’s key via options
-TODO: Find a better way to get service keys in their path() method</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>      options.service = key;
-
-      <span class="hljs-keyword">if</span>(type.indexOf(<span class="hljs-string">'change:'</span>) === <span class="hljs-number">0</span>){
-        changed = model.changedAttributes();
-        <span class="hljs-keyword">for</span>(attr <span class="hljs-keyword">in</span> changed){</pre></div></div>
             
         </li>
         
@@ -2772,19 +2769,19 @@ TODO: Find a better way to get service keys in their path() method</p>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-133">&#182;</a>
               </div>
-              <p>TODO: Modifying arguments array is bad. change this</p>
+              <p>TODO: Find a better way to get service keys in their path() method based on call Scope
+Services may be installed at any location. In order for the __path() method
+to include this location in the correct context, it needs to have contextual
+knowledge of what called it. For the lifetime of this event tree, re-write
+its scope property appropreately. Re-set it to previous value when done.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>          type = (<span class="hljs-string">'change:'</span> + key + <span class="hljs-string">'.'</span> + path + (path &amp;&amp; <span class="hljs-string">'.'</span>) + attr); <span class="hljs-comment">// jshint ignore:line</span>
-          <span class="hljs-keyword">this</span>.trigger.call(<span class="hljs-keyword">this</span>, type, model, value, options);
-        }
-        <span class="hljs-keyword">return</span> <span class="hljs-keyword">void</span> <span class="hljs-number">0</span>;
-      }
+            <div class="content"><div class='highlight'><pre>      service._scope = key;
 
-      <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.trigger.call(<span class="hljs-keyword">this</span>, type, model, value, options);
-    });
-  },</pre></div></div>
+      <span class="hljs-keyword">if</span>(type.indexOf(<span class="hljs-string">'change:'</span>) === <span class="hljs-number">0</span>){
+        changed = model.changedAttributes();
+        <span class="hljs-keyword">for</span>(attr <span class="hljs-keyword">in</span> changed){</pre></div></div>
             
         </li>
         
@@ -2794,6 +2791,30 @@ TODO: Find a better way to get service keys in their path() method</p>
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-134">&#182;</a>
+              </div>
+              <p>TODO: Modifying arguments array is bad. change this</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>          type = (<span class="hljs-string">'change:'</span> + key + <span class="hljs-string">'.'</span> + path + (path &amp;&amp; <span class="hljs-string">'.'</span>) + attr); <span class="hljs-comment">// jshint ignore:line</span>
+          <span class="hljs-keyword">this</span>.trigger.call(<span class="hljs-keyword">this</span>, type, model, value, options);
+        }
+      }
+      <span class="hljs-keyword">else</span> {
+        <span class="hljs-keyword">this</span>.trigger.call(<span class="hljs-keyword">this</span>, type, model, value, options);
+      }
+      service._scope = oldScope;
+    });
+  },</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-135">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-135">&#182;</a>
               </div>
               <p>Render our dom and place the dom in our custom element
 TODO: Check if template is a string, and if the compiler exists on the page, and compile if needed</p>
@@ -2819,11 +2840,11 @@ TODO: Check if template is a string, and if the compiler exists on the page, and
         </li>
         
         
-        <li id="section-135">
+        <li id="section-136">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-135">&#182;</a>
+                <a class="pilcrow" href="#section-136">&#182;</a>
               </div>
               <p>LazyComponents have an onLoad function that calls all the registered callbacks
 after it has been hydrated. If we are calling onLoad on an already loaded
@@ -2839,11 +2860,11 @@ component, just call the callback provided.</p>
         </li>
         
         
-        <li id="section-136">
+        <li id="section-137">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-136">&#182;</a>
+                <a class="pilcrow" href="#section-137">&#182;</a>
               </div>
               <p>Set is overridden on components to accept components as a valid input type.
 Components set on other Components are mixed in as a shared object. {raw: true}
@@ -2862,11 +2883,11 @@ It also marks itself as a consumer of this component</p>
         </li>
         
         
-        <li id="section-137">
+        <li id="section-138">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-137">&#182;</a>
+                <a class="pilcrow" href="#section-138">&#182;</a>
               </div>
               <p>If reset option passed, do a reset. If nothing passed, return.</p>
 
@@ -2879,11 +2900,11 @@ It also marks itself as a consumer of this component</p>
         </li>
         
         
-        <li id="section-138">
+        <li id="section-139">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-138">&#182;</a>
+                <a class="pilcrow" href="#section-139">&#182;</a>
               </div>
               <p>For each attribute passed:</p>
 
@@ -2915,11 +2936,11 @@ It also marks itself as a consumer of this component</p>
         </li>
         
         
-        <li id="section-139">
+        <li id="section-140">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-139">&#182;</a>
+                <a class="pilcrow" href="#section-140">&#182;</a>
               </div>
               <p>Trigger all events on both the component and the element</p>
 
@@ -2937,11 +2958,11 @@ It also marks itself as a consumer of this component</p>
         </li>
         
         
-        <li id="section-140">
+        <li id="section-141">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-140">&#182;</a>
+                <a class="pilcrow" href="#section-141">&#182;</a>
               </div>
               <p>Commented out because tracking attribute changes and making sure they dont infinite loop is hard.
 TODO: Make work.
@@ -2980,11 +3001,11 @@ if(<em>.isNumber(oldVal) &amp;&amp; </em>.isString(newVal) &amp;&amp; newVal.mat
         </li>
         
         
-        <li id="section-141">
+        <li id="section-142">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-141">&#182;</a>
+                <a class="pilcrow" href="#section-142">&#182;</a>
               </div>
               <p>These properties exist on all instances of the Component</p>
 
@@ -2996,11 +3017,11 @@ if(<em>.isNumber(oldVal) &amp;&amp; </em>.isString(newVal) &amp;&amp; newVal.mat
         </li>
         
         
-        <li id="section-142">
+        <li id="section-143">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-142">&#182;</a>
+                <a class="pilcrow" href="#section-143">&#182;</a>
               </div>
               <p>These properties exist on the custom Component constructor
 Ensure every constructor has a template and stylesheet</p>
@@ -3014,11 +3035,11 @@ Ensure every constructor has a template and stylesheet</p>
         </li>
         
         
-        <li id="section-143">
+        <li id="section-144">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-143">&#182;</a>
+                <a class="pilcrow" href="#section-144">&#182;</a>
               </div>
               <p>Convert computed properties (getters and setters on this object) to Computed
 Property primitives</p>
@@ -3030,11 +3051,11 @@ Property primitives</p>
         </li>
         
         
-        <li id="section-144">
+        <li id="section-145">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-144">&#182;</a>
+                <a class="pilcrow" href="#section-145">&#182;</a>
               </div>
               <p>For each property passed into our component base class determine if it is
 intended as a default value (move it into the defaults hash) or a component
@@ -3048,11 +3069,11 @@ method (leave it alone).</p>
         </li>
         
         
-        <li id="section-145">
+        <li id="section-146">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-145">&#182;</a>
+                <a class="pilcrow" href="#section-146">&#182;</a>
               </div>
               <p>If this isn’t an actual property, keep going</p>
 
@@ -3063,11 +3084,11 @@ method (leave it alone).</p>
         </li>
         
         
-        <li id="section-146">
+        <li id="section-147">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-146">&#182;</a>
+                <a class="pilcrow" href="#section-147">&#182;</a>
               </div>
               <p>If this is a reserved property name, yell</p>
 
@@ -3078,11 +3099,11 @@ method (leave it alone).</p>
         </li>
         
         
-        <li id="section-147">
+        <li id="section-148">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-147">&#182;</a>
+                <a class="pilcrow" href="#section-148">&#182;</a>
               </div>
               <p>If a configuration property, or not actually on the obj, ignore it</p>
 
@@ -3093,11 +3114,11 @@ method (leave it alone).</p>
         </li>
         
         
-        <li id="section-148">
+        <li id="section-149">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-148">&#182;</a>
+                <a class="pilcrow" href="#section-149">&#182;</a>
               </div>
               <p>If a primative, backbone type object, or computed property, move it to our defaults</p>
 
@@ -3111,11 +3132,11 @@ method (leave it alone).</p>
         </li>
         
         
-        <li id="section-149">
+        <li id="section-150">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-149">&#182;</a>
+                <a class="pilcrow" href="#section-150">&#182;</a>
               </div>
               <p>All other values are component methods, leave them be.</p>
 
@@ -3131,11 +3152,11 @@ Component.hydrate = <span class="hljs-function"><span class="hljs-keyword">funct
         </li>
         
         
-        <li id="section-150">
+        <li id="section-151">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-150">&#182;</a>
+                <a class="pilcrow" href="#section-151">&#182;</a>
               </div>
               <p>If already hydrated, return.</p>
 
@@ -3146,11 +3167,11 @@ Component.hydrate = <span class="hljs-function"><span class="hljs-keyword">funct
         </li>
         
         
-        <li id="section-151">
+        <li id="section-152">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-151">&#182;</a>
+                <a class="pilcrow" href="#section-152">&#182;</a>
               </div>
               <p>Process our new properties objects</p>
 
@@ -3161,11 +3182,11 @@ Component.hydrate = <span class="hljs-function"><span class="hljs-keyword">funct
         </li>
         
         
-        <li id="section-152">
+        <li id="section-153">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-152">&#182;</a>
+                <a class="pilcrow" href="#section-153">&#182;</a>
               </div>
               <p>Extend our prototype with any protoProps, overriting pre-defined ones</p>
 
@@ -3176,11 +3197,11 @@ Component.hydrate = <span class="hljs-function"><span class="hljs-keyword">funct
         </li>
         
         
-        <li id="section-153">
+        <li id="section-154">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-153">&#182;</a>
+                <a class="pilcrow" href="#section-154">&#182;</a>
               </div>
               <p>Add any static props to the function object itself</p>
 
@@ -3191,11 +3212,11 @@ Component.hydrate = <span class="hljs-function"><span class="hljs-keyword">funct
         </li>
         
         
-        <li id="section-154">
+        <li id="section-155">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-154">&#182;</a>
+                <a class="pilcrow" href="#section-155">&#182;</a>
               </div>
               <p>Ensure we have a type, template and stylesheet</p>
 
@@ -3216,11 +3237,11 @@ Component.extend = <span class="hljs-function"><span class="hljs-keyword">functi
         </li>
         
         
-        <li id="section-155">
+        <li id="section-156">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-155">&#182;</a>
+                <a class="pilcrow" href="#section-156">&#182;</a>
               </div>
               <p>Call our parent Component constructor and pass through the instance specific
 name, template and stylesheet via options if no other name, template or
@@ -3235,11 +3256,11 @@ stylesheet is present.</p>
         </li>
         
         
-        <li id="section-156">
+        <li id="section-157">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-156">&#182;</a>
+                <a class="pilcrow" href="#section-157">&#182;</a>
               </div>
               <p>Surrogate constructor allows us to inherit everything from the parent and
 retain a referance to our component specific constructor as <code>this.constructor</code>
@@ -3253,11 +3274,11 @@ with additional protoProps on component hydration if needed.</p>
         </li>
         
         
-        <li id="section-157">
+        <li id="section-158">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-157">&#182;</a>
+                <a class="pilcrow" href="#section-158">&#182;</a>
               </div>
               <p>Our class should inherit everything from its parent, defined above</p>
 
@@ -3269,11 +3290,11 @@ with additional protoProps on component hydration if needed.</p>
         </li>
         
         
-        <li id="section-158">
+        <li id="section-159">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-158">&#182;</a>
+                <a class="pilcrow" href="#section-159">&#182;</a>
               </div>
               <p>Set our ancestry</p>
 
@@ -3284,11 +3305,11 @@ with additional protoProps on component hydration if needed.</p>
         </li>
         
         
-        <li id="section-159">
+        <li id="section-160">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-159">&#182;</a>
+                <a class="pilcrow" href="#section-160">&#182;</a>
               </div>
               <p>Process our new properties objects</p>
 
@@ -3299,11 +3320,11 @@ with additional protoProps on component hydration if needed.</p>
         </li>
         
         
-        <li id="section-160">
+        <li id="section-161">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-160">&#182;</a>
+                <a class="pilcrow" href="#section-161">&#182;</a>
               </div>
               <p>Extend our prototype with any remaining protoProps, overriting pre-defined ones</p>
 
@@ -3314,11 +3335,11 @@ with additional protoProps on component hydration if needed.</p>
         </li>
         
         
-        <li id="section-161">
+        <li id="section-162">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-161">&#182;</a>
+                <a class="pilcrow" href="#section-162">&#182;</a>
               </div>
               <p>Add any static props to the function object itself</p>
 
@@ -3329,11 +3350,11 @@ with additional protoProps on component hydration if needed.</p>
         </li>
         
         
-        <li id="section-162">
+        <li id="section-163">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-162">&#182;</a>
+                <a class="pilcrow" href="#section-163">&#182;</a>
               </div>
               <p>Ensure we hae a type, template and stylesheet</p>
 
@@ -3354,11 +3375,11 @@ with additional protoProps on component hydration if needed.</p>
         </li>
         
         
-        <li id="section-163">
+        <li id="section-164">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-163">&#182;</a>
+                <a class="pilcrow" href="#section-164">&#182;</a>
               </div>
               <h2 id="rebound-component-factory">Rebound Component Factory</h2>
 
@@ -3367,11 +3388,11 @@ with additional protoProps on component hydration if needed.</p>
         </li>
         
         
-        <li id="section-164">
+        <li id="section-165">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-164">&#182;</a>
+                <a class="pilcrow" href="#section-165">&#182;</a>
               </div>
               
             </div>
@@ -3386,11 +3407,11 @@ with additional protoProps on component hydration if needed.</p>
         </li>
         
         
-        <li id="section-165">
+        <li id="section-166">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-165">&#182;</a>
+                <a class="pilcrow" href="#section-166">&#182;</a>
               </div>
               <p>Used to transport component specific data to the native element created callback
 in leu of a good API for passing initialization data to document.createElement.
@@ -3406,11 +3427,11 @@ shared scope. After createElement is finished, it cleans this transport object</
         </li>
         
         
-        <li id="section-166">
+        <li id="section-167">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-166">&#182;</a>
+                <a class="pilcrow" href="#section-167">&#182;</a>
               </div>
               <p>Ensure our options are set nicely and extract the prototype provided to us</p>
 
@@ -3424,11 +3445,11 @@ shared scope. After createElement is finished, it cleans this transport object</
         </li>
         
         
-        <li id="section-167">
+        <li id="section-168">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-167">&#182;</a>
+                <a class="pilcrow" href="#section-168">&#182;</a>
               </div>
               <p>If the component exists in the registry, and is already hydrated, then this
 is a conflicting component name – exit and log an error.</p>
@@ -3442,11 +3463,11 @@ is a conflicting component name – exit and log an error.</p>
         </li>
         
         
-        <li id="section-168">
+        <li id="section-169">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-168">&#182;</a>
+                <a class="pilcrow" href="#section-169">&#182;</a>
               </div>
               <p>If there is a non-hydrated component in the registry, hydrate it with the
 newly provided prototype.</p>
@@ -3460,11 +3481,11 @@ newly provided prototype.</p>
         </li>
         
         
-        <li id="section-169">
+        <li id="section-170">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-169">&#182;</a>
+                <a class="pilcrow" href="#section-170">&#182;</a>
               </div>
               <p>Otherwise, create and save a new component subclass and register the element</p>
 
@@ -3477,11 +3498,11 @@ newly provided prototype.</p>
         </li>
         
         
-        <li id="section-170">
+        <li id="section-171">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-170">&#182;</a>
+                <a class="pilcrow" href="#section-171">&#182;</a>
               </div>
               <p>Create our new element prototype object</p>
 
@@ -3492,11 +3513,11 @@ newly provided prototype.</p>
         </li>
         
         
-        <li id="section-171">
+        <li id="section-172">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-171">&#182;</a>
+                <a class="pilcrow" href="#section-172">&#182;</a>
               </div>
               <p>On element creation, make a new instance of the component and attach it
 to the element object as <code>data</code></p>
@@ -3508,11 +3529,11 @@ to the element object as <code>data</code></p>
         </li>
         
         
-        <li id="section-172">
+        <li id="section-173">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-172">&#182;</a>
+                <a class="pilcrow" href="#section-173">&#182;</a>
               </div>
               <p>If <code>this.data</code> already exists on this element, then it was present on the
 page via a <code>new Component(component-name);</code> call before this component was
@@ -3526,11 +3547,11 @@ component data object.</p>
         </li>
         
         
-        <li id="section-173">
+        <li id="section-174">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-173">&#182;</a>
+                <a class="pilcrow" href="#section-174">&#182;</a>
               </div>
               <p>Anything that is not already set on our component should be set to our
 new default if it exists
@@ -3555,11 +3576,11 @@ the existing vanila Component or Model should be upgraded to that subclass</p>
         </li>
         
         
-        <li id="section-174">
+        <li id="section-175">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-174">&#182;</a>
+                <a class="pilcrow" href="#section-175">&#182;</a>
               </div>
               <p>If we have element data, then we have come from a <code>new Component(component-name);</code>
 call and may have been provided data to initialize with. Call the component
@@ -3576,11 +3597,11 @@ to call the component constructor using that scope.</p>
         </li>
         
         
-        <li id="section-175">
+        <li id="section-176">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-175">&#182;</a>
+                <a class="pilcrow" href="#section-176">&#182;</a>
               </div>
               <p>Otherwise, this is an upgraded instance of the element that was pre-existing
 in the dom, or just created using <code>document.createElement</code>. Go ahead and
@@ -3589,22 +3610,6 @@ give it a new component object.</p>
             </div>
             
             <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">else</span> { <span class="hljs-keyword">this</span>.data = <span class="hljs-keyword">new</span> REGISTRY[type](<span class="hljs-keyword">this</span>); }</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-176">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-176">&#182;</a>
-              </div>
-              <p>Call user provided <code>attachedCallback</code></p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>    _.isFunction(proto.createdCallback) &amp;&amp; proto.createdCallback.call(<span class="hljs-keyword">this</span>.data);
-  };</pre></div></div>
             
         </li>
         
@@ -3619,8 +3624,7 @@ give it a new component object.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  element.attachedCallback = <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params"></span>) </span>{
-    _.isFunction(proto.attachedCallback) &amp;&amp; proto.attachedCallback.call(<span class="hljs-keyword">this</span>.data);
+            <div class="content"><div class='highlight'><pre>    _.isFunction(proto.createdCallback) &amp;&amp; proto.createdCallback.call(<span class="hljs-keyword">this</span>.data);
   };</pre></div></div>
             
         </li>
@@ -3631,6 +3635,23 @@ give it a new component object.</p>
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-178">&#182;</a>
+              </div>
+              <p>Call user provided <code>attachedCallback</code></p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  element.attachedCallback = <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params"></span>) </span>{
+    _.isFunction(proto.attachedCallback) &amp;&amp; proto.attachedCallback.call(<span class="hljs-keyword">this</span>.data);
+  };</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-179">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-179">&#182;</a>
               </div>
               <p>Call user provided <code>detachedCallback</code></p>
 
@@ -3643,17 +3664,18 @@ give it a new component object.</p>
         </li>
         
         
-        <li id="section-179">
+        <li id="section-180">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-179">&#182;</a>
+                <a class="pilcrow" href="#section-180">&#182;</a>
               </div>
               <p>Call user provided <code>attributeChangedCallback</code></p>
 
             </div>
             
             <div class="content"><div class='highlight'><pre>  element.attributeChangedCallback = <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">attrName, oldVal, newVal</span>) </span>{
+    <span class="hljs-keyword">if</span>(!<span class="hljs-keyword">this</span>.data){ <span class="hljs-keyword">return</span>; }
     <span class="hljs-keyword">this</span>.data._onAttributeChange(attrName, oldVal, newVal);
     _.isFunction(proto.attributeChangedCallback) &amp;&amp; proto.attributeChangedCallback.call(<span class="hljs-keyword">this</span>.data, attrName, oldVal, newVal);
   };</pre></div></div>
@@ -3661,11 +3683,11 @@ give it a new component object.</p>
         </li>
         
         
-        <li id="section-180">
+        <li id="section-181">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-180">&#182;</a>
+                <a class="pilcrow" href="#section-181">&#182;</a>
               </div>
               <p>Register our new element</p>
 
@@ -3676,11 +3698,11 @@ give it a new component object.</p>
         </li>
         
         
-        <li id="section-181">
+        <li id="section-182">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-181">&#182;</a>
+                <a class="pilcrow" href="#section-182">&#182;</a>
               </div>
               <p>Return the new component constructor</p>
 
@@ -3695,11 +3717,11 @@ give it a new component object.</p>
         </li>
         
         
-        <li id="section-182">
+        <li id="section-183">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-182">&#182;</a>
+                <a class="pilcrow" href="#section-183">&#182;</a>
               </div>
               <p>If type is not a valid component name, error</p>
 
@@ -3712,11 +3734,11 @@ give it a new component object.</p>
         </li>
         
         
-        <li id="section-183">
+        <li id="section-184">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-183">&#182;</a>
+                <a class="pilcrow" href="#section-184">&#182;</a>
               </div>
               <p>If this component is not in the registry, register a dehydrated component
 as a placeholder. Once the actual component is loaded, all running instances
@@ -3738,11 +3760,11 @@ of this component type will be hydrated.</p>
         </li>
         
         
-        <li id="section-184">
+        <li id="section-185">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-184">&#182;</a>
+                <a class="pilcrow" href="#section-185">&#182;</a>
               </div>
               <p>If this component is in the registry, save the instance specific data to
 deliver to the createElement call, and create the element. As part of the
@@ -3772,11 +3794,11 @@ ComponentFactory.registerComponent = registerComponent;
         </li>
         
         
-        <li id="section-185">
+        <li id="section-186">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-185">&#182;</a>
+                <a class="pilcrow" href="#section-186">&#182;</a>
               </div>
               <h2 id="rebound-lazy-value">Rebound Lazy Value</h2>
 
@@ -3785,11 +3807,11 @@ ComponentFactory.registerComponent = registerComponent;
         </li>
         
         
-        <li id="section-186">
+        <li id="section-187">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-186">&#182;</a>
+                <a class="pilcrow" href="#section-187">&#182;</a>
               </div>
               
             </div>
@@ -3817,11 +3839,11 @@ ComponentFactory.registerComponent = registerComponent;
         </li>
         
         
-        <li id="section-187">
+        <li id="section-188">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-187">&#182;</a>
+                <a class="pilcrow" href="#section-188">&#182;</a>
               </div>
               <p>For each param or hash value passed to our helper’s LazyValue, add it to the
 dependant list. The helper’s LazyValue will re-evaluate when one changes.</p>
@@ -3851,11 +3873,11 @@ LazyValue.prototype = {
         </li>
         
         
-        <li id="section-188">
+        <li id="section-189">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-188">&#182;</a>
+                <a class="pilcrow" href="#section-189">&#182;</a>
               </div>
               <p>If cache is already computed, return it</p>
 
@@ -3866,11 +3888,11 @@ LazyValue.prototype = {
         </li>
         
         
-        <li id="section-189">
+        <li id="section-190">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-189">&#182;</a>
+                <a class="pilcrow" href="#section-190">&#182;</a>
               </div>
               <p>Assemble our args and hash variables for the helper. For each LazyValue
 param or hash, insert the evaluated value so helpers don’t need to have any
@@ -3917,11 +3939,11 @@ concept of lazyvalues.</p>
         </li>
         
         
-        <li id="section-190">
+        <li id="section-191">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-190">&#182;</a>
+                <a class="pilcrow" href="#section-191">&#182;</a>
               </div>
               <p>Mark this LazyValue, and all who depend on it, as dirty by setting its cache
 to NIL. This will force a full re-compute of its value when next requests rather
@@ -3940,11 +3962,11 @@ than just returning the cache object.</p>
         </li>
         
         
-        <li id="section-191">
+        <li id="section-192">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-191">&#182;</a>
+                <a class="pilcrow" href="#section-192">&#182;</a>
               </div>
               <p>Ensure that this node and all of its dependants are dirty, then call each
 of its dependants. If a dependant is a LazyValue, and marked as destroyed,
@@ -4005,11 +4027,11 @@ remove it fromt the array</p>
         </li>
         
         
-        <li id="section-192">
+        <li id="section-193">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-192">&#182;</a>
+                <a class="pilcrow" href="#section-193">&#182;</a>
               </div>
               <h2 id="rebound-hooks">Rebound Hooks</h2>
 
@@ -4018,11 +4040,11 @@ remove it fromt the array</p>
         </li>
         
         
-        <li id="section-193">
+        <li id="section-194">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-193">&#182;</a>
+                <a class="pilcrow" href="#section-194">&#182;</a>
               </div>
               <p>Here we augment HTMLBars’ default hooks to make use of Rebound’s evented data
 objects for automatic databinding.</p>
@@ -4037,11 +4059,11 @@ objects for automatic databinding.</p>
         </li>
         
         
-        <li id="section-194">
+        <li id="section-195">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-194">&#182;</a>
+                <a class="pilcrow" href="#section-195">&#182;</a>
               </div>
               <p><strong>Environment Hooks</strong> create and modify the template environment objects</p>
 
@@ -4055,11 +4077,11 @@ hooks.createChildEnv = createChildEnv;</pre></div></div>
         </li>
         
         
-        <li id="section-195">
+        <li id="section-196">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-195">&#182;</a>
+                <a class="pilcrow" href="#section-196">&#182;</a>
               </div>
               <p><strong>Scope Hooks</strong> create, access and modify the template scope and data objects</p>
 
@@ -4075,11 +4097,11 @@ hooks.bindScope = bindScope;</pre></div></div>
         </li>
         
         
-        <li id="section-196">
+        <li id="section-197">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-196">&#182;</a>
+                <a class="pilcrow" href="#section-197">&#182;</a>
               </div>
               <p><strong>Lifecycle Hooks</strong> construct, deconstruct and clean up render nodes over their lifecycles</p>
 
@@ -4099,11 +4121,11 @@ hooks.didCleanupTree = didCleanupTree;</pre></div></div>
         </li>
         
         
-        <li id="section-197">
+        <li id="section-198">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-197">&#182;</a>
+                <a class="pilcrow" href="#section-198">&#182;</a>
               </div>
               <p><strong>Streaming Hooks</strong> create streams via LazyValues for data values, helpers, subexpressions and concat groups</p>
 
@@ -4123,11 +4145,11 @@ hooks.concat = concat;</pre></div></div>
         </li>
         
         
-        <li id="section-198">
+        <li id="section-199">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-198">&#182;</a>
+                <a class="pilcrow" href="#section-199">&#182;</a>
               </div>
               <p><strong>Render Hooks</strong> interact with the DOM to output content and bind to form elements for two way databinding</p>
 
@@ -4146,11 +4168,11 @@ hooks.component = component;</pre></div></div>
         </li>
         
         
-        <li id="section-199">
+        <li id="section-200">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-199">&#182;</a>
+                <a class="pilcrow" href="#section-200">&#182;</a>
               </div>
               <p><strong>Helper Hooks</strong> manage the environment’s registered helpers</p>
 
@@ -4164,11 +4186,11 @@ hooks.registerHelper = registerHelper;</pre></div></div>
         </li>
         
         
-        <li id="section-200">
+        <li id="section-201">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-200">&#182;</a>
+                <a class="pilcrow" href="#section-201">&#182;</a>
               </div>
               <p>Bind local binds a local variable to the scope object and tracks the scope
 level at which that local was added. See <code>createChildScope</code> for description
@@ -4184,11 +4206,11 @@ of scope levels</p>
         </li>
         
         
-        <li id="section-201">
+        <li id="section-202">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-201">&#182;</a>
+                <a class="pilcrow" href="#section-202">&#182;</a>
               </div>
               <p><strong>buildRenderResult</strong> is a wrapper for the native HTMLBars render function. It
 ensures every template is rendered with its own child environment, every environment
@@ -4210,11 +4232,11 @@ result has a unique id.</p>
         </li>
         
         
-        <li id="section-202">
+        <li id="section-203">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-202">&#182;</a>
+                <a class="pilcrow" href="#section-203">&#182;</a>
               </div>
               <h3 id="create-fresh-environment-hook">Create-Fresh-Environment Hook</h3>
 
@@ -4223,11 +4245,11 @@ result has a unique id.</p>
         </li>
         
         
-        <li id="section-203">
+        <li id="section-204">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-203">&#182;</a>
+                <a class="pilcrow" href="#section-204">&#182;</a>
               </div>
               <p>Rebound’s default environment
 The application environment is propagated down each render call and
@@ -4256,11 +4278,11 @@ augmented with helpers as it goes</p>
         </li>
         
         
-        <li id="section-204">
+        <li id="section-205">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-204">&#182;</a>
+                <a class="pilcrow" href="#section-205">&#182;</a>
               </div>
               <h3 id="create-child-environment-hook">Create-Child-Environment Hook</h3>
 
@@ -4269,11 +4291,11 @@ augmented with helpers as it goes</p>
         </li>
         
         
-        <li id="section-205">
+        <li id="section-206">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-205">&#182;</a>
+                <a class="pilcrow" href="#section-206">&#182;</a>
               </div>
               <p>Create an environment object that will inherit everything from its parent
 environment until written over with a local variable.</p>
@@ -4289,11 +4311,11 @@ environment until written over with a local variable.</p>
         </li>
         
         
-        <li id="section-206">
+        <li id="section-207">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-206">&#182;</a>
+                <a class="pilcrow" href="#section-207">&#182;</a>
               </div>
               <h3 id="create-fresh-scope-hook">Create-Fresh-Scope Hook</h3>
 
@@ -4302,11 +4324,11 @@ environment until written over with a local variable.</p>
         </li>
         
         
-        <li id="section-207">
+        <li id="section-208">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-207">&#182;</a>
+                <a class="pilcrow" href="#section-208">&#182;</a>
               </div>
               <p>Rebound’s default scope object.
 The scope object is propagated down each block expression or render call and
@@ -4330,11 +4352,11 @@ separate dictionary to track whether a local was bound.</p>
         </li>
         
         
-        <li id="section-208">
+        <li id="section-209">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-208">&#182;</a>
+                <a class="pilcrow" href="#section-209">&#182;</a>
               </div>
               <h3 id="create-child-scope-hook">Create-Child-Scope Hook</h3>
 
@@ -4343,11 +4365,11 @@ separate dictionary to track whether a local was bound.</p>
         </li>
         
         
-        <li id="section-209">
+        <li id="section-210">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-209">&#182;</a>
+                <a class="pilcrow" href="#section-210">&#182;</a>
               </div>
               <p>Create a scope object that will inherit everything from its parent
 scope until written over with a local variable.</p>
@@ -4367,11 +4389,11 @@ scope until written over with a local variable.</p>
         </li>
         
         
-        <li id="section-210">
+        <li id="section-211">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-210">&#182;</a>
+                <a class="pilcrow" href="#section-211">&#182;</a>
               </div>
               <h3 id="bind-scope-hook">Bind-Scope Hook</h3>
 
@@ -4380,11 +4402,11 @@ scope until written over with a local variable.</p>
         </li>
         
         
-        <li id="section-211">
+        <li id="section-212">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-211">&#182;</a>
+                <a class="pilcrow" href="#section-212">&#182;</a>
               </div>
               <p>Make scope available on the environment object to allow hooks to cache streams on it.</p>
 
@@ -4397,11 +4419,11 @@ scope until written over with a local variable.</p>
         </li>
         
         
-        <li id="section-212">
+        <li id="section-213">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-212">&#182;</a>
+                <a class="pilcrow" href="#section-213">&#182;</a>
               </div>
               <h3 id="link-render-node-hook">Link-Render-Node Hook</h3>
 
@@ -4410,11 +4432,11 @@ scope until written over with a local variable.</p>
         </li>
         
         
-        <li id="section-213">
+        <li id="section-214">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-213">&#182;</a>
+                <a class="pilcrow" href="#section-214">&#182;</a>
               </div>
               <p>Called on first creation of any expressions that interact directly with the DOM.
 Whenever it is notified of any changes to it’s dependant values, mark the node
@@ -4435,11 +4457,11 @@ during the next animation frame.</p>
         </li>
         
         
-        <li id="section-214">
+        <li id="section-215">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-214">&#182;</a>
+                <a class="pilcrow" href="#section-215">&#182;</a>
               </div>
               <p>Save the path on our render node for easier debugging</p>
 
@@ -4450,11 +4472,11 @@ during the next animation frame.</p>
         </li>
         
         
-        <li id="section-215">
+        <li id="section-216">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-215">&#182;</a>
+                <a class="pilcrow" href="#section-216">&#182;</a>
               </div>
               <p>For every parameter or hash value passed to this render node, if it is a data
 stream, subscribe to notifications from it and when notified of a change,
@@ -4482,11 +4504,11 @@ mark the node as dirty and queue it up for revalidation.</p>
         </li>
         
         
-        <li id="section-216">
+        <li id="section-217">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-216">&#182;</a>
+                <a class="pilcrow" href="#section-217">&#182;</a>
               </div>
               <h3 id="will-cleanup-tree-hook">Will-Cleanup-Tree Hook</h3>
 
@@ -4495,11 +4517,11 @@ mark the node as dirty and queue it up for revalidation.</p>
         </li>
         
         
-        <li id="section-217">
+        <li id="section-218">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-217">&#182;</a>
+                <a class="pilcrow" href="#section-218">&#182;</a>
               </div>
               <p>Called before destroying any node tree</p>
 
@@ -4512,30 +4534,15 @@ mark the node as dirty and queue it up for revalidation.</p>
         </li>
         
         
-        <li id="section-218">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-218">&#182;</a>
-              </div>
-              <h3 id="cleanup-render-node-hook">Cleanup-Render-Node Hook</h3>
-
-            </div>
-            
-        </li>
-        
-        
         <li id="section-219">
             <div class="annotation">
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-219">&#182;</a>
               </div>
-              <p>Called before destroying any render node</p>
+              <h3 id="cleanup-render-node-hook">Cleanup-Render-Node Hook</h3>
 
             </div>
-            
-            <div class="content"><div class='highlight'><pre><span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">cleanupRenderNode</span>(<span class="hljs-params">morph</span>)</span>{</pre></div></div>
             
         </li>
         
@@ -4546,11 +4553,11 @@ mark the node as dirty and queue it up for revalidation.</p>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-220">&#182;</a>
               </div>
-              <p>morph.lazyValue &amp;&amp; morph.lazyValue.destroy();</p>
+              <p>Called before destroying any render node</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>}</pre></div></div>
+            <div class="content"><div class='highlight'><pre><span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">cleanupRenderNode</span>(<span class="hljs-params">morph</span>)</span>{</pre></div></div>
             
         </li>
         
@@ -4561,9 +4568,11 @@ mark the node as dirty and queue it up for revalidation.</p>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-221">&#182;</a>
               </div>
-              <h3 id="destroy-render-node-hook">Destroy-Render-Node Hook</h3>
+              <p>morph.lazyValue &amp;&amp; morph.lazyValue.destroy();</p>
 
             </div>
+            
+            <div class="content"><div class='highlight'><pre>}</pre></div></div>
             
         </li>
         
@@ -4573,6 +4582,19 @@ mark the node as dirty and queue it up for revalidation.</p>
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-222">&#182;</a>
+              </div>
+              <h3 id="destroy-render-node-hook">Destroy-Render-Node Hook</h3>
+
+            </div>
+            
+        </li>
+        
+        
+        <li id="section-223">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-223">&#182;</a>
               </div>
               <p>Called when destroying a render node</p>
 
@@ -4585,11 +4607,11 @@ mark the node as dirty and queue it up for revalidation.</p>
         </li>
         
         
-        <li id="section-223">
+        <li id="section-224">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-223">&#182;</a>
+                <a class="pilcrow" href="#section-224">&#182;</a>
               </div>
               <h3 id="did-cleanup-tree-hook">Did-Cleanup-Tree Hook</h3>
 
@@ -4598,11 +4620,11 @@ mark the node as dirty and queue it up for revalidation.</p>
         </li>
         
         
-        <li id="section-224">
+        <li id="section-225">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-224">&#182;</a>
+                <a class="pilcrow" href="#section-225">&#182;</a>
               </div>
               <p>Called after destroying any node tree</p>
 
@@ -4615,11 +4637,11 @@ mark the node as dirty and queue it up for revalidation.</p>
         </li>
         
         
-        <li id="section-225">
+        <li id="section-226">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-225">&#182;</a>
+                <a class="pilcrow" href="#section-226">&#182;</a>
               </div>
               <h3 id="get-hook">Get Hook</h3>
 
@@ -4628,11 +4650,11 @@ mark the node as dirty and queue it up for revalidation.</p>
         </li>
         
         
-        <li id="section-226">
+        <li id="section-227">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-226">&#182;</a>
+                <a class="pilcrow" href="#section-227">&#182;</a>
               </div>
               <p>The get hook streams a property at a named path from a given scope. It returns
 a <code>LazyValue</code> that other code can subscribe to and be alerted when values change.</p>
@@ -4648,11 +4670,11 @@ a <code>LazyValue</code> that other code can subscribe to and be alerted when va
         </li>
         
         
-        <li id="section-227">
+        <li id="section-228">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-227">&#182;</a>
+                <a class="pilcrow" href="#section-228">&#182;</a>
               </div>
               <p>The special word <code>this</code> should referance empty string</p>
 
@@ -4663,11 +4685,11 @@ a <code>LazyValue</code> that other code can subscribe to and be alerted when va
         </li>
         
         
-        <li id="section-228">
+        <li id="section-229">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-228">&#182;</a>
+                <a class="pilcrow" href="#section-229">&#182;</a>
               </div>
               <p>If this path referances a block param, use that as the context instead.</p>
 
@@ -4683,11 +4705,11 @@ a <code>LazyValue</code> that other code can subscribe to and be alerted when va
         </li>
         
         
-        <li id="section-229">
+        <li id="section-230">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-229">&#182;</a>
+                <a class="pilcrow" href="#section-230">&#182;</a>
               </div>
               <p>If this value is not a local value, and there is a stream present
 If this value is a local, but not at this scope layer, and there is</p>
@@ -4700,11 +4722,11 @@ If this value is a local, but not at this scope layer, and there is</p>
         </li>
         
         
-        <li id="section-230">
+        <li id="section-231">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-230">&#182;</a>
+                <a class="pilcrow" href="#section-231">&#182;</a>
               </div>
               <p>Given a context and a path, create a LazyValue object that returns
 the value of object at path and add an observer to the context at path.</p>
@@ -4723,11 +4745,11 @@ the value of object at path and add an observer to the context at path.</p>
         </li>
         
         
-        <li id="section-231">
+        <li id="section-232">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-231">&#182;</a>
+                <a class="pilcrow" href="#section-232">&#182;</a>
               </div>
               <h3 id="invoke-helper-hook">Invoke-Helper Hook</h3>
 
@@ -4736,11 +4758,11 @@ the value of object at path and add an observer to the context at path.</p>
         </li>
         
         
-        <li id="section-232">
+        <li id="section-233">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-232">&#182;</a>
+                <a class="pilcrow" href="#section-233">&#182;</a>
               </div>
               <p>The <code>invokeHelper</code> hook streams a the result of a helper function. It returns
 a <code>LazyValue</code> that other code can subscribe to and be alerted when values change.</p>
@@ -4755,11 +4777,11 @@ a <code>LazyValue</code> that other code can subscribe to and be alerted when va
         </li>
         
         
-        <li id="section-233">
+        <li id="section-234">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-233">&#182;</a>
+                <a class="pilcrow" href="#section-234">&#182;</a>
               </div>
               <p>If this is not a valid helper, log an error and return an empty string value.</p>
 
@@ -4773,11 +4795,11 @@ a <code>LazyValue</code> that other code can subscribe to and be alerted when va
         </li>
         
         
-        <li id="section-234">
+        <li id="section-235">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-234">&#182;</a>
+                <a class="pilcrow" href="#section-235">&#182;</a>
               </div>
               <p>Each helper LazyValue is unique to its inputs. Compute it’s unique name.</p>
 
@@ -4794,11 +4816,11 @@ a <code>LazyValue</code> that other code can subscribe to and be alerted when va
         </li>
         
         
-        <li id="section-235">
+        <li id="section-236">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-235">&#182;</a>
+                <a class="pilcrow" href="#section-236">&#182;</a>
               </div>
               <p>Check the stream cache for this LazyValue, return it if it exists.</p>
 
@@ -4809,11 +4831,11 @@ a <code>LazyValue</code> that other code can subscribe to and be alerted when va
         </li>
         
         
-        <li id="section-236">
+        <li id="section-237">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-236">&#182;</a>
+                <a class="pilcrow" href="#section-237">&#182;</a>
               </div>
               <p>Create a LazyValue that returns the value of our evaluated helper.</p>
 
@@ -4830,11 +4852,11 @@ a <code>LazyValue</code> that other code can subscribe to and be alerted when va
         </li>
         
         
-        <li id="section-237">
+        <li id="section-238">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-237">&#182;</a>
+                <a class="pilcrow" href="#section-238">&#182;</a>
               </div>
               <p>If this is not a block or element helper, cache the new lazyValue.
 Only block helpers will have a context set passed. Non-element helpers will
@@ -4848,11 +4870,11 @@ be fresh in the LazyValue’s closure each run.</p>
         </li>
         
         
-        <li id="section-238">
+        <li id="section-239">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-238">&#182;</a>
+                <a class="pilcrow" href="#section-239">&#182;</a>
               </div>
               <p>Seed the cache and return the new LazyValue</p>
 
@@ -4865,11 +4887,11 @@ be fresh in the LazyValue’s closure each run.</p>
         </li>
         
         
-        <li id="section-239">
+        <li id="section-240">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-239">&#182;</a>
+                <a class="pilcrow" href="#section-240">&#182;</a>
               </div>
               <h3 id="get-value-hook">Get Value Hook</h3>
 
@@ -4878,11 +4900,11 @@ be fresh in the LazyValue’s closure each run.</p>
         </li>
         
         
-        <li id="section-240">
+        <li id="section-241">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-240">&#182;</a>
+                <a class="pilcrow" href="#section-241">&#182;</a>
               </div>
               <p>The getValue hook retreives the value of the passed in referance.
 It will return the propper value regardless of if the referance passed is the
@@ -4897,11 +4919,11 @@ value itself, or a LazyValue.</p>
         </li>
         
         
-        <li id="section-241">
+        <li id="section-242">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-241">&#182;</a>
+                <a class="pilcrow" href="#section-242">&#182;</a>
               </div>
               <h3 id="subexpr-hook">Subexpr Hook</h3>
 
@@ -4910,11 +4932,11 @@ value itself, or a LazyValue.</p>
         </li>
         
         
-        <li id="section-242">
+        <li id="section-243">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-242">&#182;</a>
+                <a class="pilcrow" href="#section-243">&#182;</a>
               </div>
               <p>The <code>subexpr</code> hook creates a LazyValue for a nexted expression so it may be
 used as a single data point in its parent expression. For example:</p>
@@ -4932,11 +4954,11 @@ by a single LazyValue that notifies its subscribers when it changes.</p>
         </li>
         
         
-        <li id="section-243">
+        <li id="section-244">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-243">&#182;</a>
+                <a class="pilcrow" href="#section-244">&#182;</a>
               </div>
               <p>Return the apropreate LazyValue for this subexpression type.</p>
 
@@ -4953,11 +4975,11 @@ by a single LazyValue that notifies its subscribers when it changes.</p>
         </li>
         
         
-        <li id="section-244">
+        <li id="section-245">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-244">&#182;</a>
+                <a class="pilcrow" href="#section-245">&#182;</a>
               </div>
               <h3 id="concat-hook">Concat Hook</h3>
 
@@ -4966,11 +4988,11 @@ by a single LazyValue that notifies its subscribers when it changes.</p>
         </li>
         
         
-        <li id="section-245">
+        <li id="section-246">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-245">&#182;</a>
+                <a class="pilcrow" href="#section-246">&#182;</a>
               </div>
               <p>The <code>concat</code> hook creates a LazyValue for adjacent expressions so they may be
 used as a single data point in its parent expression. For example:</p>
@@ -4990,11 +5012,11 @@ subscribers whenever any of its dynamic values change.</p>
         </li>
         
         
-        <li id="section-246">
+        <li id="section-247">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-246">&#182;</a>
+                <a class="pilcrow" href="#section-247">&#182;</a>
               </div>
               <p>If the concat expression only contains a single value, return it.</p>
 
@@ -5005,11 +5027,11 @@ subscribers whenever any of its dynamic values change.</p>
         </li>
         
         
-        <li id="section-247">
+        <li id="section-248">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-247">&#182;</a>
+                <a class="pilcrow" href="#section-248">&#182;</a>
               </div>
               <p>Each concat LazyValue is unique to its inputs. Compute it’s unique name.</p>
 
@@ -5023,11 +5045,11 @@ subscribers whenever any of its dynamic values change.</p>
         </li>
         
         
-        <li id="section-248">
+        <li id="section-249">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-248">&#182;</a>
+                <a class="pilcrow" href="#section-249">&#182;</a>
               </div>
               <p>Check the streams cache and return if this LazyValue has already been made</p>
 
@@ -5038,11 +5060,11 @@ subscribers whenever any of its dynamic values change.</p>
         </li>
         
         
-        <li id="section-249">
+        <li id="section-250">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-249">&#182;</a>
+                <a class="pilcrow" href="#section-250">&#182;</a>
               </div>
               <p>Create a lazyvalue that returns the concatted values of all input params
 Add it to the streams cache and return</p>
@@ -5062,11 +5084,11 @@ Add it to the streams cache and return</p>
         </li>
         
         
-        <li id="section-250">
+        <li id="section-251">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-250">&#182;</a>
+                <a class="pilcrow" href="#section-251">&#182;</a>
               </div>
               <h3 id="content-hook">Content Hook</h3>
 
@@ -5075,11 +5097,11 @@ Add it to the streams cache and return</p>
         </li>
         
         
-        <li id="section-251">
+        <li id="section-252">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-251">&#182;</a>
+                <a class="pilcrow" href="#section-252">&#182;</a>
               </div>
               <p>Content Hook</p>
 
@@ -5091,11 +5113,11 @@ Add it to the streams cache and return</p>
         </li>
         
         
-        <li id="section-252">
+        <li id="section-253">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-252">&#182;</a>
+                <a class="pilcrow" href="#section-253">&#182;</a>
               </div>
               <p>Two way databinding for textareas</p>
 
@@ -5119,11 +5141,11 @@ Add it to the streams cache and return</p>
         </li>
         
         
-        <li id="section-253">
+        <li id="section-254">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-253">&#182;</a>
+                <a class="pilcrow" href="#section-254">&#182;</a>
               </div>
               <h3 id="attribute-hook">Attribute Hook</h3>
 
@@ -5135,11 +5157,11 @@ Add it to the streams cache and return</p>
         </li>
         
         
-        <li id="section-254">
+        <li id="section-255">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-254">&#182;</a>
+                <a class="pilcrow" href="#section-255">&#182;</a>
               </div>
               <p>All valid text based HTML input types</p>
 
@@ -5155,11 +5177,11 @@ Add it to the streams cache and return</p>
         </li>
         
         
-        <li id="section-255">
+        <li id="section-256">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-255">&#182;</a>
+                <a class="pilcrow" href="#section-256">&#182;</a>
               </div>
               <p>All valid boolean HTML input types</p>
 
@@ -5170,11 +5192,11 @@ Add it to the streams cache and return</p>
         </li>
         
         
-        <li id="section-256">
+        <li id="section-257">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-256">&#182;</a>
+                <a class="pilcrow" href="#section-257">&#182;</a>
               </div>
               <p>Attribute Hook</p>
 
@@ -5190,11 +5212,11 @@ Add it to the streams cache and return</p>
         </li>
         
         
-        <li id="section-257">
+        <li id="section-258">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-257">&#182;</a>
+                <a class="pilcrow" href="#section-258">&#182;</a>
               </div>
               <p>If this is a text input element’s value prop, wire up our databinding</p>
 
@@ -5205,11 +5227,11 @@ Add it to the streams cache and return</p>
         </li>
         
         
-        <li id="section-258">
+        <li id="section-259">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-258">&#182;</a>
+                <a class="pilcrow" href="#section-259">&#182;</a>
               </div>
               <p>If our input events have not been bound yet, bind them</p>
 
@@ -5225,11 +5247,11 @@ Add it to the streams cache and return</p>
         </li>
         
         
-        <li id="section-259">
+        <li id="section-260">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-259">&#182;</a>
+                <a class="pilcrow" href="#section-260">&#182;</a>
               </div>
               <p>Set the value property of the input</p>
 
@@ -5243,11 +5265,11 @@ Add it to the streams cache and return</p>
         </li>
         
         
-        <li id="section-260">
+        <li id="section-261">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-260">&#182;</a>
+                <a class="pilcrow" href="#section-261">&#182;</a>
               </div>
               <p>If our input events have not been bound yet, bind them</p>
 
@@ -5266,11 +5288,11 @@ Add it to the streams cache and return</p>
         </li>
         
         
-        <li id="section-261">
+        <li id="section-262">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-261">&#182;</a>
+                <a class="pilcrow" href="#section-262">&#182;</a>
               </div>
               <p>Special case for link elements with dynamic classes.
 If the router has assigned it a truthy ‘active’ property, ensure that the extra class is present on re-render.</p>
@@ -5284,11 +5306,11 @@ If the router has assigned it a truthy ‘active’ property, ensure that the ex
         </li>
         
         
-        <li id="section-262">
+        <li id="section-263">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-262">&#182;</a>
+                <a class="pilcrow" href="#section-263">&#182;</a>
               </div>
               <p>Set the attribute on our element for visual referance</p>
 
@@ -5312,11 +5334,11 @@ If the router has assigned it a truthy ‘active’ property, ensure that the ex
         </li>
         
         
-        <li id="section-263">
+        <li id="section-264">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-263">&#182;</a>
+                <a class="pilcrow" href="#section-264">&#182;</a>
               </div>
               <p>If this partial has a callback list associated with its name, call all of
 the callbacks before registering the partial.</p>
@@ -5330,11 +5352,11 @@ the callbacks before registering the partial.</p>
         </li>
         
         
-        <li id="section-264">
+        <li id="section-265">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-264">&#182;</a>
+                <a class="pilcrow" href="#section-265">&#182;</a>
               </div>
               <p>Save the partial template in our cache and return it</p>
 
@@ -5350,11 +5372,11 @@ the callbacks before registering the partial.</p>
         </li>
         
         
-        <li id="section-265">
+        <li id="section-266">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-265">&#182;</a>
+                <a class="pilcrow" href="#section-266">&#182;</a>
               </div>
               <p>If no path is passed, yell</p>
 
@@ -5365,11 +5387,11 @@ the callbacks before registering the partial.</p>
         </li>
         
         
-        <li id="section-266">
+        <li id="section-267">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-266">&#182;</a>
+                <a class="pilcrow" href="#section-267">&#182;</a>
               </div>
               <p>Resolve our path value</p>
 
@@ -5380,11 +5402,11 @@ the callbacks before registering the partial.</p>
         </li>
         
         
-        <li id="section-267">
+        <li id="section-268">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-267">&#182;</a>
+                <a class="pilcrow" href="#section-268">&#182;</a>
               </div>
               <p>Create new child scope for partial</p>
 
@@ -5397,11 +5419,11 @@ the callbacks before registering the partial.</p>
         </li>
         
         
-        <li id="section-268">
+        <li id="section-269">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-268">&#182;</a>
+                <a class="pilcrow" href="#section-269">&#182;</a>
               </div>
               <p>Because of how htmlbars works with re-renders, we need a contextual element
 for our partial that will not disappear on it when lazy partials are loaded.
@@ -5415,11 +5437,11 @@ We use a <code>&lt;rebound-partial&gt;</code> element for this.</p>
         </li>
         
         
-        <li id="section-269">
+        <li id="section-270">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-269">&#182;</a>
+                <a class="pilcrow" href="#section-270">&#182;</a>
               </div>
               <p>If a partial is registered with this path name, render it</p>
 
@@ -5432,11 +5454,11 @@ We use a <code>&lt;rebound-partial&gt;</code> element for this.</p>
         </li>
         
         
-        <li id="section-270">
+        <li id="section-271">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-270">&#182;</a>
+                <a class="pilcrow" href="#section-271">&#182;</a>
               </div>
               <p>If this partial is not yet registered, add it to a callback list to be called
 when registered. When registered, replace the dummy node we created with the
@@ -5461,11 +5483,11 @@ rendered partial template.</p>
         </li>
         
         
-        <li id="section-271">
+        <li id="section-272">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-271">&#182;</a>
+                <a class="pilcrow" href="#section-272">&#182;</a>
               </div>
               <p>All valid HTML attributes</p>
 
@@ -5501,11 +5523,11 @@ export default function component(morph, env, scope, tagName, params, attrs, tem
         </li>
         
         
-        <li id="section-272">
+        <li id="section-273">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-272">&#182;</a>
+                <a class="pilcrow" href="#section-273">&#182;</a>
               </div>
               <p>Components are only ever rendered once</p>
 
@@ -5521,11 +5543,11 @@ export default function component(morph, env, scope, tagName, params, attrs, tem
         </li>
         
         
-        <li id="section-273">
+        <li id="section-274">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-273">&#182;</a>
+                <a class="pilcrow" href="#section-274">&#182;</a>
               </div>
               <p>Create a plain data object to pass to our new component as seed data</p>
 
@@ -5536,11 +5558,11 @@ export default function component(morph, env, scope, tagName, params, attrs, tem
         </li>
         
         
-        <li id="section-274">
+        <li id="section-275">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-274">&#182;</a>
+                <a class="pilcrow" href="#section-275">&#182;</a>
               </div>
               <p>For each param passed to our shared component, add it to our custom element</p>
 
@@ -5554,11 +5576,11 @@ export default function component(morph, env, scope, tagName, params, attrs, tem
         </li>
         
         
-        <li id="section-275">
+        <li id="section-276">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-275">&#182;</a>
+                <a class="pilcrow" href="#section-276">&#182;</a>
               </div>
               <p>For each param passed to our component, create its lazyValue</p>
 
@@ -5569,11 +5591,11 @@ export default function component(morph, env, scope, tagName, params, attrs, tem
         </li>
         
         
-        <li id="section-276">
+        <li id="section-277">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-276">&#182;</a>
+                <a class="pilcrow" href="#section-277">&#182;</a>
               </div>
               <p>Set up two way binding between component and original context</p>
 
@@ -5584,11 +5606,11 @@ export default function component(morph, env, scope, tagName, params, attrs, tem
         </li>
         
         
-        <li id="section-277">
+        <li id="section-278">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-277">&#182;</a>
+                <a class="pilcrow" href="#section-278">&#182;</a>
               </div>
               <p>For each lazy param passed to our component, have it update the original context when changed.</p>
 
@@ -5601,11 +5623,11 @@ export default function component(morph, env, scope, tagName, params, attrs, tem
         </li>
         
         
-        <li id="section-278">
+        <li id="section-279">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-278">&#182;</a>
+                <a class="pilcrow" href="#section-279">&#182;</a>
               </div>
               <p>For each lazy param passed to our component, have it update the component when changed.</p>
 
@@ -5618,11 +5640,11 @@ export default function component(morph, env, scope, tagName, params, attrs, tem
         </li>
         
         
-        <li id="section-279">
+        <li id="section-280">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-279">&#182;</a>
+                <a class="pilcrow" href="#section-280">&#182;</a>
               </div>
               <p>Seed the cache</p>
 
@@ -5636,11 +5658,11 @@ export default function component(morph, env, scope, tagName, params, attrs, tem
         </li>
         
         
-        <li id="section-280">
+        <li id="section-281">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-280">&#182;</a>
+                <a class="pilcrow" href="#section-281">&#182;</a>
               </div>
               <p>TODO: Move this to Component
 // For each change on our component, update the states of the original context and the element’s proeprties.</p>
@@ -5655,11 +5677,11 @@ export default function component(morph, env, scope, tagName, params, attrs, tem
         </li>
         
         
-        <li id="section-281">
+        <li id="section-282">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-281">&#182;</a>
+                <a class="pilcrow" href="#section-282">&#182;</a>
               </div>
               <p>Set the properties on our element for visual referance if we are on a top level attribute</p>
 
@@ -5670,11 +5692,11 @@ export default function component(morph, env, scope, tagName, params, attrs, tem
         </li>
         
         
-        <li id="section-282">
+        <li id="section-283">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-282">&#182;</a>
+                <a class="pilcrow" href="#section-283">&#182;</a>
               </div>
               <p>TODO: Currently, showing objects as properties on the custom element causes problems.
 Linked models between the context and component become the same exact model and all hell breaks loose.
@@ -5704,11 +5726,11 @@ Find a way to remedy this. Until then, don’t show objects.</p>
         </li>
         
         
-        <li id="section-283">
+        <li id="section-284">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-283">&#182;</a>
+                <a class="pilcrow" href="#section-284">&#182;</a>
               </div>
               <h2 id="rebound-helpers">Rebound Helpers</h2>
 
@@ -5717,11 +5739,11 @@ Find a way to remedy this. Until then, don’t show objects.</p>
         </li>
         
         
-        <li id="section-284">
+        <li id="section-285">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-284">&#182;</a>
+                <a class="pilcrow" href="#section-285">&#182;</a>
               </div>
               
             </div>
@@ -5742,11 +5764,11 @@ Find a way to remedy this. Until then, don’t show objects.</p>
         </li>
         
         
-        <li id="section-285">
+        <li id="section-286">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-285">&#182;</a>
+                <a class="pilcrow" href="#section-286">&#182;</a>
               </div>
               <p>lookupHelper returns the given function from the helpers object. Manual checks prevent user from overriding reserved words.</p>
 
@@ -5759,11 +5781,11 @@ Find a way to remedy this. Until then, don’t show objects.</p>
         </li>
         
         
-        <li id="section-286">
+        <li id="section-287">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-286">&#182;</a>
+                <a class="pilcrow" href="#section-287">&#182;</a>
               </div>
               <p>If <code>name</code> is a reserved helper, return it</p>
 
@@ -5780,11 +5802,11 @@ Find a way to remedy this. Until then, don’t show objects.</p>
         </li>
         
         
-        <li id="section-287">
+        <li id="section-288">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-287">&#182;</a>
+                <a class="pilcrow" href="#section-288">&#182;</a>
               </div>
               <p>If not a reserved helper, check env, then global helpers, or return undefined.</p>
 
@@ -5826,11 +5848,11 @@ HELPERS.on = <span class="hljs-function"><span class="hljs-keyword">function</sp
         </li>
         
         
-        <li id="section-288">
+        <li id="section-289">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-288">&#182;</a>
+                <a class="pilcrow" href="#section-289">&#182;</a>
               </div>
               <p>By default everything is delegated on the parent component</p>
 
@@ -5845,11 +5867,11 @@ HELPERS.on = <span class="hljs-function"><span class="hljs-keyword">function</sp
         </li>
         
         
-        <li id="section-289">
+        <li id="section-290">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-289">&#182;</a>
+                <a class="pilcrow" href="#section-290">&#182;</a>
               </div>
               <p>If a selector is provided, delegate on the helper’s element</p>
 
@@ -5864,11 +5886,11 @@ HELPERS.on = <span class="hljs-function"><span class="hljs-keyword">function</sp
         </li>
         
         
-        <li id="section-290">
+        <li id="section-291">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-290">&#182;</a>
+                <a class="pilcrow" href="#section-291">&#182;</a>
               </div>
               <p>Attach event</p>
 
@@ -5891,11 +5913,11 @@ HELPERS.length = <span class="hljs-function"><span class="hljs-keyword">function
         </li>
         
         
-        <li id="section-291">
+        <li id="section-292">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-291">&#182;</a>
+                <a class="pilcrow" href="#section-292">&#182;</a>
               </div>
               <p>Handle null values</p>
 
@@ -5906,11 +5928,11 @@ HELPERS.length = <span class="hljs-function"><span class="hljs-keyword">function
         </li>
         
         
-        <li id="section-292">
+        <li id="section-293">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-292">&#182;</a>
+                <a class="pilcrow" href="#section-293">&#182;</a>
               </div>
               <p>Handle models</p>
 
@@ -5921,11 +5943,11 @@ HELPERS.length = <span class="hljs-function"><span class="hljs-keyword">function
         </li>
         
         
-        <li id="section-293">
+        <li id="section-294">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-293">&#182;</a>
+                <a class="pilcrow" href="#section-294">&#182;</a>
               </div>
               <p>Handle arrays and collection</p>
 
@@ -5936,11 +5958,11 @@ HELPERS.length = <span class="hljs-function"><span class="hljs-keyword">function
         </li>
         
         
-        <li id="section-294">
+        <li id="section-295">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-294">&#182;</a>
+                <a class="pilcrow" href="#section-295">&#182;</a>
               </div>
               <p>Handle string values</p>
 
@@ -5959,11 +5981,11 @@ HELPERS.if = <span class="hljs-function"><span class="hljs-keyword">function</sp
         </li>
         
         
-        <li id="section-295">
+        <li id="section-296">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-295">&#182;</a>
+                <a class="pilcrow" href="#section-296">&#182;</a>
               </div>
               <p>If yield does not exist, this is not a block helper.</p>
 
@@ -5976,11 +5998,11 @@ HELPERS.if = <span class="hljs-function"><span class="hljs-keyword">function</sp
         </li>
         
         
-        <li id="section-296">
+        <li id="section-297">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-296">&#182;</a>
+                <a class="pilcrow" href="#section-297">&#182;</a>
               </div>
               <p>Render the apropreate block statement</p>
 
@@ -6000,11 +6022,11 @@ HELPERS.if = <span class="hljs-function"><span class="hljs-keyword">function</sp
         </li>
         
         
-        <li id="section-297">
+        <li id="section-298">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-297">&#182;</a>
+                <a class="pilcrow" href="#section-298">&#182;</a>
               </div>
               <p>Unless proxies to the if helper with an inverted conditional value.</p>
 
@@ -6020,11 +6042,11 @@ HELPERS.each = <span class="hljs-function"><span class="hljs-keyword">function</
         </li>
         
         
-        <li id="section-298">
+        <li id="section-299">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-298">&#182;</a>
+                <a class="pilcrow" href="#section-299">&#182;</a>
               </div>
               <p>If no data passed, exit</p>
 
@@ -6035,11 +6057,11 @@ HELPERS.each = <span class="hljs-function"><span class="hljs-keyword">function</
         </li>
         
         
-        <li id="section-299">
+        <li id="section-300">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-299">&#182;</a>
+                <a class="pilcrow" href="#section-300">&#182;</a>
               </div>
               <p>Accepts collections, arrays, models, or objects</p>
 
@@ -6050,11 +6072,11 @@ HELPERS.each = <span class="hljs-function"><span class="hljs-keyword">function</
         </li>
         
         
-        <li id="section-300">
+        <li id="section-301">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-300">&#182;</a>
+                <a class="pilcrow" href="#section-301">&#182;</a>
               </div>
               <p>If the scope has values, render them</p>
 
@@ -6065,11 +6087,11 @@ HELPERS.each = <span class="hljs-function"><span class="hljs-keyword">function</
         </li>
         
         
-        <li id="section-301">
+        <li id="section-302">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-301">&#182;</a>
+                <a class="pilcrow" href="#section-302">&#182;</a>
               </div>
               <p>For each value in the array, yield using that data model</p>
 
@@ -6084,11 +6106,11 @@ HELPERS.each = <span class="hljs-function"><span class="hljs-keyword">function</
         </li>
         
         
-        <li id="section-302">
+        <li id="section-303">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-302">&#182;</a>
+                <a class="pilcrow" href="#section-303">&#182;</a>
               </div>
               <p>Otherwise, render the inverse template</p>
 
@@ -6107,11 +6129,11 @@ HELPERS.each = <span class="hljs-function"><span class="hljs-keyword">function</
         </li>
         
         
-        <li id="section-303">
+        <li id="section-304">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-303">&#182;</a>
+                <a class="pilcrow" href="#section-304">&#182;</a>
               </div>
               <p>Return an executable function (object) version of the compiled template string</p>
 
@@ -6124,11 +6146,11 @@ HELPERS.each = <span class="hljs-function"><span class="hljs-keyword">function</
         </li>
         
         
-        <li id="section-304">
+        <li id="section-305">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-304">&#182;</a>
+                <a class="pilcrow" href="#section-305">&#182;</a>
               </div>
               <p>Return a precompiled (string) version of the compiled template string</p>
 
@@ -6147,11 +6169,11 @@ HELPERS.each = <span class="hljs-function"><span class="hljs-keyword">function</
         </li>
         
         
-        <li id="section-305">
+        <li id="section-306">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-305">&#182;</a>
+                <a class="pilcrow" href="#section-306">&#182;</a>
               </div>
               <p>A convenience method to push only unique eleents in an array of objects to
 the TO_RENDER queue. If the element is a Lazy Value, it marks it as dirty in
@@ -6175,11 +6197,11 @@ the process</p>
         </li>
         
         
-        <li id="section-306">
+        <li id="section-307">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-306">&#182;</a>
+                <a class="pilcrow" href="#section-307">&#182;</a>
               </div>
               <p>Fix for stupid Babel module importer
 TODO: Fix this. This is dumb. Modules don’t resolve in by time of this file’s
@@ -6198,11 +6220,11 @@ interop the default value of these imports. We need to do this at runtime instea
         </li>
         
         
-        <li id="section-307">
+        <li id="section-308">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-307">&#182;</a>
+                <a class="pilcrow" href="#section-308">&#182;</a>
               </div>
               <p>Walk the dom, without traversing into other custom elements, and search for
 <code>&lt;content&gt;</code> outlets to render templates into.</p>
@@ -6219,11 +6241,11 @@ interop the default value of these imports. We need to do this at runtime instea
         </li>
         
         
-        <li id="section-308">
+        <li id="section-309">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-308">&#182;</a>
+                <a class="pilcrow" href="#section-309">&#182;</a>
               </div>
               <p>If a <code>&lt;content&gt;</code> outlet is present in component’s template, and a template
 is provided, render it into the outlet</p>
@@ -6240,11 +6262,11 @@ is provided, render it into the outlet</p>
         </li>
         
         
-        <li id="section-309">
+        <li id="section-310">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-309">&#182;</a>
+                <a class="pilcrow" href="#section-310">&#182;</a>
               </div>
               <p>Called on animation frame. TO_RENDER is a list of lazy-values to notify.
 When notified, they mark themselves as dirty. Then, call revalidate on all
@@ -6275,11 +6297,11 @@ nested calls of <code>renderCallback</code>.</p>
         </li>
         
         
-        <li id="section-310">
+        <li id="section-311">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-310">&#182;</a>
+                <a class="pilcrow" href="#section-311">&#182;</a>
               </div>
               <p>Listens for <code>change</code> events and calls <code>trigger</code> with the correct values</p>
 
@@ -6292,11 +6314,11 @@ nested calls of <code>renderCallback</code>.</p>
         </li>
         
         
-        <li id="section-311">
+        <li id="section-312">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-311">&#182;</a>
+                <a class="pilcrow" href="#section-312">&#182;</a>
               </div>
               <p>Listens for <code>reset</code> events and calls <code>trigger</code> with the correct values</p>
 
@@ -6309,11 +6331,11 @@ nested calls of <code>renderCallback</code>.</p>
         </li>
         
         
-        <li id="section-312">
+        <li id="section-313">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-312">&#182;</a>
+                <a class="pilcrow" href="#section-313">&#182;</a>
               </div>
               <p>Listens for <code>update</code> events and calls <code>trigger</code> with the correct values</p>
 
@@ -6329,11 +6351,11 @@ nested calls of <code>renderCallback</code>.</p>
         </li>
         
         
-        <li id="section-313">
+        <li id="section-314">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-313">&#182;</a>
+                <a class="pilcrow" href="#section-314">&#182;</a>
               </div>
               <p>If nothing has changed, exit.</p>
 
@@ -6346,11 +6368,11 @@ nested calls of <code>renderCallback</code>.</p>
         </li>
         
         
-        <li id="section-314">
+        <li id="section-315">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-314">&#182;</a>
+                <a class="pilcrow" href="#section-315">&#182;</a>
               </div>
               <p>If this event came from within a service, include the service key in the base path</p>
 
@@ -6361,11 +6383,11 @@ nested calls of <code>renderCallback</code>.</p>
         </li>
         
         
-        <li id="section-315">
+        <li id="section-316">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-315">&#182;</a>
+                <a class="pilcrow" href="#section-316">&#182;</a>
               </div>
               <p>For each changed key, walk down the data tree from the root to the data
 element that triggered the event and add all relevent callbacks to this
@@ -6397,11 +6419,11 @@ object’s TO_RENDER queue.</p>
         </li>
         
         
-        <li id="section-316">
+        <li id="section-317">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-316">&#182;</a>
+                <a class="pilcrow" href="#section-317">&#182;</a>
               </div>
               <p>If Rebound is loaded in a testing environment, call renderCallback syncronously
 so that changes to the data reflect in the DOM immediately.
@@ -6414,11 +6436,11 @@ TODO: Make tests async so this is not required</p>
         </li>
         
         
-        <li id="section-317">
+        <li id="section-318">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-317">&#182;</a>
+                <a class="pilcrow" href="#section-318">&#182;</a>
               </div>
               <p>Otherwise, queue our render callback to be called on the next animation frame,
 after the current call stack has been exhausted.</p>
@@ -6432,11 +6454,11 @@ after the current call stack has been exhausted.</p>
         </li>
         
         
-        <li id="section-318">
+        <li id="section-319">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-318">&#182;</a>
+                <a class="pilcrow" href="#section-319">&#182;</a>
               </div>
               <p>A render function that will merge user provided helpers and hooks with our defaults
 and bind a method that re-renders dirty expressions on data change and executes
@@ -6449,11 +6471,11 @@ other delegated listeners added by our hooks.</p>
         </li>
         
         
-        <li id="section-319">
+        <li id="section-320">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-319">&#182;</a>
+                <a class="pilcrow" href="#section-320">&#182;</a>
               </div>
               <p>Fix for stupid Babel module importer
 TODO: Fix this. This is dumb. Modules don’t resolve in by time of this file’s
@@ -6467,11 +6489,11 @@ interop the default value of these imports. We need to do this at runtime instea
         </li>
         
         
-        <li id="section-320">
+        <li id="section-321">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-320">&#182;</a>
+                <a class="pilcrow" href="#section-321">&#182;</a>
               </div>
               <p>If no data is passed to render, exit with an error</p>
 
@@ -6482,11 +6504,11 @@ interop the default value of these imports. We need to do this at runtime instea
         </li>
         
         
-        <li id="section-321">
+        <li id="section-322">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-321">&#182;</a>
+                <a class="pilcrow" href="#section-322">&#182;</a>
               </div>
               <p>Every component’s template is rendered using a unique Environment and Scope
 If this component already has them, re-use the same objects – they contain
@@ -6500,11 +6522,11 @@ important state information. Otherwise, create fresh ones for it.</p>
         </li>
         
         
-        <li id="section-322">
+        <li id="section-323">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-322">&#182;</a>
+                <a class="pilcrow" href="#section-323">&#182;</a>
               </div>
               <p>Bind the component as the scope’s main data object</p>
 
@@ -6515,11 +6537,11 @@ important state information. Otherwise, create fresh ones for it.</p>
         </li>
         
         
-        <li id="section-323">
+        <li id="section-324">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-323">&#182;</a>
+                <a class="pilcrow" href="#section-324">&#182;</a>
               </div>
               <p>Add template specific hepers to env</p>
 
@@ -6530,11 +6552,11 @@ important state information. Otherwise, create fresh ones for it.</p>
         </li>
         
         
-        <li id="section-324">
+        <li id="section-325">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-324">&#182;</a>
+                <a class="pilcrow" href="#section-325">&#182;</a>
               </div>
               <p>Save env and scope on component data to trigger lazy-value streams on data change</p>
 
@@ -6546,11 +6568,11 @@ important state information. Otherwise, create fresh ones for it.</p>
         </li>
         
         
-        <li id="section-325">
+        <li id="section-326">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-325">&#182;</a>
+                <a class="pilcrow" href="#section-326">&#182;</a>
               </div>
               <p>Save data on env to allow helpers / hooks access to component methods</p>
 
@@ -6561,11 +6583,11 @@ important state information. Otherwise, create fresh ones for it.</p>
         </li>
         
         
-        <li id="section-326">
+        <li id="section-327">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-326">&#182;</a>
+                <a class="pilcrow" href="#section-327">&#182;</a>
               </div>
               <p>Ensure we have a contextual element to pass to render</p>
 
@@ -6577,11 +6599,11 @@ important state information. Otherwise, create fresh ones for it.</p>
         </li>
         
         
-        <li id="section-327">
+        <li id="section-328">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-327">&#182;</a>
+                <a class="pilcrow" href="#section-328">&#182;</a>
               </div>
               <p>If data is an eventable object, run the onChange helper on any change</p>
 
@@ -6595,11 +6617,11 @@ important state information. Otherwise, create fresh ones for it.</p>
         </li>
         
         
-        <li id="section-328">
+        <li id="section-329">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-328">&#182;</a>
+                <a class="pilcrow" href="#section-329">&#182;</a>
               </div>
               <p>If this is a real template, run it with our merged helpers and hooks
 If there is no template, just return an empty fragment</p>
@@ -6616,11 +6638,11 @@ If there is no template, just return an empty fragment</p>
         </li>
         
         
-        <li id="section-329">
+        <li id="section-330">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-329">&#182;</a>
+                <a class="pilcrow" href="#section-330">&#182;</a>
               </div>
               <h2 id="rebound-router">Rebound Router</h2>
 
@@ -6629,11 +6651,11 @@ If there is no template, just return an empty fragment</p>
         </li>
         
         
-        <li id="section-330">
+        <li id="section-331">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-330">&#182;</a>
+                <a class="pilcrow" href="#section-331">&#182;</a>
               </div>
               
             </div>
@@ -6649,11 +6671,11 @@ If there is no template, just return an empty fragment</p>
         </li>
         
         
-        <li id="section-331">
+        <li id="section-332">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-331">&#182;</a>
+                <a class="pilcrow" href="#section-332">&#182;</a>
               </div>
               <p>If no error page is defined for an app, this is the default 404 page</p>
 
@@ -6677,11 +6699,11 @@ If there is no template, just return an empty fragment</p>
         </li>
         
         
-        <li id="section-332">
+        <li id="section-333">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-332">&#182;</a>
+                <a class="pilcrow" href="#section-333">&#182;</a>
               </div>
               <p>Regexp to validate remote URLs</p>
 
@@ -6703,11 +6725,11 @@ If there is no template, just return an empty fragment</p>
         </li>
         
         
-        <li id="section-333">
+        <li id="section-334">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-333">&#182;</a>
+                <a class="pilcrow" href="#section-334">&#182;</a>
               </div>
               <p>Overload Backbone’s loadUrl so it returns the value of the routed callback
 Only ever compare the current path (excludes the query params) to the route regexp</p>
@@ -6725,11 +6747,11 @@ Only ever compare the current path (excludes the query params) to the route rege
         </li>
         
         
-        <li id="section-334">
+        <li id="section-335">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-334">&#182;</a>
+                <a class="pilcrow" href="#section-335">&#182;</a>
               </div>
               <p>Remove the hash up to a <code>?</code> character. In IE9, which does not support the
 History API, we need to allow query params to be set both on the URL itself
@@ -6745,11 +6767,11 @@ and in the hash, giving precedence to the query params in the URL.</p>
         </li>
         
         
-        <li id="section-335">
+        <li id="section-336">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-335">&#182;</a>
+                <a class="pilcrow" href="#section-336">&#182;</a>
               </div>
               <p>Router Constructor</p>
 
@@ -6764,11 +6786,11 @@ and in the hash, giving precedence to the query params in the URL.</p>
         </li>
         
         
-        <li id="section-336">
+        <li id="section-337">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-336">&#182;</a>
+                <a class="pilcrow" href="#section-337">&#182;</a>
               </div>
               <p>By default there is one route. The wildcard route fetches the required
 page assets based on user-defined naming convention.</p>
@@ -6784,11 +6806,11 @@ page assets based on user-defined naming convention.</p>
         </li>
         
         
-        <li id="section-337">
+        <li id="section-338">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-337">&#182;</a>
+                <a class="pilcrow" href="#section-338">&#182;</a>
               </div>
               <p>Called when no matching routes are found. Extracts root route and fetches it’s resources</p>
 
@@ -6799,11 +6821,11 @@ page assets based on user-defined naming convention.</p>
         </li>
         
         
-        <li id="section-338">
+        <li id="section-339">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-338">&#182;</a>
+                <a class="pilcrow" href="#section-339">&#182;</a>
               </div>
               <p>Save the previous route value</p>
 
@@ -6814,11 +6836,11 @@ page assets based on user-defined naming convention.</p>
         </li>
         
         
-        <li id="section-339">
+        <li id="section-340">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-339">&#182;</a>
+                <a class="pilcrow" href="#section-340">&#182;</a>
               </div>
               <p>Fetch Resources</p>
 
@@ -6834,11 +6856,11 @@ page assets based on user-defined naming convention.</p>
         </li>
         
         
-        <li id="section-340">
+        <li id="section-341">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-340">&#182;</a>
+                <a class="pilcrow" href="#section-341">&#182;</a>
               </div>
               <p>Modify navigate to default to <code>trigger=true</code> and to return the value of
 <code>Backbone.history.navigate</code> inside of a promise.</p>
@@ -6850,11 +6872,11 @@ page assets based on user-defined naming convention.</p>
         </li>
         
         
-        <li id="section-341">
+        <li id="section-342">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-341">&#182;</a>
+                <a class="pilcrow" href="#section-342">&#182;</a>
               </div>
               <p>Default trigger to true unless otherwise specified</p>
 
@@ -6865,11 +6887,11 @@ page assets based on user-defined naming convention.</p>
         </li>
         
         
-        <li id="section-342">
+        <li id="section-343">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-342">&#182;</a>
+                <a class="pilcrow" href="#section-343">&#182;</a>
               </div>
               <p>Stringify any data passed in the options hash</p>
 
@@ -6880,11 +6902,11 @@ page assets based on user-defined naming convention.</p>
         </li>
         
         
-        <li id="section-343">
+        <li id="section-344">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-343">&#182;</a>
+                <a class="pilcrow" href="#section-344">&#182;</a>
               </div>
               <p>Un-Mark any <code>active</code> links in the page container</p>
 
@@ -6895,11 +6917,11 @@ page assets based on user-defined naming convention.</p>
         </li>
         
         
-        <li id="section-344">
+        <li id="section-345">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-344">&#182;</a>
+                <a class="pilcrow" href="#section-345">&#182;</a>
               </div>
               <p>Navigate to the specified path. Return value is the value from the router
 callback specified on the component</p>
@@ -6911,11 +6933,11 @@ callback specified on the component</p>
         </li>
         
         
-        <li id="section-345">
+        <li id="section-346">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-345">&#182;</a>
+                <a class="pilcrow" href="#section-346">&#182;</a>
               </div>
               <p>Always return a promise. If the response of <code>Backbone.histroy.navigate</code>
 was a promise, wait for it to resolve before resolving. Once resolved,
@@ -6935,11 +6957,11 @@ mark relevent links on the page as <code>active</code>.</p>
         </li>
         
         
-        <li id="section-346">
+        <li id="section-347">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-346">&#182;</a>
+                <a class="pilcrow" href="#section-347">&#182;</a>
               </div>
               <p>Modify <code>router.execute</code> to return the value of our route callback</p>
 
@@ -6952,11 +6974,11 @@ mark relevent links on the page as <code>active</code>.</p>
         </li>
         
         
-        <li id="section-347">
+        <li id="section-348">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-347">&#182;</a>
+                <a class="pilcrow" href="#section-348">&#182;</a>
               </div>
               <p>Override routeToRegExp so:</p>
 <ul>
@@ -6984,11 +7006,11 @@ mark relevent links on the page as <code>active</code>.</p>
         </li>
         
         
-        <li id="section-348">
+        <li id="section-349">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-348">&#182;</a>
+                <a class="pilcrow" href="#section-349">&#182;</a>
               </div>
               <p>Override route so if callback returns false, the route event is not triggered
 Every route also looks for query params, parses with QS, and passes the extra
@@ -7012,11 +7034,11 @@ variable as a POJO to callbacks</p>
         </li>
         
         
-        <li id="section-349">
+        <li id="section-350">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-349">&#182;</a>
+                <a class="pilcrow" href="#section-350">&#182;</a>
               </div>
               <p>If this route was defined as a regular expression, we don’t capture
 query params. Only parse the actual path.</p>
@@ -7028,11 +7050,11 @@ query params. Only parse the actual path.</p>
         </li>
         
         
-        <li id="section-350">
+        <li id="section-351">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-350">&#182;</a>
+                <a class="pilcrow" href="#section-351">&#182;</a>
               </div>
               <p>Extract the arguments we care about from the fragment</p>
 
@@ -7043,11 +7065,11 @@ query params. Only parse the actual path.</p>
         </li>
         
         
-        <li id="section-351">
+        <li id="section-352">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-351">&#182;</a>
+                <a class="pilcrow" href="#section-352">&#182;</a>
               </div>
               <p>Get the query params string</p>
 
@@ -7058,11 +7080,11 @@ query params. Only parse the actual path.</p>
         </li>
         
         
-        <li id="section-352">
+        <li id="section-353">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-352">&#182;</a>
+                <a class="pilcrow" href="#section-353">&#182;</a>
               </div>
               <p>If this route was created from a string (not a regexp), remove the auto-captured
 search params.</p>
@@ -7074,11 +7096,11 @@ search params.</p>
         </li>
         
         
-        <li id="section-353">
+        <li id="section-354">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-353">&#182;</a>
+                <a class="pilcrow" href="#section-354">&#182;</a>
               </div>
               <p>If the route is not user prodided, if the history object has search params
 then our args have the params as its last agrument as of Backbone 1.2.0
@@ -7103,11 +7125,11 @@ the history object before passing to the callback.</p>
         </li>
         
         
-        <li id="section-354">
+        <li id="section-355">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-354">&#182;</a>
+                <a class="pilcrow" href="#section-355">&#182;</a>
               </div>
               <p>On startup, save our config object and start the router</p>
 
@@ -7118,11 +7140,11 @@ the history object before passing to the callback.</p>
         </li>
         
         
-        <li id="section-355">
+        <li id="section-356">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-355">&#182;</a>
+                <a class="pilcrow" href="#section-356">&#182;</a>
               </div>
               <p>Let all of our components always have referance to our router</p>
 
@@ -7133,11 +7155,11 @@ the history object before passing to the callback.</p>
         </li>
         
         
-        <li id="section-356">
+        <li id="section-357">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-356">&#182;</a>
+                <a class="pilcrow" href="#section-357">&#182;</a>
               </div>
               <p>Save our config referance</p>
 
@@ -7150,11 +7172,11 @@ the history object before passing to the callback.</p>
         </li>
         
         
-        <li id="section-357">
+        <li id="section-358">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-357">&#182;</a>
+                <a class="pilcrow" href="#section-358">&#182;</a>
               </div>
               <p>Normalize our url configs</p>
 
@@ -7168,11 +7190,11 @@ the history object before passing to the callback.</p>
         </li>
         
         
-        <li id="section-358">
+        <li id="section-359">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-358">&#182;</a>
+                <a class="pilcrow" href="#section-359">&#182;</a>
               </div>
               <p>Get a unique instance id for this router</p>
 
@@ -7183,11 +7205,11 @@ the history object before passing to the callback.</p>
         </li>
         
         
-        <li id="section-359">
+        <li id="section-360">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-359">&#182;</a>
+                <a class="pilcrow" href="#section-360">&#182;</a>
               </div>
               <p>Allow user to override error route</p>
 
@@ -7198,11 +7220,11 @@ the history object before passing to the callback.</p>
         </li>
         
         
-        <li id="section-360">
+        <li id="section-361">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-360">&#182;</a>
+                <a class="pilcrow" href="#section-361">&#182;</a>
               </div>
               <p>Convert our routeMappings to regexps and push to our handlers</p>
 
@@ -7216,11 +7238,11 @@ the history object before passing to the callback.</p>
         </li>
         
         
-        <li id="section-361">
+        <li id="section-362">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-361">&#182;</a>
+                <a class="pilcrow" href="#section-362">&#182;</a>
               </div>
               <p>Use the user provided container, or default to the closest <code>&lt;main&gt;</code> tag</p>
 
@@ -7233,11 +7255,11 @@ the history object before passing to the callback.</p>
         </li>
         
         
-        <li id="section-362">
+        <li id="section-363">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-362">&#182;</a>
+                <a class="pilcrow" href="#section-363">&#182;</a>
               </div>
               <p>Install our global components</p>
 
@@ -7253,11 +7275,11 @@ the history object before passing to the callback.</p>
         </li>
         
         
-        <li id="section-363">
+        <li id="section-364">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-363">&#182;</a>
+                <a class="pilcrow" href="#section-364">&#182;</a>
               </div>
               <p>Watch click events on links in all out containers</p>
 
@@ -7268,11 +7290,11 @@ the history object before passing to the callback.</p>
         </li>
         
         
-        <li id="section-364">
+        <li id="section-365">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-364">&#182;</a>
+                <a class="pilcrow" href="#section-365">&#182;</a>
               </div>
               <p>Start the history and call the provided callback</p>
 
@@ -7296,11 +7318,11 @@ the history object before passing to the callback.</p>
         </li>
         
         
-        <li id="section-365">
+        <li id="section-366">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-365">&#182;</a>
+                <a class="pilcrow" href="#section-366">&#182;</a>
               </div>
               <p>Given a dom element, watch for all click events on anchor tags.
 If the clicked anchor has a relative url, attempt to route to that path.
@@ -7313,11 +7335,11 @@ Give all links on the page that match this path the class <code>active</code>.</
         </li>
         
         
-        <li id="section-366">
+        <li id="section-367">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-366">&#182;</a>
+                <a class="pilcrow" href="#section-367">&#182;</a>
               </div>
               <p>Navigate to route for any link with a relative href</p>
 
@@ -7329,11 +7351,11 @@ Give all links on the page that match this path the class <code>active</code>.</
         </li>
         
         
-        <li id="section-367">
+        <li id="section-368">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-367">&#182;</a>
+                <a class="pilcrow" href="#section-368">&#182;</a>
               </div>
               <p>If the path is a remote URL, allow the browser to navigate normally.
 Otherwise, prevent default so we can handle the route event.</p>
@@ -7346,11 +7368,11 @@ Otherwise, prevent default so we can handle the route event.</p>
         </li>
         
         
-        <li id="section-368">
+        <li id="section-369">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-368">&#182;</a>
+                <a class="pilcrow" href="#section-369">&#182;</a>
               </div>
               <p>If this is not our current route, navigate to the new route</p>
 
@@ -7365,11 +7387,11 @@ Otherwise, prevent default so we can handle the route event.</p>
         </li>
         
         
-        <li id="section-369">
+        <li id="section-370">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-369">&#182;</a>
+                <a class="pilcrow" href="#section-370">&#182;</a>
               </div>
               <p>De-initializes the previous app before rendering a new app
 This way we can ensure that every new page starts with a clean slate
@@ -7385,11 +7407,11 @@ This is crucial for scalability of a single page app.</p>
         </li>
         
         
-        <li id="section-370">
+        <li id="section-371">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-370">&#182;</a>
+                <a class="pilcrow" href="#section-371">&#182;</a>
               </div>
               <p>Unset Previous Application’s Routes. For each route in the page app, remove
 the handler from our route object and delete our referance to the route’s callback</p>
@@ -7410,11 +7432,11 @@ the handler from our route object and delete our referance to the route’s call
         </li>
         
         
-        <li id="section-371">
+        <li id="section-372">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-371">&#182;</a>
+                <a class="pilcrow" href="#section-372">&#182;</a>
               </div>
               <p>Un-hook Event Bindings, Delete Objects</p>
 
@@ -7425,11 +7447,11 @@ the handler from our route object and delete our referance to the route’s call
         </li>
         
         
-        <li id="section-372">
+        <li id="section-373">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-372">&#182;</a>
+                <a class="pilcrow" href="#section-373">&#182;</a>
               </div>
               <p>Now we no longer have a page installed.</p>
 
@@ -7440,11 +7462,11 @@ the handler from our route object and delete our referance to the route’s call
         </li>
         
         
-        <li id="section-373">
+        <li id="section-374">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-373">&#182;</a>
+                <a class="pilcrow" href="#section-374">&#182;</a>
               </div>
               <p>Disable old css if it exists</p>
 
@@ -7460,11 +7482,11 @@ the handler from our route object and delete our referance to the route’s call
         </li>
         
         
-        <li id="section-374">
+        <li id="section-375">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-374">&#182;</a>
+                <a class="pilcrow" href="#section-375">&#182;</a>
               </div>
               <p>Give our new page component, load routes and render a new instance of the
 page component in the top level outlet.</p>
@@ -7479,11 +7501,11 @@ page component in the top level outlet.</p>
         </li>
         
         
-        <li id="section-375">
+        <li id="section-376">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-375">&#182;</a>
+                <a class="pilcrow" href="#section-376">&#182;</a>
               </div>
               <p>If no container exists, throw an error</p>
 
@@ -7494,11 +7516,11 @@ page component in the top level outlet.</p>
         </li>
         
         
-        <li id="section-376">
+        <li id="section-377">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-376">&#182;</a>
+                <a class="pilcrow" href="#section-377">&#182;</a>
               </div>
               <p>Add page level loading class</p>
 
@@ -7509,11 +7531,11 @@ page component in the top level outlet.</p>
         </li>
         
         
-        <li id="section-377">
+        <li id="section-378">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-377">&#182;</a>
+                <a class="pilcrow" href="#section-378">&#182;</a>
               </div>
               <p>Uninstall any old resource we have loaded</p>
 
@@ -7524,11 +7546,11 @@ page component in the top level outlet.</p>
         </li>
         
         
-        <li id="section-378">
+        <li id="section-379">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-378">&#182;</a>
+                <a class="pilcrow" href="#section-379">&#182;</a>
               </div>
               <p>Load New PageApp, give it it’s name so we know what css to remove when it deinitializes</p>
 
@@ -7542,11 +7564,11 @@ page component in the top level outlet.</p>
         </li>
         
         
-        <li id="section-379">
+        <li id="section-380">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-379">&#182;</a>
+                <a class="pilcrow" href="#section-380">&#182;</a>
               </div>
               <p>Add to our page</p>
 
@@ -7558,11 +7580,11 @@ page component in the top level outlet.</p>
         </li>
         
         
-        <li id="section-380">
+        <li id="section-381">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-380">&#182;</a>
+                <a class="pilcrow" href="#section-381">&#182;</a>
               </div>
               <p>Make sure we’re back at the top of the page</p>
 
@@ -7573,11 +7595,11 @@ page component in the top level outlet.</p>
         </li>
         
         
-        <li id="section-381">
+        <li id="section-382">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-381">&#182;</a>
+                <a class="pilcrow" href="#section-382">&#182;</a>
               </div>
               <p>Add a default route handler for the route that got us here so if the component
 does not define a route that handles it, we don’t get a redirect loop</p>
@@ -7589,11 +7611,11 @@ does not define a route that handles it, we don’t get a redirect loop</p>
         </li>
         
         
-        <li id="section-382">
+        <li id="section-383">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-382">&#182;</a>
+                <a class="pilcrow" href="#section-383">&#182;</a>
               </div>
               <p>Augment ApplicationRouter with new routes from PageApp added in reverse order to preserve order higherarchy</p>
 
@@ -7604,11 +7626,11 @@ does not define a route that handles it, we don’t get a redirect loop</p>
         </li>
         
         
-        <li id="section-383">
+        <li id="section-384">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-383">&#182;</a>
+                <a class="pilcrow" href="#section-384">&#182;</a>
               </div>
               <p>Add the new callback referance on to our router and add the route handler</p>
 
@@ -7620,11 +7642,11 @@ does not define a route that handles it, we don’t get a redirect loop</p>
         </li>
         
         
-        <li id="section-384">
+        <li id="section-385">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-384">&#182;</a>
+                <a class="pilcrow" href="#section-385">&#182;</a>
               </div>
               <p>If this is the main page component, set it as current</p>
 
@@ -7635,11 +7657,11 @@ does not define a route that handles it, we don’t get a redirect loop</p>
         </li>
         
         
-        <li id="section-385">
+        <li id="section-386">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-385">&#182;</a>
+                <a class="pilcrow" href="#section-386">&#182;</a>
               </div>
               <p>Always return a promise</p>
 
@@ -7650,11 +7672,11 @@ does not define a route that handles it, we don’t get a redirect loop</p>
         </li>
         
         
-        <li id="section-386">
+        <li id="section-387">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-386">&#182;</a>
+                <a class="pilcrow" href="#section-387">&#182;</a>
               </div>
               <p>Re-trigger route so the newly added route may execute if there’s a route match.
 If no routes are matched, app will hit wildCard route which will then trigger 404</p>
@@ -7670,11 +7692,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-387">
+        <li id="section-388">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-387">&#182;</a>
+                <a class="pilcrow" href="#section-388">&#182;</a>
               </div>
               <p>Return our newly installed app</p>
 
@@ -7691,11 +7713,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-388">
+        <li id="section-389">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-388">&#182;</a>
+                <a class="pilcrow" href="#section-389">&#182;</a>
               </div>
               <p>Load the JavaScript.</p>
 
@@ -7712,11 +7734,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-389">
+        <li id="section-390">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-389">&#182;</a>
+                <a class="pilcrow" href="#section-390">&#182;</a>
               </div>
               <p>Load the CSS</p>
 
@@ -7728,11 +7750,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-390">
+        <li id="section-391">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-390">&#182;</a>
+                <a class="pilcrow" href="#section-391">&#182;</a>
               </div>
               <p>Fetches HTML and CSS</p>
 
@@ -7747,11 +7769,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-391">
+        <li id="section-392">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-391">&#182;</a>
+                <a class="pilcrow" href="#section-392">&#182;</a>
               </div>
               <p>Normalize Route</p>
 
@@ -7762,11 +7784,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-392">
+        <li id="section-393">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-392">&#182;</a>
+                <a class="pilcrow" href="#section-393">&#182;</a>
               </div>
               <p>Get the app name from this route</p>
 
@@ -7777,11 +7799,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-393">
+        <li id="section-394">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-393">&#182;</a>
+                <a class="pilcrow" href="#section-394">&#182;</a>
               </div>
               <p>If this isn’t the error route, Find Any Custom Route Mappings</p>
 
@@ -7801,11 +7823,11 @@ If no routes are matched, app will hit wildCard route which will then trigger 40
         </li>
         
         
-        <li id="section-394">
+        <li id="section-395">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-394">&#182;</a>
+                <a class="pilcrow" href="#section-395">&#182;</a>
               </div>
               <p>Wrap these async resource fetches in a promise and return it.
 This promise resolves when both css and js resources are loaded
@@ -7820,11 +7842,11 @@ It rejects if either of the css or js resources fails to load.</p>
         </li>
         
         
-        <li id="section-395">
+        <li id="section-396">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-395">&#182;</a>
+                <a class="pilcrow" href="#section-396">&#182;</a>
               </div>
               <p>If we are already in an error state, this means we were unable to load
 a custom error page. Uninstall anything we have and insert our default 404 page.</p>
@@ -7841,11 +7863,11 @@ a custom error page. Uninstall anything we have and insert our default 404 page.
         </li>
         
         
-        <li id="section-396">
+        <li id="section-397">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-396">&#182;</a>
+                <a class="pilcrow" href="#section-397">&#182;</a>
               </div>
               <p>Set our status to error and attempt to load a custom error page.</p>
 
@@ -7860,11 +7882,11 @@ a custom error page. Uninstall anything we have and insert our default 404 page.
         </li>
         
         
-        <li id="section-397">
+        <li id="section-398">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-397">&#182;</a>
+                <a class="pilcrow" href="#section-398">&#182;</a>
               </div>
               <p>If the values we got from installing our resources are unexpected, 404
 Otherwise, set status, activate the css, and install the page component</p>
@@ -7882,11 +7904,11 @@ Otherwise, set status, activate the css, and install the page component</p>
         </li>
         
         
-        <li id="section-398">
+        <li id="section-399">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-398">&#182;</a>
+                <a class="pilcrow" href="#section-399">&#182;</a>
               </div>
               <p>If loading a page, set status to loading</p>
 
@@ -7897,11 +7919,11 @@ Otherwise, set status, activate the css, and install the page component</p>
         </li>
         
         
-        <li id="section-399">
+        <li id="section-400">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-399">&#182;</a>
+                <a class="pilcrow" href="#section-400">&#182;</a>
               </div>
               <p>If Page Is Already Loaded Then The Route Does Not Exist. 404 and Exit.</p>
 
@@ -7912,11 +7934,11 @@ Otherwise, set status, activate the css, and install the page component</p>
         </li>
         
         
-        <li id="section-400">
+        <li id="section-401">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-400">&#182;</a>
+                <a class="pilcrow" href="#section-401">&#182;</a>
               </div>
               <p>Fetch our css and js in paralell, install or throw when both complete</p>
 
@@ -7942,11 +7964,11 @@ Otherwise, set status, activate the css, and install the page component</p>
         </li>
         
         
-        <li id="section-401">
+        <li id="section-402">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-401">&#182;</a>
+                <a class="pilcrow" href="#section-402">&#182;</a>
               </div>
               <p>If this JS element is not on the page already, it hasn’t been loaded before -
 create the element and load the JS resource.
@@ -7959,11 +7981,11 @@ Else if the JS resource has been loaded before, resolve with the element</p>
         </li>
         
         
-        <li id="section-402">
+        <li id="section-403">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-402">&#182;</a>
+                <a class="pilcrow" href="#section-403">&#182;</a>
               </div>
               <p>Always return a promise for a load request</p>
 
@@ -7974,11 +7996,11 @@ Else if the JS resource has been loaded before, resolve with the element</p>
         </li>
         
         
-        <li id="section-403">
+        <li id="section-404">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-403">&#182;</a>
+                <a class="pilcrow" href="#section-404">&#182;</a>
               </div>
               <p>If we have already tried to load this js module, resolve or reject appropreately</p>
 
@@ -7992,11 +8014,11 @@ Else if the JS resource has been loaded before, resolve with the element</p>
         </li>
         
         
-        <li id="section-404">
+        <li id="section-405">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-404">&#182;</a>
+                <a class="pilcrow" href="#section-405">&#182;</a>
               </div>
               <p>Construct the script element and save it in the <code>MODULE_CACHE</code></p>
 
@@ -8011,11 +8033,11 @@ Else if the JS resource has been loaded before, resolve with the element</p>
         </li>
         
         
-        <li id="section-405">
+        <li id="section-406">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-405">&#182;</a>
+                <a class="pilcrow" href="#section-406">&#182;</a>
               </div>
               <p>All browsers support loading events on <code>&lt;script&gt;</code> elements, bind to these
 events and resolve our promise appropreately</p>
@@ -8028,11 +8050,11 @@ events and resolve our promise appropreately</p>
         </li>
         
         
-        <li id="section-406">
+        <li id="section-407">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-406">&#182;</a>
+                <a class="pilcrow" href="#section-407">&#182;</a>
               </div>
               <p>And add it do to the dom</p>
 
@@ -8046,11 +8068,11 @@ events and resolve our promise appropreately</p>
         </li>
         
         
-        <li id="section-407">
+        <li id="section-408">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-407">&#182;</a>
+                <a class="pilcrow" href="#section-408">&#182;</a>
               </div>
               <p>If this CSS element is not on the page already, it hasn’t been loaded before -
 create the element and load the CSS resource.
@@ -8063,11 +8085,11 @@ Else if the CSS resource has been loaded before, resolve with the element</p>
         </li>
         
         
-        <li id="section-408">
+        <li id="section-409">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-408">&#182;</a>
+                <a class="pilcrow" href="#section-409">&#182;</a>
               </div>
               <p>Always return a promise for a load request</p>
 
@@ -8078,11 +8100,11 @@ Else if the CSS resource has been loaded before, resolve with the element</p>
         </li>
         
         
-        <li id="section-409">
+        <li id="section-410">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-409">&#182;</a>
+                <a class="pilcrow" href="#section-410">&#182;</a>
               </div>
               <p>If we have already tried to load this js module, resolve or reject appropreately</p>
 
@@ -8096,11 +8118,11 @@ Else if the CSS resource has been loaded before, resolve with the element</p>
         </li>
         
         
-        <li id="section-410">
+        <li id="section-411">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-410">&#182;</a>
+                <a class="pilcrow" href="#section-411">&#182;</a>
               </div>
               <p>Construct our <code>&lt;link&gt;</code> element.</p>
 
@@ -8116,11 +8138,11 @@ Else if the CSS resource has been loaded before, resolve with the element</p>
         </li>
         
         
-        <li id="section-411">
+        <li id="section-412">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-411">&#182;</a>
+                <a class="pilcrow" href="#section-412">&#182;</a>
               </div>
               <p>Older browsers and phantomJS &lt; 2.0 don’t support the onLoad event for
 <code>&lt;link&gt;</code> tags. Poll stylesheets array as a fallback. Timeout at 5s.</p>
@@ -8138,11 +8160,11 @@ Else if the CSS resource has been loaded before, resolve with the element</p>
         </li>
         
         
-        <li id="section-412">
+        <li id="section-413">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-412">&#182;</a>
+                <a class="pilcrow" href="#section-413">&#182;</a>
               </div>
               <p>On successful load, clearInterval and resolve.
 On failed load, clearInterval and reject.</p>
@@ -8162,11 +8184,11 @@ On failed load, clearInterval and reject.</p>
         </li>
         
         
-        <li id="section-413">
+        <li id="section-414">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-413">&#182;</a>
+                <a class="pilcrow" href="#section-414">&#182;</a>
               </div>
               <p>Modern browsers support loading events on <code>&lt;link&gt;</code> elements, bind these
 events. These will be callsed before our interval is called and they will
@@ -8181,11 +8203,11 @@ clearInterval so the resolve/reject handlers aren’t called twice.</p>
         </li>
         
         
-        <li id="section-414">
+        <li id="section-415">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-414">&#182;</a>
+                <a class="pilcrow" href="#section-415">&#182;</a>
               </div>
               <p>Add our <code>&lt;link&gt;</code> element to the page.</p>
 
@@ -8199,11 +8221,11 @@ clearInterval so the resolve/reject handlers aren’t called twice.</p>
         </li>
         
         
-        <li id="section-415">
+        <li id="section-416">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-415">&#182;</a>
+                <a class="pilcrow" href="#section-416">&#182;</a>
               </div>
               <p>Load multiple dependancies
 Given an array of dependancy urls, add them all to the head in their own script tags</p>
@@ -8217,11 +8239,11 @@ Given an array of dependancy urls, add them all to the head in their own script 
         </li>
         
         
-        <li id="section-416">
+        <li id="section-417">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-416">&#182;</a>
+                <a class="pilcrow" href="#section-417">&#182;</a>
               </div>
               <p>For each dependancy passed, call loadJS</p>
 
@@ -8244,11 +8266,11 @@ Given an array of dependancy urls, add them all to the head in their own script 
         </li>
         
         
-        <li id="section-417">
+        <li id="section-418">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-417">&#182;</a>
+                <a class="pilcrow" href="#section-418">&#182;</a>
               </div>
               <h2 id="property-compiler">Property Compiler</h2>
 
@@ -8257,11 +8279,11 @@ Given an array of dependancy urls, add them all to the head in their own script 
         </li>
         
         
-        <li id="section-418">
+        <li id="section-419">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-418">&#182;</a>
+                <a class="pilcrow" href="#section-419">&#182;</a>
               </div>
               
             </div>
@@ -8289,11 +8311,11 @@ Given an array of dependancy urls, add them all to the head in their own script 
         </li>
         
         
-        <li id="section-419">
+        <li id="section-420">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-419">&#182;</a>
+                <a class="pilcrow" href="#section-420">&#182;</a>
               </div>
               <p>TODO: Make this farrrrrr more robust…very minimal right now</p>
 
@@ -8321,11 +8343,11 @@ Given an array of dependancy urls, add them all to the head in their own script 
         </li>
         
         
-        <li id="section-420">
+        <li id="section-421">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-420">&#182;</a>
+                <a class="pilcrow" href="#section-421">&#182;</a>
               </div>
               <p>console.log(token.type.label, token.value);</p>
 
@@ -8341,11 +8363,11 @@ Given an array of dependancy urls, add them all to the head in their own script 
         </li>
         
         
-        <li id="section-421">
+        <li id="section-422">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-421">&#182;</a>
+                <a class="pilcrow" href="#section-422">&#182;</a>
               </div>
               <p>TODO: handle gets on collections</p>
 
@@ -8360,11 +8382,11 @@ Given an array of dependancy urls, add them all to the head in their own script 
         </li>
         
         
-        <li id="section-422">
+        <li id="section-423">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-422">&#182;</a>
+                <a class="pilcrow" href="#section-423">&#182;</a>
               </div>
               <p>Replace any access to a collection with the generic @each placeholder and push dependancy</p>
 
@@ -8424,11 +8446,11 @@ Given an array of dependancy urls, add them all to the head in their own script 
         </li>
         
         
-        <li id="section-423">
+        <li id="section-424">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-423">&#182;</a>
+                <a class="pilcrow" href="#section-424">&#182;</a>
               </div>
               <p>Save our finished paths directly on the function</p>
 
@@ -8439,11 +8461,11 @@ Given an array of dependancy urls, add them all to the head in their own script 
         </li>
         
         
-        <li id="section-424">
+        <li id="section-425">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-424">&#182;</a>
+                <a class="pilcrow" href="#section-425">&#182;</a>
               </div>
               <p>Return the dependancies list</p>
 

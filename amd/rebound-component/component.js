@@ -25,6 +25,9 @@ define("rebound-component/component", ["exports", "backbone", "rebound-utils/reb
     isComponent: true,
     isHydrated: true,
     defaults: {},
+    __path: function __path() {
+      return this._scope || '';
+    },
     constructor: function constructor(el, data, options) {
       options || (options = {});
 
@@ -79,10 +82,11 @@ define("rebound-component/component", ["exports", "backbone", "rebound-utils/reb
         var options = arguments.length <= 3 || arguments[3] === undefined ? {} : arguments[3];
 
         var attr,
+            oldScope = service._scope,
             path = model.__path(),
             changed;
 
-        options.service = key;
+        service._scope = key;
 
         if (type.indexOf('change:') === 0) {
           changed = model.changedAttributes();
@@ -92,11 +96,11 @@ define("rebound-component/component", ["exports", "backbone", "rebound-utils/reb
 
             _this.trigger.call(_this, type, model, value, options);
           }
-
-          return void 0;
+        } else {
+          _this.trigger.call(_this, type, model, value, options);
         }
 
-        return _this.trigger.call(_this, type, model, value, options);
+        service._scope = oldScope;
       });
     },
     render: function render() {

@@ -4555,6 +4555,12 @@ var Component = _reboundData.Model.extend({
   isHydrated: true,
   defaults: {},
 
+  // A method that returns a root scope by default. Meant to be overridden on
+  // instantiation if applicable.
+  __path: function __path() {
+    return this._scope || '';
+  },
+
   constructor: function constructor(el, data, options) {
 
     // Ensure options is an object
@@ -4629,12 +4635,16 @@ var Component = _reboundData.Model.extend({
       var options = arguments.length <= 3 || arguments[3] === undefined ? {} : arguments[3];
 
       var attr,
+          oldScope = service._scope,
           path = model.__path(),
           changed;
 
-      // Send the service's key via options
-      // TODO: Find a better way to get service keys in their path() method
-      options.service = key;
+      // TODO: Find a better way to get service keys in their path() method based on call Scope
+      // Services may be installed at any location. In order for the __path() method
+      // to include this location in the correct context, it needs to have contextual
+      // knowledge of what called it. For the lifetime of this event tree, re-write
+      // its scope property appropreately. Re-set it to previous value when done.
+      service._scope = key;
 
       if (type.indexOf('change:') === 0) {
         changed = model.changedAttributes();
@@ -4643,10 +4653,10 @@ var Component = _reboundData.Model.extend({
           type = 'change:' + key + '.' + path + (path && '.') + attr; // jshint ignore:line
           _this.trigger.call(_this, type, model, value, options);
         }
-        return void 0;
+      } else {
+        _this.trigger.call(_this, type, model, value, options);
       }
-
-      return _this.trigger.call(_this, type, model, value, options);
+      service._scope = oldScope;
     });
   },
 
@@ -5019,6 +5029,9 @@ function registerComponent(type) {
 
   // Call user provided `attributeChangedCallback`
   element.attributeChangedCallback = function (attrName, oldVal, newVal) {
+    if (!this.data) {
+      return;
+    }
     this.data._onAttributeChange(attrName, oldVal, newVal);
     _.isFunction(proto.attributeChangedCallback) && proto.attributeChangedCallback.call(this.data, attrName, oldVal, newVal);
   };
@@ -9115,7 +9128,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 // Because of our bundle and how it plays with Backbone's UMD header, we need to
 // be a little more explicit with out DOM library search.
-//     Rebound.js v0.3.1
+//     Rebound.js v0.3.2
 
 //     (c) 2015 Adam Miller
 //     Rebound may be freely distributed under the MIT license.
@@ -9139,7 +9152,7 @@ var Config = document.getElementById('Rebound');
 Config = Config ? JSON.parse(Config.innerHTML) : false;
 
 var Rebound = window.Rebound = {
-  version: '0.3.1',
+  version: '0.3.2',
   testing: window.Rebound && window.Rebound.testing || Config && Config.testing || false,
 
   registerHelper: _reboundHtmlbars.registerHelper,

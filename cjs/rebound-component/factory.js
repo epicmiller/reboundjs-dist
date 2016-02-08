@@ -117,6 +117,9 @@ function registerComponent(type) {
 
   // Call user provided `attributeChangedCallback`
   element.attributeChangedCallback = function (attrName, oldVal, newVal) {
+    if (!this.data) {
+      return;
+    }
     this.data._onAttributeChange(attrName, oldVal, newVal);
     _.isFunction(proto.attributeChangedCallback) && proto.attributeChangedCallback.call(this.data, attrName, oldVal, newVal);
   };
