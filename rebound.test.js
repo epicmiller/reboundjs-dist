@@ -5146,6 +5146,79 @@ var Collection = _backbone2.default.Collection.extend({
     });
   },
 
+  // TODO: Start - `Upstream to Backbone?`.
+  // Always give precedence to the provided model's idAttribute. Fall back to
+  // the Collection's idAttribute, and then to the default `id`.
+  modelId: function modelId() {
+    var model = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+    var data = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+    // Always give precedence to the provided model's idAttribute. Fall back to
+    // the Collection's idAttribute, and then to the default `id`.
+    var idAttribute = model.idAttribute || this.model.prototype.idAttribute || 'id';
+
+    // If this is a data element, just return the id
+    if (data.isData) {
+      return data.get(idAttribute);
+    }
+
+    // Otherwise, iterate down the object trying to get the id
+    _reboundUtils2.default.splitPath(idAttribute).forEach(function (val, key) {
+      if (!_.isObject(data)) {
+        return;
+      }
+      data = data.isData ? data.get(val) : data[val];
+    });
+
+    return data;
+  },
+
+  // Pass modelId the model itself, not just the attributes, so it can get the
+  // idAttribute from the model itslef and not the collection
+  _addReference: function _addReference(model, options) {
+    this._byId[model.cid] = model;
+    var id = this.modelId(model, model);
+    if (id != null) {
+      this._byId[id] = model;
+    }
+    model.on('all', this._onModelEvent, this);
+  },
+
+  // Pass modelId the model itself, not just the attributes, so it can get the
+  // idAttribute from the model itslef and not the collection
+  _removeReference: function _removeReference(model, options) {
+    delete this._byId[model.cid];
+    var id = this.modelId(model, model);
+    if (id != null) {
+      delete this._byId[id];
+    }
+    if (this === model.collection) {
+      delete model.collection;
+    }
+    model.off('all', this._onModelEvent, this);
+  },
+
+  // Pass modelId the model itself, not just the attributes, so it can get the
+  // idAttribute from the model itslef and not the collection
+  _onModelEvent: function _onModelEvent(event, model, collection, options) {
+    if ((event === 'add' || event === 'remove') && collection !== this) return;
+    if (event === 'destroy') this.remove(model, options);
+    if (event === 'change') {
+      var prevId = this.modelId(model, model.previousAttributes());
+      var id = this.modelId(model, model);
+      if (prevId !== id) {
+        if (prevId != null) {
+          delete this._byId[prevId];
+        }
+        if (id != null) {
+          this._byId[id] = model;
+        }
+      }
+    }
+    this.trigger.apply(this, arguments);
+  },
+  // TODO: End - `Upstream to Backbone?`.
+
   get: function get(key, options) {
     var _this = this;
 
@@ -5162,7 +5235,7 @@ var Collection = _backbone2.default.Collection.extend({
       if (key === null) {
         return void 0;
       }
-      var id = this.modelId(this._isModel(key) ? key.attributes : key);
+      var id = this.modelId(key, key);
       var responses = [].concat(this._byValue[key], this._byId[key] || this._byId[id] || this._byId[key.cid]);
       var res = responses[0],
           idx = Infinity;
@@ -5608,11 +5681,14 @@ _.extend(ComputedProperty.prototype, _backbone2.default.Events, {
     }
 
     // Set result and return types, bind events
+    // Ensure that the collection's model constructor and comparator matches the returned collection.
     // Use .set instead of .reset to trigger individual changes for internal models
     else if (result.isCollection) {
         this.returnType = 'collection';
         this.isCollection = true;
         this.isModel = false;
+        this.cache.collection.model = result.model;
+        this.cache.collection.comparator = result.comparator;
         this.set(result);
         this.track(result);
       }
@@ -5719,7 +5795,7 @@ _.extend(ComputedProperty.prototype, _backbone2.default.Events, {
 
   // Return the current value from the cache, running if dirty.
   value: function value() {
-    if (this.isDirty) {
+    if (this.isDirty && !this.isChanging) {
       this.apply();
     }
     return this.cache[this.returnType];
@@ -9176,7 +9252,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 // Because of our bundle and how it plays with Backbone's UMD header, we need to
 // be a little more explicit with out DOM library search.
-//     Rebound.js v0.3.3
+//     Rebound.js v0.3.4
 
 //     (c) 2015 Adam Miller
 //     Rebound may be freely distributed under the MIT license.
@@ -9200,7 +9276,7 @@ var Config = document.getElementById('Rebound');
 Config = Config ? JSON.parse(Config.innerHTML) : false;
 
 var Rebound = window.Rebound = {
-  version: '0.3.3',
+  version: '0.3.4',
   testing: window.Rebound && window.Rebound.testing || Config && Config.testing || false,
 
   registerHelper: _reboundHtmlbars.registerHelper,

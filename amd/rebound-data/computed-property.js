@@ -324,6 +324,8 @@ define("rebound-data/computed-property", ["exports", "backbone", "property-compi
         this.returnType = 'collection';
         this.isCollection = true;
         this.isModel = false;
+        this.cache.collection.model = result.model;
+        this.cache.collection.comparator = result.comparator;
         this.set(result);
         this.track(result);
       } else if (result.isModel) {
@@ -412,7 +414,7 @@ define("rebound-data/computed-property", ["exports", "backbone", "property-compi
       return key;
     },
     value: function value() {
-      if (this.isDirty) {
+      if (this.isDirty && !this.isChanging) {
         this.apply();
       }
 

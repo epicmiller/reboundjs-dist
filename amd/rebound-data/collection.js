@@ -50,6 +50,70 @@ define("rebound-data/collection", ["exports", "backbone", "rebound-data/model", 
 
       this.on('remove', function (model, collection, options) {});
     },
+    modelId: function modelId() {
+      var model = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+      var data = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+      var idAttribute = model.idAttribute || this.model.prototype.idAttribute || 'id';
+
+      if (data.isData) {
+        return data.get(idAttribute);
+      }
+
+      _reboundUtils2.default.splitPath(idAttribute).forEach(function (val, key) {
+        if (!_.isObject(data)) {
+          return;
+        }
+
+        data = data.isData ? data.get(val) : data[val];
+      });
+
+      return data;
+    },
+    _addReference: function _addReference(model, options) {
+      this._byId[model.cid] = model;
+      var id = this.modelId(model, model);
+
+      if (id != null) {
+        this._byId[id] = model;
+      }
+
+      model.on('all', this._onModelEvent, this);
+    },
+    _removeReference: function _removeReference(model, options) {
+      delete this._byId[model.cid];
+      var id = this.modelId(model, model);
+
+      if (id != null) {
+        delete this._byId[id];
+      }
+
+      if (this === model.collection) {
+        delete model.collection;
+      }
+
+      model.off('all', this._onModelEvent, this);
+    },
+    _onModelEvent: function _onModelEvent(event, model, collection, options) {
+      if ((event === 'add' || event === 'remove') && collection !== this) return;
+      if (event === 'destroy') this.remove(model, options);
+
+      if (event === 'change') {
+        var prevId = this.modelId(model, model.previousAttributes());
+        var id = this.modelId(model, model);
+
+        if (prevId !== id) {
+          if (prevId != null) {
+            delete this._byId[prevId];
+          }
+
+          if (id != null) {
+            this._byId[id] = model;
+          }
+        }
+      }
+
+      this.trigger.apply(this, arguments);
+    },
     get: function get(key, options) {
       var _this = this;
 
@@ -64,7 +128,7 @@ define("rebound-data/collection", ["exports", "backbone", "rebound-data/model", 
           return void 0;
         }
 
-        var id = this.modelId(this._isModel(key) ? key.attributes : key);
+        var id = this.modelId(key, key);
         var responses = [].concat(this._byValue[key], this._byId[key] || this._byId[id] || this._byId[key.cid]);
         var res = responses[0],
             idx = Infinity;

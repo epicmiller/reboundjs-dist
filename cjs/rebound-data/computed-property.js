@@ -351,11 +351,14 @@ _.extend(ComputedProperty.prototype, _backbone2.default.Events, {
     }
 
     // Set result and return types, bind events
+    // Ensure that the collection's model constructor and comparator matches the returned collection.
     // Use .set instead of .reset to trigger individual changes for internal models
     else if (result.isCollection) {
         this.returnType = 'collection';
         this.isCollection = true;
         this.isModel = false;
+        this.cache.collection.model = result.model;
+        this.cache.collection.comparator = result.comparator;
         this.set(result);
         this.track(result);
       }
@@ -462,7 +465,7 @@ _.extend(ComputedProperty.prototype, _backbone2.default.Events, {
 
   // Return the current value from the cache, running if dirty.
   value: function value() {
-    if (this.isDirty) {
+    if (this.isDirty && !this.isChanging) {
       this.apply();
     }
     return this.cache[this.returnType];
